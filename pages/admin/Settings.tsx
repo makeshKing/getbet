@@ -2,15 +2,29 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/ui/Button';
-import { Wallet, Info, Save, Eye, EyeOff, Building2, Smartphone, Banknote } from 'lucide-react';
+import { Wallet, Info, Save, Eye, EyeOff, Building2, Smartphone, Banknote, Trash2, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DepositMethodConfig } from '../../types';
 
+const emptyForm = {
+    id: '',
+    name: '',
+    accountName: '',
+    accountNumber: '',
+    instructions: '',
+    qrUrl: '',
+};
+
 export const AdminSettings: React.FC = () => {
     const { addToast } = useToast();
-    const { config, depositMethods: methods, adminUpdateConfig, adminUpdateDepositMethod } = useApp();
+    const { config, depositMethods: methods, adminUpdateConfig, adminCreateDepositMethod, adminUpdateDepositMethod, adminDeleteDepositMethod } = useApp();
     const [jsonValue, setJsonValue] = useState(JSON.stringify(config.value, null, 2));
     const [error, setError] = useState<string>('');
+
+    // Create form state
+    const [showCreateForm, setShowCreateForm] = useState(false);
+    const [createForm, setCreateForm] = useState(emptyForm);
+    const [creating, setCreating] = useState(false);
 
     useEffect(() => {
         setJsonValue(JSON.stringify(config.value, null, 2));
@@ -33,6 +47,52 @@ export const AdminSettings: React.FC = () => {
         addToast(`${id.toUpperCase()} details updated.`, 'success');
     };
 
+    const handleDeleteMethod = async (id: string) => {
+        if (!window.confirm(`Are you sure you want to delete the ${id.toUpperCase()} deposit method?`)) return;
+        try {
+            await adminDeleteDepositMethod(id);
+            addToast(`${id.toUpperCase()} deposit method deleted.`, 'success');
+        } catch (e: any) {
+            addToast(`Failed to delete deposit method: ${e.message}`, 'error');
+        }
+    };
+
+    const handleCreateMethod = async () => {
+        // Validation
+        if (!createForm.id.trim()) {
+            addToast('Method ID is required.', 'error');
+            return;
+        }
+        if (!createForm.name.trim()) {
+            addToast('Method Name is required.', 'error');
+            return;
+        }
+        if (methods.some(m => m.id === createForm.id.trim().toLowerCase())) {
+            addToast('A deposit method with this ID already exists.', 'error');
+            return;
+        }
+
+        setCreating(true);
+        try {
+            await adminCreateDepositMethod({
+                id: createForm.id.trim().toLowerCase(),
+                name: createForm.name.trim(),
+                accountName: createForm.accountName.trim(),
+                accountNumber: createForm.accountNumber.trim(),
+                instructions: createForm.instructions.trim(),
+                qrUrl: createForm.qrUrl.trim() || undefined,
+                isActive: true,
+            });
+            addToast(`${createForm.name.toUpperCase()} deposit method created successfully!`, 'success');
+            setCreateForm(emptyForm);
+            setShowCreateForm(false);
+        } catch (e: any) {
+            addToast(`Failed to create deposit method: ${e.message}`, 'error');
+        } finally {
+            setCreating(false);
+        }
+    };
+
     return (
         <div className="space-y-10 pb-20">
             <div className="flex justify-between items-center">
@@ -42,47 +102,136 @@ export const AdminSettings: React.FC = () => {
                 </div>
             </div>
 
-            {/* Trading Fees Configuration */}
-            <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg">
-                        <Banknote size={20} />
-                    </div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">Trading Fees</h2>
-                </div>
-
-                <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm p-6 max-w-xl transition-all hover:shadow-md">
-                    <div className="flex items-center justify-between gap-8">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">Fixed Trading Fee</h3>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Amount charged per trade (Buy/Sell) in Cents (NPR).</p>
-                        </div>
-                        <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 p-2 rounded-xl border border-slate-200 dark:border-slate-700">
-                            <span className="text-xs font-black text-slate-400 uppercase ml-1">Fee:</span>
-                            <input
-                                type="number"
-                                min="0"
-                                value={(config.value.tradingFee || 0)}
-                                onChange={(e) => {
-                                    const val = Math.max(0, parseInt(e.target.value) || 0);
-                                    adminUpdateConfig({ ...config.value, tradingFee: val });
-                                }}
-                                className="w-24 bg-transparent text-right font-black text-slate-900 dark:text-white focus:outline-none"
-                            />
-                            <span className="text-xs font-black text-slate-400 mr-1">¢</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             {/* Payment Methods Management */}
             <section className="space-y-6">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg">
-                        <Wallet size={20} />
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg">
+                            <Wallet size={20} />
+                        </div>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">Deposit Methods (User Side)</h2>
                     </div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">Deposit Methods (User Side)</h2>
+                    <button
+                        onClick={() => setShowCreateForm(!showCreateForm)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 shadow-sm ${
+                            showCreateForm
+                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200 dark:shadow-indigo-900/30'
+                        }`}
+                    >
+                        {showCreateForm ? <ChevronUp size={16} /> : <Plus size={16} />}
+                        {showCreateForm ? 'Cancel' : 'Add New Method'}
+                    </button>
                 </div>
+
+                {/* Create New Method Form */}
+                {showCreateForm && (
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-indigo-300 dark:border-indigo-700 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20 overflow-hidden animate-in">
+                        <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/30 dark:to-violet-900/30 border-b border-indigo-100 dark:border-indigo-800">
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 bg-indigo-600 text-white rounded-lg">
+                                    <Plus size={14} />
+                                </div>
+                                <span className="text-sm font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest">Create New Deposit Method</span>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                        Method ID <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={createForm.id}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, id: e.target.value }))}
+                                        placeholder="e.g. esewa, khalti, bank"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                    <p className="text-[9px] text-slate-400 mt-1 ml-1 font-medium">Unique lowercase identifier</p>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                        Display Name <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={createForm.name}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, name: e.target.value }))}
+                                        placeholder="e.g. eSewa, Khalti, Bank Transfer"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Account Holder Name</label>
+                                    <input
+                                        type="text"
+                                        value={createForm.accountName}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, accountName: e.target.value }))}
+                                        placeholder="e.g. John Doe"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Account / ID Number</label>
+                                    <input
+                                        type="text"
+                                        value={createForm.accountNumber}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                        placeholder="e.g. 9812345678"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">QR Code URL</label>
+                                    <input
+                                        type="url"
+                                        value={createForm.qrUrl}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, qrUrl: e.target.value }))}
+                                        placeholder="https://example.com/qr.png"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div className="md:col-span-2 xl:col-span-1">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Custom Instructions</label>
+                                    <textarea
+                                        value={createForm.instructions}
+                                        onChange={(e) => setCreateForm(prev => ({ ...prev, instructions: e.target.value }))}
+                                        rows={3}
+                                        placeholder="Instructions shown to users when depositing via this method..."
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-medium leading-relaxed focus:ring-2 focus:ring-indigo-500 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-700">
+                                <button
+                                    onClick={() => { setCreateForm(emptyForm); setShowCreateForm(false); }}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+                                >
+                                    <X size={14} />
+                                    Discard
+                                </button>
+                                <button
+                                    onClick={handleCreateMethod}
+                                    disabled={creating}
+                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30"
+                                >
+                                    {creating ? (
+                                        <>
+                                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus size={14} />
+                                            Create Method
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     {methods.map((m) => (
@@ -92,13 +241,22 @@ export const AdminSettings: React.FC = () => {
                                     {m.id === 'bank' ? <Building2 size={20} className="text-slate-400" /> : <Smartphone size={20} className="text-slate-400" />}
                                     <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{m.name}</span>
                                 </div>
-                                <button
-                                    onClick={() => handleUpdateMethod(m.id, { isActive: !m.isActive })}
-                                    className={`p-2 rounded-xl transition-all ${m.isActive ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
-                                    title={m.isActive ? 'Method is LIVE' : 'Method is HIDDEN'}
-                                >
-                                    {m.isActive ? <Eye size={18} /> : <EyeOff size={18} />}
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleUpdateMethod(m.id, { isActive: !m.isActive })}
+                                        className={`p-2 rounded-xl transition-all ${m.isActive ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                                        title={m.isActive ? 'Method is LIVE' : 'Method is HIDDEN'}
+                                    >
+                                        {m.isActive ? <Eye size={18} /> : <EyeOff size={18} />}
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteMethod(m.id)}
+                                        className="p-2 rounded-xl transition-all bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+                                        title="Delete Deposit Method"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
                             </div>
 
                             <div className="p-6 space-y-4 flex-1">

@@ -13,6 +13,8 @@ interface AuthContextType {
   isAdmin: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
+  updateProfile: (updates: { name?: string, phone?: string, avatarUrl?: string }) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<string>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -95,8 +97,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     (HARDCODED_ADMIN_EMAIL &&
       sessionEmail.toLowerCase() === HARDCODED_ADMIN_EMAIL.toLowerCase());
 
+  const updateProfile = async (updates: { name?: string, phone?: string, avatarUrl?: string }) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+    const { updateUserProfile } = await import('../services/supabaseService');
+    await updateUserProfile(session.user.id, updates);
+    await refreshProfile();
+  };
+
+  const uploadAvatar = async (file: File) => {
+    if (!session?.user?.id) throw new Error('Not authenticated');
+    const { uploadAvatar } = await import('../services/supabaseService');
+    return uploadAvatar(session.user.id, file);
+  };
+
   return (
-    <AuthContext.Provider value={{ session, userProfile, loading, isAdmin, refreshProfile, signOut }}>
+    <AuthContext.Provider value={{ session, userProfile, loading, isAdmin, refreshProfile, signOut, updateProfile, uploadAvatar }}>
       {children}
     </AuthContext.Provider>
   );

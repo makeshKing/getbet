@@ -71,6 +71,7 @@ export const AdminUsers: React.FC = () => {
             <tr>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">User</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Role</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Phone</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Balance</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">KYC Status</th>
               <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Actions</th>
@@ -81,9 +82,13 @@ export const AdminUsers: React.FC = () => {
               <tr key={u.id}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center mr-3 font-bold text-xs text-slate-600">
-                      {u.name.charAt(0)}
-                    </div>
+                    {u.avatarUrl ? (
+                      <img src={u.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover mr-3 border border-slate-200" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center mr-3 font-bold text-xs text-slate-600">
+                        {u.name.charAt(0)}
+                      </div>
+                    )}
                     <div>
                       <div className="text-sm font-medium text-slate-900">{u.name}</div>
                       <div className="text-xs text-slate-500">{u.email}</div>
@@ -94,6 +99,9 @@ export const AdminUsers: React.FC = () => {
                   <Badge className={u.role === Role.ADMIN ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-600'}>
                     {u.role}
                   </Badge>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                  {u.phone || '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   ${(u.balance / 100).toFixed(2)}

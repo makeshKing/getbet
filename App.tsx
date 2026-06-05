@@ -23,6 +23,8 @@ import { AdminLogin } from './pages/admin/Login';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { useAuth } from './context/AuthContext';
+import { useApp } from './context/AppContext';
+import { LoadingScreen } from './components/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -93,7 +95,9 @@ type View =
   | 'admin-declared-markets' | 'admin-resolve-market' | 'admin-financials';
 
 function App() {
-  const { userProfile, isAdmin } = useAuth();
+  const { userProfile, isAdmin, loading: authLoading } = useAuth();
+  const { marketsLoading } = useApp();
+  const isInitializing = authLoading || marketsLoading;
   const navigateRouter = useNavigate();
   const location = useLocation();
   const [currentView, setCurrentView] = useState<View>(() => {
@@ -280,6 +284,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-500">
+      <LoadingScreen isLoading={isInitializing} />
       {!['login', 'signup'].includes(currentView) && (
         <Navbar onNavigate={navigate} activePage={currentView} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
       )}

@@ -2,7 +2,7 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Role } from '../../types';
-import { LayoutDashboard, Users, FileText, Settings, ShieldAlert, ArrowLeft, CheckCircle, Wallet, LogOut, TrendingUp } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, Settings, ShieldAlert, ArrowLeft, CheckCircle, Wallet, LogOut, TrendingUp, PlusCircle } from 'lucide-react';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -42,6 +42,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = ({ children, activeView, 
     { id: 'admin-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'admin-users', label: 'Users', icon: Users },
     { id: 'admin-markets', label: 'Markets', icon: FileText },
+    { id: 'admin-market-create', label: 'Create Market', icon: PlusCircle },
     { id: 'admin-declared-markets', label: 'Declared Markets', icon: CheckCircle },
     { id: 'admin-deposits', label: 'Deposits', icon: Wallet },
     { id: 'admin-withdrawals', label: 'Withdrawals', icon: ShieldAlert },

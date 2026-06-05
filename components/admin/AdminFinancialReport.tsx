@@ -2,13 +2,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { getAllLedger } from '../../services/supabaseService';
 import { LedgerEntry, LedgerType } from '../../types';
-import { ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Activity, Clock } from 'lucide-react';
+import { ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Activity, Clock, Percent } from 'lucide-react';
 
 type TimePeriod = 'today' | 'week' | 'month' | 'all';
 
 interface FinancialStats {
     deposits: { total: number; count: number; average: number };
     withdrawals: { total: number; count: number; average: number };
+    tradingFees: { total: number; count: number; average: number };
     netFlow: number;
 }
 
@@ -47,11 +48,11 @@ export const AdminFinancialReport: React.FC = () => {
 
         const deposits = filtered.filter(l => l.type === LedgerType.DEPOSIT && l.status === 'COMPLETED');
         const withdrawals = filtered.filter(l => l.type === LedgerType.WITHDRAWAL && l.status === 'COMPLETED');
+        const tradingFees = filtered.filter(l => l.type === LedgerType.TRADE_FEE && l.status === 'COMPLETED');
 
         const depositTotal = deposits.reduce((sum, l) => sum + l.amount, 0);
-        const withdrawalTotal = withdrawals.reduce((sum, l) => sum + Math.abs(l.amount), 0); // Withdrawal amounts might be stored as negative or positive. Let's check mockStore. Usually withdrawals are negative in ledger or just type separated.
-        // Checking mockStore.ts: requestWithdrawal does `amount: -amountCents`. So they are negative.
-        // We need absolute value for "Total Withdrawals".
+        const withdrawalTotal = withdrawals.reduce((sum, l) => sum + Math.abs(l.amount), 0);
+        const tradingFeeTotal = tradingFees.reduce((sum, l) => sum + Math.abs(l.amount), 0);
 
         return {
             deposits: {
@@ -64,7 +65,12 @@ export const AdminFinancialReport: React.FC = () => {
                 count: withdrawals.length,
                 average: withdrawals.length ? Math.abs(withdrawalTotal) / withdrawals.length : 0
             },
-            netFlow: depositTotal - Math.abs(withdrawalTotal) // Cash generated
+            tradingFees: {
+                total: tradingFeeTotal,
+                count: tradingFees.length,
+                average: tradingFees.length ? tradingFeeTotal / tradingFees.length : 0
+            },
+            netFlow: depositTotal - Math.abs(withdrawalTotal)
         };
     }, [ledger, period]);
 
@@ -110,7 +116,7 @@ export const AdminFinancialReport: React.FC = () => {
             </div>
 
             {/* Main Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
                 {/* Total Deposits */}
                 <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -175,6 +181,28 @@ export const AdminFinancialReport: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Trading Fees Revenue */}
+                <div className="bg-white dark:bg-slate-800 p-6 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+                        <Percent size={120} />
+                    </div>
+                    <div className="relative z-10">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 rounded-2xl text-amber-600 dark:text-amber-400">
+                                <Percent size={24} />
+                            </div>
+                            <span className="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Trading Fee Revenue</span>
+                        </div>
+                        <h3 className="text-3xl font-black text-amber-600 dark:text-amber-400 mb-1">
+                            {formatMoney(stats.tradingFees.total)}
+                        </h3>
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 border-t border-slate-100 dark:border-slate-700/50 pt-3 mt-3">
+                            <span>{stats.tradingFees.count} fee entries</span>
+                            <span>Avg: {formatMoney(stats.tradingFees.average)}</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Pending Requests & Detailed Breakdown */}
@@ -223,7 +251,7 @@ export const AdminFinancialReport: React.FC = () => {
                             <div
                                 className="w-full bg-emerald-500 rounded-t-xl transition-all duration-500 relative hover:bg-emerald-400"
                                 style={{
-                                    height: `${Math.max(4, (stats.deposits.total / (Math.max(stats.deposits.total, stats.withdrawals.total, 1))) * 100)}%`,
+                                    height: `${Math.max(4, (stats.deposits.total / (Math.max(stats.deposits.total, stats.withdrawals.total, stats.tradingFees.total, 1))) * 100)}%`,
                                     opacity: stats.deposits.total > 0 ? 1 : 0.1
                                 }}
                             >
@@ -239,12 +267,28 @@ export const AdminFinancialReport: React.FC = () => {
                             <div
                                 className="w-full bg-rose-500 rounded-t-xl transition-all duration-500 hover:bg-rose-400"
                                 style={{
-                                    height: `${Math.max(4, (stats.withdrawals.total / (Math.max(stats.deposits.total, stats.withdrawals.total, 1))) * 100)}%`,
+                                    height: `${Math.max(4, (stats.withdrawals.total / (Math.max(stats.deposits.total, stats.withdrawals.total, stats.tradingFees.total, 1))) * 100)}%`,
                                     opacity: stats.withdrawals.total > 0 ? 1 : 0.1
                                 }}
                             >
                             </div>
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Withdrawals</span>
+                        </div>
+
+                        {/* Trading Fees Bar */}
+                        <div className="flex flex-col items-center gap-3 w-24 group cursor-default">
+                            <div className="text-xs font-bold text-slate-900 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity mb-1">
+                                {formatMoney(stats.tradingFees.total)}
+                            </div>
+                            <div
+                                className="w-full bg-amber-500 rounded-t-xl transition-all duration-500 hover:bg-amber-400"
+                                style={{
+                                    height: `${Math.max(4, (stats.tradingFees.total / (Math.max(stats.deposits.total, stats.withdrawals.total, stats.tradingFees.total, 1))) * 100)}%`,
+                                    opacity: stats.tradingFees.total > 0 ? 1 : 0.1
+                                }}
+                            >
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Trading Fees</span>
                         </div>
                     </div>
                     <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-700/50 flex justify-center text-center">

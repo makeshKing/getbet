@@ -15,7 +15,7 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div 
           className="glass-panel rounded-3xl p-8 border border-slate-200 dark:border-slate-700 cursor-pointer hover:shadow-lg transition-all"
           onClick={() => onNavigate('admin-dashboard')}
@@ -73,6 +73,26 @@ export const AdminHome: React.FC<AdminHomeProps> = ({ onNavigate }) => {
             <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Create and manage prediction markets.</p>
             <div className="mt-auto">
               <Button variant="outline" className="w-full">Manage Markets</Button>
+            </div>
+          </div>
+        </div>
+
+        <div 
+          className="glass-panel rounded-3xl p-8 border-2 border-dashed border-rose-300 dark:border-rose-700 cursor-pointer hover:shadow-lg hover:border-rose-400 dark:hover:border-rose-500 transition-all group"
+          onClick={() => onNavigate('admin-market-create')}
+        >
+          <div className="flex flex-col h-full">
+            <div className="p-3 bg-rose-100 dark:bg-rose-900/30 rounded-xl w-12 h-12 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-rose-600 dark:text-rose-400">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M8 12h8"></path>
+                <path d="M12 8v8"></path>
+              </svg>
+            </div>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Create Market</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Launch a new custom prediction market with full configuration.</p>
+            <div className="mt-auto">
+              <Button className="w-full bg-rose-600 hover:bg-rose-700 text-white">+ New Market</Button>
             </div>
           </div>
         </div>

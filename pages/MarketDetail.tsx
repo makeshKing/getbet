@@ -6,8 +6,9 @@ import { Market, Side } from '../types';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
-import { ArrowLeft, Share2, AlertCircle, Swords, FileText, Wallet, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Share2, AlertCircle, Swords, FileText, Wallet, TrendingUp, Activity, Clock } from 'lucide-react';
 import { AreaChart, Area, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { getMarketRecentTrades, RecentTrade } from '../services/supabaseService';
 
 interface MarketDetailProps {
    marketId: string;
@@ -42,13 +43,31 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) => {
    const { addToast } = useToast();
-   const { markets, buy } = useApp();
+   const { markets, buy, trades } = useApp();
    const { userProfile } = useAuth();
    const market = markets.find(m => m.id === marketId);
    const [activeSide, setActiveSide] = useState<Side>(Side.YES);
    const [activeOutcomeId, setActiveOutcomeId] = useState<string | undefined>(undefined);
    const [quantity, setQuantity] = useState<string>('');
    const [isProcessing, setIsProcessing] = useState(false);
+   const [recentTrades, setRecentTrades] = useState<RecentTrade[]>([]);
+   const [tradesLoading, setTradesLoading] = useState(true);
+
+   useEffect(() => {
+      if (!marketId) return;
+      let isMounted = true;
+      setTradesLoading(true);
+      getMarketRecentTrades(marketId, 50)
+         .then(data => {
+            if (isMounted) setRecentTrades(data);
+         })
+         .catch(console.error)
+         .finally(() => {
+            if (isMounted) setTradesLoading(false);
+         });
+      
+      return () => { isMounted = false; };
+   }, [marketId, isProcessing]); // Re-fetch when a new trade is processed
 
    const isVs = market?.subcategory === 'Head-to-Head' && market.candidateA && market.candidateB;
 
@@ -147,6 +166,72 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
    };
 
    const isResolved = !!market.outcome;
+
+   const userFinalPositions = useMemo(() => {
+      if (!isResolved || !market || !userProfile) return [];
+
+      const marketTrades = trades.filter(t => t.marketId === marketId);
+      if (marketTrades.length === 0) return [];
+
+      const inventory = new Map<string, { side: Side, outcomeId?: string, qty: number, avgPrice: number }>();
+
+      const sortedTrades = [...marketTrades].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+      sortedTrades.forEach(trade => {
+         const key = `${trade.side}_${trade.outcomeId || ''}`;
+         const current = inventory.get(key) || { side: trade.side as Side, outcomeId: trade.outcomeId, qty: 0, avgPrice: 0 };
+
+         if (trade.type === 'BUY') {
+            const newQty = current.qty + trade.shares;
+            const newAvgPrice = newQty > 0
+               ? ((current.avgPrice * current.qty) + (trade.price * trade.shares)) / newQty
+               : 0;
+            inventory.set(key, { ...current, qty: newQty, avgPrice: newAvgPrice });
+         } else if (trade.type === 'SELL') {
+            const newQty = Math.max(0, current.qty - trade.shares);
+            if (newQty === 0) {
+               inventory.delete(key);
+            } else {
+               inventory.set(key, { ...current, qty: newQty });
+            }
+         }
+      });
+
+      const finalPositions: any[] = [];
+      inventory.forEach((pos) => {
+         if (pos.qty > 0) {
+            const invested = pos.qty * pos.avgPrice;
+            let payout = 0;
+
+            if (market.outcome === 'CANCEL') {
+               payout = invested; // Refund
+            } else {
+               let won = false;
+               if (market.outcomes && market.outcomes.length > 0 && market.outcome !== 'YES' && market.outcome !== 'NO') {
+                  if (pos.outcomeId === market.outcome && pos.side === Side.YES) won = true;
+                  if (pos.outcomeId !== market.outcome && pos.side === Side.NO) won = true;
+               } else {
+                  if (pos.side === Side.YES && market.outcome === 'YES') won = true;
+                  if (pos.side === Side.NO && market.outcome === 'NO') won = true;
+               }
+
+               if (won) payout = pos.qty * 100;
+            }
+
+            finalPositions.push({
+               ...pos,
+               invested,
+               payout,
+               profit: payout - invested
+            });
+         }
+      });
+
+      return finalPositions;
+   }, [isResolved, market, trades, marketId, userProfile]);
+
+   const totalProfit = userFinalPositions.reduce((acc, pos) => acc + pos.profit, 0);
+   const totalPayout = userFinalPositions.reduce((acc, pos) => acc + pos.payout, 0);
 
    const getOutcomeName = (outcomeId: string) => {
       const o = market?.outcomes?.find(x => x.id === outcomeId);
@@ -450,6 +535,62 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                </div>
             </div>
 
+            {/* User Resolution Summary */}
+            {isResolved && userFinalPositions.length > 0 && (
+               <div className="space-y-4 animate-fade-in-up">
+                  <div className="flex items-center gap-2 px-2">
+                     <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-widest">Your Resolution Summary</h3>
+                  </div>
+                  <div className="glass-panel rounded-[2.5rem] p-6 sm:p-8 space-y-6 border-2 border-indigo-500/20 shadow-2xl relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-8 opacity-5">
+                        <Wallet size={160} />
+                     </div>
+                     <div className="relative z-10">
+                        <div className="space-y-4">
+                           {userFinalPositions.map((pos, idx) => (
+                              <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50">
+                                 <div>
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${pos.side === Side.YES ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
+                                          {pos.side} {pos.outcomeId ? getOutcomeName(pos.outcomeId) : ''}
+                                       </span>
+                                       <span className="text-xs font-bold text-slate-500">{pos.qty.toLocaleString()} Shares</span>
+                                    </div>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                       <span>Avg: Rs. {(pos.avgPrice / 100).toFixed(2)}</span>
+                                       <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                       <span>Invested: Rs. {(pos.invested / 100).toFixed(2)}</span>
+                                    </div>
+                                 </div>
+                                 <div className="text-left sm:text-right">
+                                    <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Payout</div>
+                                    <div className={`text-xl font-black tabular-nums tracking-tight ${pos.payout > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
+                                       Rs. {(pos.payout / 100).toFixed(2)}
+                                    </div>
+                                 </div>
+                              </div>
+                           ))}
+                        </div>
+
+                        <div className="mt-6 pt-6 border-t border-slate-200/50 dark:border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                           <div className="bg-white/50 dark:bg-slate-900/50 px-5 py-4 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 flex-1">
+                              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Payout</div>
+                              <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
+                                 Rs. {(totalPayout / 100).toFixed(2)}
+                              </div>
+                           </div>
+                           <div className={`px-5 py-4 rounded-2xl border flex-1 ${totalProfit >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20'}`}>
+                              <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Net Profit</div>
+                              <div className={`text-2xl font-black tabular-nums tracking-tight ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
+                                 {totalProfit >= 0 ? '+' : ''}Rs. {(totalProfit / 100).toFixed(2)}
+                              </div>
+                           </div>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            )}
+
             <div className="glass-panel rounded-[2rem] p-6 flex items-center justify-between border-2 border-slate-50 dark:border-white/5 shadow-sm active-scale">
                <div className="flex items-center gap-4">
                   <div className="p-3 bg-indigo-600/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 rounded-2xl">
@@ -479,6 +620,73 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                         </span>
                      </div>
                   </div>
+               </div>
+            </div>
+
+            {/* Recent Trading Activity Feed */}
+            <div className="space-y-4 pt-4">
+               <div className="flex items-center gap-2 px-2">
+                  <h3 className="text-[11px] font-black text-slate-500 dark:text-slate-600 uppercase tracking-widest flex items-center gap-1.5">
+                     <Activity size={14} /> Recent Trading Activity
+                  </h3>
+               </div>
+               <div className="glass-panel rounded-[2rem] overflow-hidden border border-slate-100 dark:border-white/5 shadow-sm">
+                  {tradesLoading ? (
+                     <div className="p-8 flex justify-center items-center">
+                        <Spinner size="sm" />
+                     </div>
+                  ) : recentTrades.length === 0 ? (
+                     <div className="p-8 text-center text-sm font-bold text-slate-400">
+                        No recent trades in this market.
+                     </div>
+                  ) : (
+                     <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                        <div className="divide-y divide-slate-100 dark:divide-white/5">
+                           {recentTrades.map((trade) => {
+                              const isBuy = trade.type === 'BUY';
+                              const isYes = trade.side === 'YES';
+                              return (
+                                 <div key={trade.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                                    <div className="flex items-center gap-3">
+                                       {trade.user_avatar_url ? (
+                                          <img src={trade.user_avatar_url} alt={trade.user_name} className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-white/10" />
+                                       ) : (
+                                          <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black text-slate-500 uppercase">
+                                             {trade.user_name.charAt(0)}
+                                          </div>
+                                       )}
+                                       <div>
+                                          <div className="flex items-baseline gap-1.5">
+                                             <span className="text-xs font-black text-slate-900 dark:text-white">{trade.user_name}</span>
+                                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
+                                                {isBuy ? 'bought' : 'sold'}
+                                             </span>
+                                             <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${isYes ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
+                                                {trade.outcome_id ? getOutcomeName(trade.outcome_id) : trade.side}
+                                             </span>
+                                          </div>
+                                          <div className="flex items-center gap-1.5 mt-0.5">
+                                             <Clock size={10} className="text-slate-400" />
+                                             <span className="text-[10px] font-medium text-slate-500">
+                                                {new Date(trade.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                             </span>
+                                          </div>
+                                       </div>
+                                    </div>
+                                    <div className="text-right">
+                                       <div className="text-xs font-black text-slate-900 dark:text-white tabular-nums">
+                                          {trade.shares} shares
+                                       </div>
+                                       <div className="text-[10px] font-bold text-slate-500 tabular-nums">
+                                          @ Rs. {(trade.price / 100).toFixed(2)}
+                                       </div>
+                                    </div>
+                                 </div>
+                              );
+                           })}
+                        </div>
+                     </div>
+                  )}
                </div>
             </div>
 

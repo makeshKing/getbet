@@ -53,7 +53,13 @@ export const LedgerTable: React.FC<LedgerTableProps> = ({ entries }) => {
               <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
                 {new Date(entry.createdAt).toLocaleDateString()}
               </td>
-              <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold text-right ${entry.amount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-900 dark:text-slate-200'}`}>
+              <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold text-right ${
+                entry.amount > 0 
+                  ? 'text-emerald-600 dark:text-emerald-400' 
+                  : entry.type === LedgerType.TRADE_LOSS 
+                    ? 'text-red-600 dark:text-red-400' 
+                    : 'text-slate-900 dark:text-slate-200'
+              }`}>
                 {entry.amount > 0 ? '+' : ''}{(entry.amount / 100).toFixed(2)}
               </td>
                <td className="px-6 py-4 whitespace-nowrap text-right">

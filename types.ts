@@ -63,6 +63,7 @@ export interface User {
   email: string;
   name: string;
   avatarUrl?: string;
+  phone?: string;
   balance: number; // in cents
   totalDeposited: number;
   totalWithdrawn: number;
@@ -86,6 +87,18 @@ export interface MarketOutcome {
   color?: string;
 }
 
+export interface MarketDynamics {
+  pricePreset: number;          // anchor probability (1-99)
+  minProbability: number;       // floor — probability never drops below this
+  maxProbability: number;       // ceiling — probability never exceeds this
+  driftEnabled: boolean;        // whether time-based drift is active
+  driftRate: number;            // % per hour
+  driftDirection: 'up' | 'down' | 'none';
+  driftStartTime: string | null;
+  driftEndTime: string | null;
+  lastDriftApplied: string | null;
+}
+
 export interface Market {
   id: string;
   title: string;
@@ -107,6 +120,7 @@ export interface Market {
   candidateA?: MarketCandidate; // Associated with YES
   candidateB?: MarketCandidate; // Associated with NO
   outcomes?: MarketOutcome[]; // For multi-choice markets
+  dynamics?: MarketDynamics;  // Admin probability control preset
 }
 
 export interface Order {

@@ -5,7 +5,8 @@ import { Market } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
 import { Switch } from '../../components/ui/Switch';
-import { Plus, Filter } from 'lucide-react';
+import { Plus, Filter, SlidersHorizontal } from 'lucide-react';
+import { MarketProbabilityEditor } from '../../components/admin/MarketProbabilityEditor';
 
 interface AdminMarketsProps {
     onNavigate: (page: string) => void;
@@ -18,6 +19,8 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
   const [filterTitle, setFilterTitle] = useState('');
   const [filterType, setFilterType] = useState('All'); 
   const [filterCategory, setFilterCategory] = useState('All');
+
+  const [editingProbabilityMarket, setEditingProbabilityMarket] = useState<Market | null>(null);
 
   // Removed useEffect for subscribe
 
@@ -95,6 +98,7 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
             <div className="col-span-2">Category</div>
             <div className="col-span-1">Type</div>
             <div className="col-span-1">Volume</div>
+            <div className="col-span-2 text-center">Live Prob</div>
             <div className="col-span-1">Status</div>
             <div className="col-span-1 text-center">Lock</div>
             <div className="col-span-1 text-center">Trending</div>
@@ -120,6 +124,24 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
                     
                     <div className="col-span-1 text-sm text-slate-600 dark:text-slate-300">
                          {(m.volume / 1000000).toFixed(1)}m
+                    </div>
+
+                    <div className="col-span-2 flex items-center justify-center gap-2">
+                        {m.outcomes && m.outcomes.length > 0 ? (
+                            <span className="text-xs font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">Multi</span>
+                        ) : (
+                            <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/50 px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span className="text-xs font-black text-slate-900 dark:text-white tabular-nums">{m.probability}%</span>
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setEditingProbabilityMarket(m)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                            title="Edit Probability / Dynamics"
+                        >
+                            <SlidersHorizontal size={14} />
+                        </button>
                     </div>
 
                     <div className="col-span-1">
@@ -152,6 +174,13 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
             ))}
         </div>
       </div>
+
+      {editingProbabilityMarket && (
+        <MarketProbabilityEditor
+          market={editingProbabilityMarket}
+          onClose={() => setEditingProbabilityMarket(null)}
+        />
+      )}
     </div>
   );
 };

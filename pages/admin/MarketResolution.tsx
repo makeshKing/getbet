@@ -5,6 +5,7 @@ import { Market, Outcome } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { Check, CheckCircle, Circle, Swords, User } from 'lucide-react';
+import { getMarketResolutionPreview, MarketResolutionPreview, getMarketUserProfits, UserProfitPreview } from '../../services/supabaseService';
 
 interface AdminMarketResolutionProps {
     marketId: string;
@@ -16,6 +17,23 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
     const { addToast } = useToast();
     const market = markets.find(m => m.id === marketId);
     const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
+    const [preview, setPreview] = useState<MarketResolutionPreview | null>(null);
+    const [userProfits, setUserProfits] = useState<UserProfitPreview[]>([]);
+    const [loadingPreview, setLoadingPreview] = useState(true);
+
+    useEffect(() => {
+        if (!marketId) return;
+        setLoadingPreview(true);
+        Promise.all([
+            getMarketResolutionPreview(marketId).then(setPreview),
+            getMarketUserProfits(marketId).then(setUserProfits)
+        ])
+            .catch(e => {
+                console.error("Failed to load preview stats", e);
+                addToast("Failed to load market statistics", "error");
+            })
+            .finally(() => setLoadingPreview(false));
+    }, [marketId]);
 
     if (!market) {
         return (
@@ -40,7 +58,7 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
         if (confirm(`Irreversibly resolve "${market.title}" in favor of ${winningName}?`)) {
             try {
                 const result = await adminResolveMarket(market.id, selectedOutcome);
-                addToast(`Market resolved! ${result.winners} winners, ${result.losers} losers. Paid: Rs. ${(result.total_paid/100).toFixed(2)}`, 'success');
+                addToast(`Market resolved! ${result.winners} winners. Paid: Rs. ${(result.total_paid/100).toFixed(2)}, House Profit: Rs. ${(result.house_profit/100).toFixed(2)}`, 'success');
                 onBack();
             } catch (e: any) {
                 addToast("Error resolving market: " + e.message, 'error');
@@ -48,24 +66,15 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
         }
     };
 
-    // Mock calculations based on volume
-    const totalVolume = market.volume || 0;
-    const investVolume = totalVolume * 0.85; 
     const probability = market.probability || 50;
-    const yesVolume = totalVolume * (probability / 100);
-    const noVolume = totalVolume - yesVolume;
     
-    const getStats = (outcome: Outcome) => {
-        const isYes = outcome === Outcome.YES;
-        const winVolume = isYes ? yesVolume : noVolume;
-        const loseVolume = isYes ? noVolume : yesVolume;
-        const payout = winVolume + (loseVolume * 0.9); 
-        const profit = (totalVolume * 0.05) + (loseVolume * 0.1); 
-        return { payout: payout / 100, profit: profit / 100 };
-    };
-
-    const yesStats = getStats(Outcome.YES);
-    const noStats = getStats(Outcome.NO);
+    const yesPayout = preview ? preview.yes_payout / 100 : 0;
+    const yesProfit = preview ? preview.house_if_yes / 100 : 0;
+    
+    const noPayout = preview ? preview.no_payout / 100 : 0;
+    const noProfit = preview ? preview.house_if_no / 100 : 0;
+    
+    const totalInvested = preview ? preview.total_invested / 100 : 0;
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto pb-20">
@@ -96,7 +105,13 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                              <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Volume</span>
-                                    <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs. {(totalVolume/100).toLocaleString()}</span>
+                                    <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs. {((market.volume || 0)/100).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Invested</span>
+                                    <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">
+                                        {loadingPreview ? '...' : `Rs. ${totalInvested.toLocaleString()}`}
+                                    </span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Probability</span>
@@ -171,11 +186,15 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-xs font-bold border-b border-slate-200/50 dark:border-slate-700/50 pb-2">
                                         <span className="text-slate-400 uppercase tracking-tighter">Projected Payout</span>
-                                        <span className="text-slate-900 dark:text-white tabular-nums">Rs. {yesStats.payout.toFixed(2)}</span>
+                                        <span className="text-slate-900 dark:text-white tabular-nums">
+                                            {loadingPreview ? '...' : `Rs. ${yesPayout.toFixed(2)}`}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-400 uppercase tracking-tighter">House Profit</span>
-                                        <span className="text-emerald-500 tabular-nums">+Rs. {yesStats.profit.toFixed(2)}</span>
+                                        <span className={`${yesProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} tabular-nums`}>
+                                            {loadingPreview ? '...' : `${yesProfit >= 0 ? '+' : ''}Rs. ${yesProfit.toFixed(2)}`}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -210,15 +229,71 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                 <div className="space-y-3">
                                     <div className="flex justify-between text-xs font-bold border-b border-slate-200/50 dark:border-slate-700/50 pb-2">
                                         <span className="text-slate-400 uppercase tracking-tighter">Projected Payout</span>
-                                        <span className="text-slate-900 dark:text-white tabular-nums">Rs. {noStats.payout.toFixed(2)}</span>
+                                        <span className="text-slate-900 dark:text-white tabular-nums">
+                                            {loadingPreview ? '...' : `Rs. ${noPayout.toFixed(2)}`}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-400 uppercase tracking-tighter">House Profit</span>
-                                        <span className="text-emerald-500 tabular-nums">+Rs. {noStats.profit.toFixed(2)}</span>
+                                        <span className={`${noProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} tabular-nums`}>
+                                            {loadingPreview ? '...' : `${noProfit >= 0 ? '+' : ''}Rs. ${noProfit.toFixed(2)}`}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {selectedOutcome && (
+                            <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
+                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-4">
+                                    Projected User Profits ({selectedOutcome})
+                                </h4>
+                                <div className="max-h-60 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl">
+                                    <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                                        <thead className="bg-slate-50 dark:bg-slate-800/50 sticky top-0">
+                                            <tr>
+                                                <th className="px-4 py-3 text-left text-xs font-black text-slate-500 uppercase tracking-wider">User</th>
+                                                <th className="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Invested</th>
+                                                <th className="px-4 py-3 text-right text-xs font-black text-slate-500 uppercase tracking-wider">Profit</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+                                            {userProfits.filter(p => String(p.side).toUpperCase() === String(selectedOutcome).toUpperCase()).length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={3} className="px-4 py-6 text-center text-sm font-bold text-slate-500">No profitable users for this outcome.</td>
+                                                </tr>
+                                            ) : (
+                                                userProfits.filter(p => String(p.side).toUpperCase() === String(selectedOutcome).toUpperCase()).map(p => (
+                                                    <tr key={p.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                        <td className="px-4 py-3 whitespace-nowrap">
+                                                            <div className="flex items-center">
+                                                                {p.avatar_url ? (
+                                                                    <img src={p.avatar_url} className="h-8 w-8 rounded-full mr-3 object-cover border border-slate-200 dark:border-slate-700" />
+                                                                ) : (
+                                                                    <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 text-xs font-black">
+                                                                        {(p.user_name || '?').charAt(0).toUpperCase()}
+                                                                    </div>
+                                                                )}
+                                                                <div>
+                                                                    <div className="text-sm font-black text-slate-900 dark:text-white">{p.user_name || 'Unknown User'}</div>
+                                                                    <div className="text-[10px] text-slate-500 font-bold">{p.user_email || ''}</div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-slate-600 dark:text-slate-400">
+                                                            Rs. {((p.invested || 0) / 100).toFixed(2)}
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-emerald-500">
+                                                            +Rs. {((p.profit || 0) / 100).toFixed(2)}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-700">
                             <Button 

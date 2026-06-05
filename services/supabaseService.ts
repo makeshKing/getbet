@@ -10,7 +10,7 @@ import {
   Market, User, Position, Trade, LedgerEntry, LedgerType,
   Side, Outcome, KycStatus, Role, DepositMethodConfig,
   QuizQuestion, QuizAnswer, Config, AuditLogEntry, SavedAddress,
-  MarketOutcome
+  MarketOutcome, MarketDynamics
 } from '../types';
 
 // ─────────────────────────────────────────────────────────────
@@ -23,6 +23,7 @@ function mapProfile(row: any): User {
     email: row.email,
     name: row.name,
     avatarUrl: row.avatar_url,
+    phone: row.phone,
     balance: row.balance,
     totalDeposited: row.total_deposited,
     totalWithdrawn: row.total_withdrawn,
@@ -55,6 +56,7 @@ function mapMarket(row: any): Market {
     candidateA: row.candidate_a,
     candidateB: row.candidate_b,
     outcomes: row.outcomes as MarketOutcome[] | undefined,
+    dynamics: row.dynamics as MarketDynamics | undefined,
   };
 }
 
@@ -261,6 +263,36 @@ export async function updateProfileName(userId: string, name: string) {
   if (error) throw new Error(error.message);
 }
 
+export async function updateUserProfile(userId: string, updates: { name?: string, phone?: string, avatarUrl?: string }) {
+  const payload: any = { updated_at: new Date().toISOString() };
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.phone !== undefined) payload.phone = updates.phone;
+  if (updates.avatarUrl !== undefined) payload.avatar_url = updates.avatarUrl;
+
+  const { error } = await supabase
+    .from('profiles')
+    .update(payload)
+    .eq('id', userId);
+  if (error) throw new Error(error.message);
+}
+
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const fileExt = file.name.split('.').pop();
+  const filePath = `${userId}/avatar_${Date.now()}.${fileExt}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filePath, file, { upsert: true });
+
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filePath);
+
+  return data.publicUrl;
+}
+
 // ─────────────────────────────────────────────────────────────
 // SAVED ADDRESSES
 // ─────────────────────────────────────────────────────────────
@@ -393,13 +425,173 @@ export async function adminUpdateMarketField(
 export async function adminResolveMarket(
   marketId: string,
   outcome: Outcome
-): Promise<{ winners: number; losers: number; cancelled: number; total_paid: number }> {
+): Promise<{
+  winners: number;
+  losers: number;
+  cancelled: number;
+  total_invested: number;
+  total_paid: number;
+  house_profit: number;
+}> {
   const { data, error } = await supabase.rpc('resolve_market', {
     p_market_id: marketId,
     p_outcome: outcome,
   });
   if (error) throw new Error(error.message);
-  return data as { winners: number; losers: number; cancelled: number; total_paid: number };
+  return data as {
+    winners: number;
+    losers: number;
+    cancelled: number;
+    total_invested: number;
+    total_paid: number;
+    house_profit: number;
+  };
+}
+
+/**
+ * Fetch a real-time breakdown of YES/NO positions for a market
+ * so the admin can see accurate projected payouts BEFORE resolving.
+ */
+export interface MarketResolutionPreview {
+  yes_bettors: number;
+  no_bettors: number;
+  yes_shares: number;
+  no_shares: number;
+  yes_invested: number;   // cents — total cost basis on YES side
+  no_invested: number;    // cents — total cost basis on NO  side
+  total_invested: number; // cents
+  yes_payout: number;     // cents — paid out if YES wins
+  no_payout: number;      // cents — paid out if NO  wins
+  house_if_yes: number;   // cents — house profit if YES wins
+  house_if_no: number;    // cents — house profit if NO  wins
+}
+
+export async function getMarketResolutionPreview(
+  marketId: string
+): Promise<MarketResolutionPreview> {
+  const { data, error } = await supabase.rpc('get_market_resolution_preview', {
+    p_market_id: marketId,
+  });
+  if (error) {
+    console.warn("RPC failed, using client-side calculation:", error.message);
+    const { data: positions, error: posErr } = await supabase
+      .from('positions')
+      .select('*')
+      .eq('market_id', marketId);
+      
+    if (posErr) throw new Error(posErr.message);
+    
+    let yes_bettors = 0, no_bettors = 0;
+    let yes_shares = 0, no_shares = 0;
+    let yes_invested = 0, no_invested = 0;
+    
+    for (const p of positions || []) {
+      if (p.side === 'YES') {
+        yes_bettors++;
+        yes_shares += p.quantity;
+        yes_invested += p.quantity * p.avg_price;
+      } else if (p.side === 'NO') {
+        no_bettors++;
+        no_shares += p.quantity;
+        no_invested += p.quantity * p.avg_price;
+      }
+    }
+    
+    const total_invested = yes_invested + no_invested;
+    const yes_payout = yes_shares * 100;
+    const no_payout = no_shares * 100;
+    
+    return {
+      yes_bettors, no_bettors, yes_shares, no_shares,
+      yes_invested, no_invested, total_invested,
+      yes_payout, no_payout,
+      house_if_yes: total_invested - yes_payout,
+      house_if_no: total_invested - no_payout
+    };
+  }
+  return data as MarketResolutionPreview;
+}
+
+export interface UserProfitPreview {
+  user_id: string;
+  user_name: string;
+  user_email: string;
+  avatar_url: string | null;
+  side: string;
+  invested: number;
+  payout: number;
+  profit: number;
+}
+
+export async function getMarketUserProfits(
+  marketId: string
+): Promise<UserProfitPreview[]> {
+  const { data, error } = await supabase.rpc('get_market_user_profits', {
+    p_market_id: marketId,
+  });
+  if (error) {
+    console.warn("RPC get_market_user_profits failed, using fallback:", error.message);
+    const { data: positions, error: posErr } = await supabase
+      .from('positions')
+      .select('*, profiles(name, email, avatar_url)')
+      .eq('market_id', marketId);
+      
+    if (posErr) throw new Error(posErr.message);
+    
+    const profitsMap = new Map<string, UserProfitPreview>();
+    
+    for (const p of positions || []) {
+      const key = `${p.user_id}_${p.side}`;
+      if (!profitsMap.has(key)) {
+        profitsMap.set(key, {
+          user_id: p.user_id,
+          user_name: (p.profiles as any)?.name || 'Unknown',
+          user_email: (p.profiles as any)?.email || '',
+          avatar_url: (p.profiles as any)?.avatar_url || null,
+          side: p.side,
+          invested: 0,
+          payout: 0,
+          profit: 0
+        });
+      }
+      
+      const userProf = profitsMap.get(key)!;
+      userProf.invested += p.quantity * p.avg_price;
+      userProf.payout += p.quantity * 100;
+      userProf.profit = userProf.payout - userProf.invested;
+    }
+    
+    return Array.from(profitsMap.values()).filter(p => p.profit > 0);
+  }
+  return data as UserProfitPreview[];
+}
+
+export interface RecentTrade {
+  id: string;
+  market_id: string;
+  outcome_id: string | null;
+  side: string;
+  type: string;
+  price: number;
+  shares: number;
+  amount: number;
+  status: string;
+  created_at: string;
+  user_id: string;
+  user_name: string;
+  user_avatar_url: string | null;
+}
+
+export async function getMarketRecentTrades(
+  marketId: string,
+  limit: number = 50
+): Promise<RecentTrade[]> {
+  const { data, error } = await supabase.rpc('get_market_recent_trades', {
+    p_market_id: marketId,
+    p_limit: limit,
+  });
+  if (error) throw new Error(error.message);
+  return data as RecentTrade[];
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -792,6 +984,29 @@ export async function adminUpdateDepositMethod(
   const { error } = await supabase
     .from('deposit_methods')
     .update(payload)
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminCreateDepositMethod(
+  method: Omit<DepositMethodConfig, 'isActive'> & { isActive?: boolean }
+) {
+  const { error } = await supabase.from('deposit_methods').insert({
+    id: method.id,
+    name: method.name,
+    account_name: method.accountName,
+    account_number: method.accountNumber,
+    instructions: method.instructions,
+    is_active: method.isActive ?? true,
+    qr_url: method.qrUrl || null,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteDepositMethod(id: string) {
+  const { error } = await supabase
+    .from('deposit_methods')
+    .delete()
     .eq('id', id);
   if (error) throw new Error(error.message);
 }

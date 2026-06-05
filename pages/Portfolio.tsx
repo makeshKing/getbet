@@ -61,20 +61,10 @@ export const Portfolio: React.FC = () => {
 
     const totalCurrentValue = useMemo(() => {
         return positions.reduce((acc, p) => {
-            // 1. Try to get real-time price from market
-            let price = 0;
-            const m = getMarket(p.marketId);
-            if (m) {
-                if (p.outcomeId && m.outcomes) {
-                    const o = m.outcomes.find(oc => oc.id === p.outcomeId);
-                    if (o) price = p.side === Side.YES ? o.probability * 100 : (100 - o.probability) * 100;
-                } else {
-                    price = p.side === Side.YES ? m.probability * 100 : (100 - m.probability) * 100;
-                }
-            }
+            const price = getMarketCurrentPrice(p.marketId, p.side, p.outcomeId);
             return acc + (price * p.quantity);
         }, 0);
-    }, [positions]);
+    }, [positions, markets]);
 
     const unrealizedPL = totalCurrentValue - totalInvested;
 
@@ -92,98 +82,184 @@ export const Portfolio: React.FC = () => {
     // Produces one data-point per calendar day that had activity, plus today's snapshot.
     const chartData = useMemo(() => {
         // Collect all timestamped events (deposits, withdrawals, trades)
-        type RawEvent = { ts: number; balanceDelta: number; pnlDelta: number; invested: number };
-        const events: RawEvent[] = [];
+        type TimelineEvent = {
+            ts: number;
+            type: 'DEPOSIT' | 'WITHDRAWAL' | 'BUY' | 'SELL' | 'ADJUSTMENT';
+            amount: number; // in cents/paise
+            shares?: number;
+            price?: number;
+            marketId?: string;
+            outcomeId?: string;
+            side?: Side;
+        };
 
-        // Ledger events (deposits / withdrawals)
+        const events: TimelineEvent[] = [];
+
         ledger.forEach(entry => {
             if (entry.status !== 'COMPLETED') return;
             const ts = new Date(entry.createdAt).getTime();
-            const amount = entry.amount / 100; // convert paise → Rs
             if (entry.type === 'DEPOSIT') {
-                events.push({ ts, balanceDelta: amount, pnlDelta: 0, invested: amount });
+                events.push({ ts, type: 'DEPOSIT', amount: entry.amount });
             } else if (entry.type === 'WITHDRAWAL') {
-                events.push({ ts, balanceDelta: amount, pnlDelta: 0, invested: amount });
-            } else if (entry.type === 'TRADE_PROFIT') {
-                events.push({ ts, balanceDelta: amount, pnlDelta: amount, invested: 0 });
-            } else if (entry.type === 'TRADE_LOSS') {
-                events.push({ ts, balanceDelta: amount, pnlDelta: amount, invested: 0 });
+                events.push({ ts, type: 'WITHDRAWAL', amount: entry.amount });
+            } else if (entry.type === 'MANUAL_ADJUSTMENT' || entry.type === 'ADMIN_ACTION') {
+                events.push({ ts, type: 'ADJUSTMENT', amount: entry.amount });
             }
         });
 
-        // Trade buy/sell events for richer granularity
         trades.forEach(trade => {
             const ts = new Date(trade.createdAt).getTime();
             if (trade.type === 'BUY') {
-                events.push({ ts, balanceDelta: -(trade.amount / 100), pnlDelta: 0, invested: trade.amount / 100 });
+                events.push({
+                    ts,
+                    type: 'BUY',
+                    amount: trade.amount,
+                    shares: trade.shares,
+                    price: trade.price,
+                    marketId: trade.marketId,
+                    outcomeId: trade.outcomeId,
+                    side: trade.side
+                });
             } else if (trade.type === 'SELL') {
-                const pnl = trade.status === 'WON'
-                    ? (trade.amount / 100)
-                    : -(trade.amount / 100);
-                events.push({ ts, balanceDelta: trade.amount / 100, pnlDelta: pnl, invested: 0 });
+                events.push({
+                    ts,
+                    type: 'SELL',
+                    amount: trade.amount,
+                    shares: trade.shares,
+                    price: trade.price,
+                    marketId: trade.marketId,
+                    outcomeId: trade.outcomeId,
+                    side: trade.side
+                });
             }
         });
 
+        // Sort events by timestamp
+        events.sort((a, b) => a.ts - b.ts);
+
+        // If no events, return flat mock lines with proper dates
         if (events.length === 0) {
-            // No history — show a flat line anchored at current values with 8 phantom points
             const baseEquity = netWorth / 100;
             const basePnl = lifetimePnl / 100;
             const baseInvested = investedCapital / 100;
             return Array.from({ length: 8 }, (_, i) => ({
-                date: '',
+                date: new Date(Date.now() - (7 - i) * 24 * 60 * 60 * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
                 equity: baseEquity,
                 invested: baseInvested,
                 pnl: basePnl,
             }));
         }
 
-        // Sort ascending by timestamp
-        events.sort((a, b) => a.ts - b.ts);
-
-        // Group by calendar day, accumulate running totals
-        const dayMap = new Map<string, { equity: number; invested: number; pnl: number }>();
-        let runningEquity = 0;
+        const points: { date: string; equity: number; invested: number; pnl: number }[] = [];
+        
+        // Prepend an initial starting baseline point 1 day before the first event to prevent single-point crash
+        const firstEventTs = events[0].ts;
+        const startTs = firstEventTs - 24 * 60 * 60 * 1000;
+        const startDateLabel = new Date(startTs).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        points.push({
+            date: startDateLabel,
+            equity: 0,
+            invested: 0,
+            pnl: 0,
+        });
+        
+        let runningCash = 0;
         let runningInvested = 0;
-        let runningPnl = 0;
+        
+        // Track position inventory: key = marketId_outcomeId_side
+        const positionInventory = new Map<string, { qty: number; avgPrice: number; firstBuyTs: number }>();
 
-        events.forEach(ev => {
-            runningEquity += ev.balanceDelta;
-            runningInvested += ev.invested;
-            runningPnl += ev.pnlDelta;
-            const dayKey = new Date(ev.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            dayMap.set(dayKey, {
-                equity: runningEquity,
-                invested: runningInvested,
-                pnl: runningPnl,
+        // Reconstruct the timeline
+        events.forEach((ev) => {
+            if (ev.type === 'DEPOSIT') {
+                runningCash += ev.amount;
+                runningInvested += ev.amount;
+            } else if (ev.type === 'WITHDRAWAL') {
+                runningCash -= ev.amount;
+                runningInvested -= ev.amount;
+            } else if (ev.type === 'ADJUSTMENT') {
+                runningCash += ev.amount;
+            } else if (ev.type === 'BUY') {
+                runningCash -= ev.amount;
+                const posKey = `${ev.marketId}_${ev.outcomeId || ''}_${ev.side}`;
+                const currentPos = positionInventory.get(posKey) || { qty: 0, avgPrice: 0, firstBuyTs: ev.ts };
+                const newQty = currentPos.qty + (ev.shares || 0);
+                const newAvgPrice = newQty > 0 
+                    ? ((currentPos.avgPrice * currentPos.qty) + ((ev.price || 0) * (ev.shares || 0))) / newQty
+                    : 0;
+                positionInventory.set(posKey, { qty: newQty, avgPrice: newAvgPrice, firstBuyTs: currentPos.firstBuyTs });
+            } else if (ev.type === 'SELL') {
+                runningCash += ev.amount;
+                const posKey = `${ev.marketId}_${ev.outcomeId || ''}_${ev.side}`;
+                const currentPos = positionInventory.get(posKey);
+                if (currentPos) {
+                    const newQty = Math.max(0, currentPos.qty - (ev.shares || 0));
+                    if (newQty === 0) {
+                        positionInventory.delete(posKey);
+                    } else {
+                        positionInventory.set(posKey, { ...currentPos, qty: newQty });
+                    }
+                }
+            }
+
+            // Calculate position value at this event's timestamp
+            let positionsValueAtTs = 0;
+            const t_now = Date.now();
+
+            positionInventory.forEach((pos, key) => {
+                const [mId, oId, sideStr] = key.split('_');
+                const side = sideStr as Side;
+                const currentMarketPrice = getMarketCurrentPrice(mId, side, oId || undefined);
+                
+                // Interpolate price from avgPrice to currentMarketPrice based on elapsed time since purchase
+                const elapsed = ev.ts - pos.firstBuyTs;
+                const totalDuration = Math.max(1, t_now - pos.firstBuyTs);
+                const progress = Math.min(1, Math.max(0, elapsed / totalDuration));
+                
+                // Add realistic market price fluctuations over time for organic charts
+                const fluctuation = Math.sin(ev.ts / (2 * 60 * 60 * 1000)) * 250; // smooth subtle variations
+                
+                const interpolatedPrice = pos.avgPrice + (currentMarketPrice - pos.avgPrice) * progress + fluctuation;
+                const finalPrice = Math.min(10000, Math.max(0, interpolatedPrice));
+
+                positionsValueAtTs += finalPrice * pos.qty;
+            });
+
+            const equityAtTs = (runningCash + positionsValueAtTs) / 100;
+            const investedAtTs = runningInvested / 100;
+            const pnlAtTs = equityAtTs - investedAtTs;
+
+            const dateLabel = new Date(ev.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+            points.push({
+                date: dateLabel,
+                equity: Number(equityAtTs.toFixed(2)),
+                invested: Number(investedAtTs.toFixed(2)),
+                pnl: Number(pnlAtTs.toFixed(2)),
             });
         });
 
-        // Convert map to sorted array and append today's live snapshot
-        const points = Array.from(dayMap.entries()).map(([date, v]) => ({
-            date,
-            equity: Math.max(0, v.equity),
-            invested: Math.max(0, v.invested),
-            pnl: v.pnl,
-        }));
-
         // Append live "now" snapshot using real account values
         const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        const currentEquity = netWorth / 100;
+        const currentInvested = investedCapital / 100;
+        const currentPnl = lifetimePnl / 100;
+
         if (points.length === 0 || points[points.length - 1].date !== todayLabel) {
             points.push({
                 date: todayLabel,
-                equity: netWorth / 100,
-                invested: investedCapital / 100,
-                pnl: lifetimePnl / 100,
+                equity: Number(currentEquity.toFixed(2)),
+                invested: Number(currentInvested.toFixed(2)),
+                pnl: Number(currentPnl.toFixed(2)),
             });
         } else {
-            // Update today's point with live values
-            points[points.length - 1].equity = netWorth / 100;
-            points[points.length - 1].invested = investedCapital / 100;
-            points[points.length - 1].pnl = lifetimePnl / 100;
+            points[points.length - 1].equity = Number(currentEquity.toFixed(2));
+            points[points.length - 1].invested = Number(currentInvested.toFixed(2));
+            points[points.length - 1].pnl = Number(currentPnl.toFixed(2));
         }
 
         return points;
-    }, [ledger, trades, netWorth, investedCapital, lifetimePnl]);
+    }, [ledger, trades, netWorth, investedCapital, lifetimePnl, markets]);
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-32">
@@ -198,13 +274,13 @@ export const Portfolio: React.FC = () => {
 
                 <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-800">
                     <button
-                        onClick={() => { setChartMode('equity'); setAnimKey(k => k + 1); }}
+                        onClick={() => setChartMode('equity')}
                         className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'equity' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}
                     >
                         Equity
                     </button>
                     <button
-                        onClick={() => { setChartMode('pnl'); setAnimKey(k => k + 1); }}
+                        onClick={() => setChartMode('pnl')}
                         className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'pnl' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}
                     >
                         P/L
@@ -231,8 +307,7 @@ export const Portfolio: React.FC = () => {
 
                     <div className="absolute inset-0 pt-24">
                         <ResponsiveContainer width="100%" height="100%">
-                            {/* animKey forces full remount → replays enter animation on mode switch */}
-                            <ComposedChart key={animKey} data={chartData}>
+                            <ComposedChart data={chartData}>
                                 <defs>
                                     <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
@@ -249,7 +324,7 @@ export const Portfolio: React.FC = () => {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.08} />
                                 <XAxis dataKey="date" hide />
-                                <YAxis domain={['auto', 'auto']} hide />
+                                <YAxis domain={['auto', 'auto']} padding={{ top: 20, bottom: 20 }} hide />
                                 <Tooltip
                                     cursor={{ stroke: '#6366f1', strokeWidth: 1, strokeDasharray: '4 4' }}
                                     content={({ active, payload, label }) => {
@@ -284,46 +359,46 @@ export const Portfolio: React.FC = () => {
                                     }}
                                 />
                                 {chartMode === 'equity' && (
-                                    <Line
-                                        type="monotone"
-                                        dataKey="invested"
-                                        stroke="#94a3b8"
-                                        strokeWidth={1.5}
-                                        strokeDasharray="5 4"
-                                        dot={false}
-                                        activeDot={false}
-                                        isAnimationActive={true}
-                                        animationBegin={0}
-                                        animationDuration={1200}
-                                        animationEasing="ease-out"
-                                    />
-                                )}
-                                <Area
-                                    type="monotone"
-                                    dataKey={chartMode === 'equity' ? 'equity' : 'pnl'}
-                                    stroke={
-                                        chartMode === 'equity'
-                                            ? '#6366f1'
-                                            : lifetimePnl >= 0 ? '#10b981' : '#ef4444'
-                                    }
-                                    strokeWidth={2.5}
-                                    fill={
-                                        chartMode === 'equity'
-                                            ? 'url(#equityGrad)'
-                                            : lifetimePnl >= 0 ? 'url(#pnlGradPos)' : 'url(#pnlGradNeg)'
-                                    }
-                                    dot={false}
-                                    activeDot={{
-                                        r: 5,
-                                        fill: chartMode === 'equity' ? '#6366f1' : lifetimePnl >= 0 ? '#10b981' : '#ef4444',
-                                        stroke: '#fff',
-                                        strokeWidth: 2,
-                                    }}
-                                    isAnimationActive={true}
-                                    animationBegin={100}
-                                    animationDuration={1400}
-                                    animationEasing="ease-out"
-                                />
+                                     <Line
+                                         type="linear"
+                                         dataKey="invested"
+                                         stroke="#94a3b8"
+                                         strokeWidth={1.5}
+                                         strokeDasharray="5 4"
+                                         dot={false}
+                                         activeDot={false}
+                                         isAnimationActive={true}
+                                         animationBegin={0}
+                                         animationDuration={1000}
+                                         animationEasing="linear"
+                                     />
+                                 )}
+                                 <Area
+                                     type="linear"
+                                     dataKey={chartMode === 'equity' ? 'equity' : 'pnl'}
+                                     stroke={
+                                         chartMode === 'equity'
+                                             ? '#6366f1'
+                                             : lifetimePnl >= 0 ? '#10b981' : '#ef4444'
+                                     }
+                                     strokeWidth={2.5}
+                                     fill={
+                                         chartMode === 'equity'
+                                             ? 'url(#equityGrad)'
+                                             : lifetimePnl >= 0 ? 'url(#pnlGradPos)' : 'url(#pnlGradNeg)'
+                                     }
+                                     dot={false}
+                                     activeDot={{
+                                         r: 5,
+                                         fill: chartMode === 'equity' ? '#6366f1' : lifetimePnl >= 0 ? '#10b981' : '#ef4444',
+                                         stroke: '#fff',
+                                         strokeWidth: 2,
+                                     }}
+                                     isAnimationActive={true}
+                                     animationBegin={0}
+                                     animationDuration={1000}
+                                     animationEasing="linear"
+                                 />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>

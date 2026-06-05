@@ -33,7 +33,7 @@ interface AppContextType {
   refreshMarkets: () => Promise<void>;
   adminCreateMarket: (data: Partial<Market>) => Promise<void>;
   adminUpdateMarketField: (id: string, field: string, value: any) => Promise<void>;
-  adminResolveMarket: (marketId: string, outcome: Outcome) => Promise<{ winners: number; losers: number; cancelled: number; total_paid: number }>;
+  adminResolveMarket: (marketId: string, outcome: Outcome) => Promise<{ winners: number; losers: number; cancelled: number; total_invested: number; total_paid: number; house_profit: number }>;
 
   // Trade ops
   buy: (marketId: string, side: Side, price: number, quantity: number, outcomeId?: string) => Promise<void>;
@@ -63,7 +63,9 @@ interface AppContextType {
 
   // Settings ops
   adminUpdateConfig: (value: Record<string, any>) => Promise<void>;
+  adminCreateDepositMethod: (method: Omit<DepositMethodConfig, 'isActive'> & { isActive?: boolean }) => Promise<void>;
   adminUpdateDepositMethod: (id: string, updates: Partial<DepositMethodConfig>) => Promise<void>;
+  adminDeleteDepositMethod: (id: string) => Promise<void>;
 
   // Quiz ops
   getUserQuizAnswer: (quizId: string) => Promise<QuizAnswer | null>;
@@ -193,6 +195,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ── Trade ops ──────────────────────────────────────────────
 
+  const TRADING_FEE_PERCENT = 1.5; // 1.5% fee on all trades
+
   const buy = async (
     marketId: string, side: Side, price: number,
     quantity: number, outcomeId?: string
@@ -202,9 +206,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const commissionPercent = market?.commission || 0;
     const cost = price * quantity;
     const commission = Math.round((cost * commissionPercent) / 100);
-    const tradingFee = config.value.tradingFee || 0;
+    const tradingFee = Math.round((cost * TRADING_FEE_PERCENT) / 100);
 
     await svc.executeBuy(userId, marketId, side, price, quantity, outcomeId, commission, tradingFee);
+
+    const increment = Math.floor(quantity / 100);
+    if (increment > 0 && market) {
+      if (outcomeId && market.outcomes) {
+        const updatedOutcomes = market.outcomes.map(o => {
+          if (o.id === outcomeId) {
+            return { ...o, probability: Math.min(100, o.probability + increment) };
+          }
+          return o;
+        });
+        await svc.adminUpdateMarketField(marketId, 'outcomes', updatedOutcomes);
+      } else {
+        const currentProb = market.probability;
+        let newProb = currentProb;
+        if (side === 'YES') {
+          newProb = Math.min(100, currentProb + increment);
+        } else if (side === 'NO') {
+          newProb = Math.max(0, currentProb - increment);
+        }
+        await svc.adminUpdateMarketField(marketId, 'probability', newProb);
+      }
+    }
+
     await Promise.all([refreshPortfolio(), refreshProfile(), refreshMarkets()]);
   };
 
@@ -217,7 +244,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const commissionPercent = market?.commission || 0;
     const revenue = price * quantity;
     const commission = Math.round((revenue * commissionPercent) / 100);
-    const tradingFee = config.value.tradingFee || 0;
+    const tradingFee = Math.round((revenue * TRADING_FEE_PERCENT) / 100);
 
     await svc.executeSell(userId, marketId, side, price, quantity, outcomeId, commission, tradingFee);
     await Promise.all([refreshPortfolio(), refreshProfile(), refreshMarkets()]);
@@ -311,8 +338,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConfig(c);
   };
 
+  const adminCreateDepositMethod = async (method: Omit<DepositMethodConfig, 'isActive'> & { isActive?: boolean }) => {
+    await svc.adminCreateDepositMethod(method);
+    const dm = await svc.getDepositMethods();
+    setDepositMethods(dm);
+  };
+
   const adminUpdateDepositMethod = async (id: string, updates: Partial<DepositMethodConfig>) => {
     await svc.adminUpdateDepositMethod(id, updates);
+    const dm = await svc.getDepositMethods();
+    setDepositMethods(dm);
+  };
+
+  const adminDeleteDepositMethod = async (id: string) => {
+    await svc.adminDeleteDepositMethod(id);
     const dm = await svc.getDepositMethods();
     setDepositMethods(dm);
   };
@@ -368,7 +407,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     getPendingDeposits, getPendingWithdrawals,
     allUsers, refreshAllUsers,
     adminUpdateUserRole, adminUpdateKycStatus, adminAdjustBalance, adminCreateUser,
-    adminUpdateConfig, adminUpdateDepositMethod,
+    adminUpdateConfig, adminCreateDepositMethod, adminUpdateDepositMethod, adminDeleteDepositMethod,
     getUserQuizAnswer, answerQuiz,
     adminGetQuizzes, adminCreateQuiz, adminDeleteQuiz, adminEndQuizEarly,
     adminGetStats, adminGetAllTrades,
