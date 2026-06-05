@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>PredictKit | Premium Prediction Markets</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'pm-bg': '#0f111a',
+            'pm-card': '#1a1d26',
+            'pm-green': '#00d286',
+            'pm-red': '#e1355a',
+            'pm-blue': '#0085ff',
+            'pm-text': '#f5f9fc',
+            'pm-subtext': '#97a1ad',
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+    :root {
+      --app-bg-light: #fafafa;
+      --app-bg-dark: #0f111a;
+
+      /* Premium Dark Theme Variables */
+      --dark-bg-primary: #0f111a;
+      --dark-bg-secondary: #1a1d26;
+      --dark-bg-tertiary: #232732;
+      --dark-border-primary: #2d3342;
+      --dark-border-secondary: #3f4759;
+      --dark-text-primary: #f5f9fc;
+      --dark-text-secondary: #97a1ad;
+      --dark-text-tertiary: #64748b;
+      --dark-accent-green: #00d286;
+      --dark-accent-red: #e1355a;
+      --dark-accent-blue: #0085ff;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior-y: none;
+      overflow-x: hidden;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translate3d(0, 16px, 0);
+      }
+
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+      }
+    }
+
+    .animate-fade-in-up {
+      animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      will-change: transform, opacity;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.08);
+      transform: translate3d(0, 0, 0);
+    }
+
+    .dark .glass-panel {
+      background: #1a1d26;
+      border: 1px solid #2d3342;
+      box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+    }
+
+    .market-card-container {
+      content-visibility: auto;
+      contain-intrinsic-size: 150px;
+    }
+
+    /* Native-feel active states */
+    .active-scale {
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .active-scale:active {
+      transform: scale(0.95);
+    }
+
+    /* Hardware acceleration for charts */
+    .recharts-responsive-container {
+      will-change: transform;
+    }
+
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .safe-pb {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .safe-pt {
+      padding-top: env(safe-area-inset-top);
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1",
+    "recharts": "https://esm.sh/recharts@^2.15.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.88.0"
+  }
+}
+</script>
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body
+  class="bg-[#fafafa] dark:bg-[#0f111a] text-slate-900 dark:text-[#f5f9fc] transition-colors duration-500 overflow-x-hidden -webkit-font-smoothing-antialiased">
+  <div id="root"></div>
+  <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
