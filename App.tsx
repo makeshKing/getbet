@@ -19,6 +19,7 @@ import { AdminDepositQueue } from './components/AdminDepositQueue';
 import { AdminDeclaredMarkets } from './pages/admin/DeclaredMarkets';
 import { AdminMarketResolution } from './pages/admin/MarketResolution';
 import { AdminFinancialReports } from './pages/admin/FinancialReports';
+import { AdminCategories } from './pages/admin/Categories';
 import { AdminLogin } from './pages/admin/Login';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
@@ -91,7 +92,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
 type View =
   | 'home' | 'market-detail' | 'portfolio' | 'leaderboard' | 'profile' | 'login' | 'signup'
-  | 'admin-home' | 'admin-dashboard' | 'admin-users' | 'admin-markets' | 'admin-market-create' | 'admin-deposits' | 'admin-withdrawals' | 'admin-settings'
+  | 'admin-home' | 'admin-dashboard' | 'admin-users' | 'admin-markets' | 'admin-market-create'
+  | 'admin-categories' | 'admin-deposits' | 'admin-withdrawals' | 'admin-settings'
   | 'admin-declared-markets' | 'admin-resolve-market' | 'admin-financials';
 
 function App() {
@@ -113,6 +115,8 @@ function App() {
       return 'admin-markets';
     } else if (path === '/admin/market/create') {
       return 'admin-market-create';
+    } else if (path === '/admin/categories') {
+      return 'admin-categories';
     } else if (path === '/admin/deposits') {
       return 'admin-deposits';
     } else if (path === '/admin/withdrawals') {
@@ -153,6 +157,8 @@ function App() {
       setCurrentView('admin-markets');
     } else if (path === '/admin/market/create') {
       setCurrentView('admin-market-create');
+    } else if (path === '/admin/categories') {
+      setCurrentView('admin-categories');
     } else if (path === '/admin/deposits') {
       setCurrentView('admin-deposits');
     } else if (path === '/admin/withdrawals') {
@@ -253,6 +259,8 @@ function App() {
           navigateRouter('/admin/markets');
         } else if (page === 'admin-market-create') {
           navigateRouter('/admin/market/create');
+        } else if (page === 'admin-categories') {
+          navigateRouter('/admin/categories');
         } else if (page === 'admin-deposits') {
           navigateRouter('/admin/deposits');
         } else if (page === 'admin-withdrawals') {
@@ -314,6 +322,7 @@ function App() {
               {currentView === 'admin-users' && <AdminUsers />}
               {currentView === 'admin-markets' && <AdminMarkets onNavigate={navigate} />}
               {currentView === 'admin-market-create' && <AdminMarketCreate onBack={() => navigate('admin-markets')} />}
+              {currentView === 'admin-categories' && <AdminCategories />}
               {currentView === 'admin-deposits' && (
                 <div className="space-y-4">
                   <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Deposit Requests</h1>

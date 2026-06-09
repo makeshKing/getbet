@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import {
   Market, Position, Trade, LedgerEntry, DepositMethodConfig,
-  Config, User, Side, Outcome, KycStatus, Role, QuizQuestion, QuizAnswer
+  Config, User, Side, Outcome, KycStatus, Role, QuizQuestion, QuizAnswer, Category
 } from '../types';
 import * as svc from '../services/supabaseService';
 import { useAuth } from './AuthContext';
@@ -78,6 +78,14 @@ interface AppContextType {
   // Stats
   adminGetStats: () => Promise<any>;
   adminGetAllTrades: () => Promise<Trade[]>;
+
+  // Category ops
+  categories: Category[];
+  refreshCategories: () => Promise<void>;
+  adminCreateCategory: (name: string, icon?: string, color?: string) => Promise<Category>;
+  adminUpdateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
+  adminDeleteCategory: (id: string) => Promise<void>;
+  adminGetAllCategories: () => Promise<Category[]>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -96,6 +104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const userId = userProfile?.id;
 
@@ -108,6 +117,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setMarkets(m);
     } finally {
       setMarketsLoading(false);
+    }
+  }, []);
+
+  const refreshCategories = useCallback(async () => {
+    try {
+      const c = await svc.getCategories();
+      setCategories(c);
+    } catch {
+      // categories table may not exist yet — silently ignore
     }
   }, []);
 
@@ -151,8 +169,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     refreshMarkets();
     refreshConfig();
+    refreshCategories();
     svc.getActiveQuiz().then(setActiveQuiz);
-  }, [refreshMarkets, refreshConfig]);
+  }, [refreshMarkets, refreshConfig, refreshCategories]);
 
   // Load user data when authenticated
   useEffect(() => {
@@ -393,9 +412,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setActiveQuiz(q);
   };
 
-  // ── Stats ──────────────────────────────────────────────────
+  // ── Stats ──────────────────────────────────────────────────────
   const adminGetStats = () => svc.adminGetStats();
   const adminGetAllTrades = () => svc.getAllTrades();
+
+  // ── Category ops ────────────────────────────────────────────
+
+  const adminCreateCategory = async (name: string, icon?: string, color?: string): Promise<Category> => {
+    const cat = await svc.adminCreateCategory(name, icon, color);
+    await refreshCategories();
+    return cat;
+  };
+
+  const adminUpdateCategory = async (id: string, updates: Partial<Category>) => {
+    await svc.adminUpdateCategory(id, {
+      name: updates.name,
+      icon: updates.icon,
+      color: updates.color,
+      isActive: updates.isActive,
+      sortOrder: updates.sortOrder,
+    });
+    await refreshCategories();
+  };
+
+  const adminDeleteCategory = async (id: string) => {
+    await svc.adminDeleteCategory(id);
+    await refreshCategories();
+  };
+
+  const adminGetAllCategories = () => svc.adminGetAllCategories();
 
   const value: AppContextType = {
     markets, positions, trades, ledger, depositMethods, config, activeQuiz,
@@ -411,6 +456,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     getUserQuizAnswer, answerQuiz,
     adminGetQuizzes, adminCreateQuiz, adminDeleteQuiz, adminEndQuizEarly,
     adminGetStats, adminGetAllTrades,
+    categories, refreshCategories,
+    adminCreateCategory, adminUpdateCategory, adminDeleteCategory, adminGetAllCategories,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

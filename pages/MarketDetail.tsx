@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { Market, Side } from '../types';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
@@ -43,6 +44,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) => {
    const { addToast } = useToast();
+   const { formatMoney } = useCurrency();
    const { markets, buy, trades } = useApp();
    const { userProfile } = useAuth();
    const market = markets.find(m => m.id === marketId);
@@ -455,7 +457,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                           </button>
                                           <button
                                              onClick={(e) => { e.stopPropagation(); setActiveOutcomeId(outcome.id); setActiveSide(Side.NO); }}
-                                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.NO ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 hover:text-indigo-600'}`}
+                                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.NO ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-red-100 dark:hover:bg-red-950/30 hover:text-red-600'}`}
                                           >
                                              No {(100 - outcome.probability).toFixed(1)}¢
                                           </button>
@@ -477,17 +479,17 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                  <span className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeSide === Side.YES ? 'text-emerald-600 dark:text-emerald-500' : 'text-slate-500'}`}>
                                     {isVs ? `Win ${market.candidateA?.name.split(' ').pop()}` : 'Yes'}
                                  </span>
-                                 <span className={`text-xl font-black tabular-nums ${activeSide === Side.YES ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Rs. {(market.probability).toFixed(2)}</span>
+                                 <span className={`text-xl font-black tabular-nums ${activeSide === Side.YES ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{formatMoney(market.probability * 100)}</span>
                               </button>
 
                               <button
                                  onClick={() => setActiveSide(Side.NO)}
-                                 className={`flex flex-col items-center justify-center p-3 sm:p-5 rounded-2xl sm:rounded-[1.75rem] border-2 transition-all active-scale ${activeSide === Side.NO ? 'bg-indigo-600/5 dark:bg-indigo-600/10 border-indigo-600' : 'bg-slate-50 dark:bg-white/5 border-transparent'}`}
+                                 className={`flex flex-col items-center justify-center p-3 sm:p-5 rounded-2xl sm:rounded-[1.75rem] border-2 transition-all active-scale ${activeSide === Side.NO ? 'bg-red-500/5 dark:bg-red-500/10 border-red-500' : 'bg-slate-50 dark:bg-white/5 border-transparent'}`}
                               >
-                                 <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1 ${activeSide === Side.NO ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}>
+                                 <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest mb-1 ${activeSide === Side.NO ? 'text-red-600 dark:text-red-400' : 'text-slate-500'}`}>
                                     {isVs ? `Win ${market.candidateB?.name.split(' ').pop()}` : 'No'}
                                  </span>
-                                 <span className={`text-base sm:text-xl font-black tabular-nums ${activeSide === Side.NO ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>Rs. {(100 - market.probability).toFixed(2)}</span>
+                                 <span className={`text-base sm:text-xl font-black tabular-nums ${activeSide === Side.NO ? 'text-slate-900 dark:text-white' : 'text-slate-400'}`}>{formatMoney((100 - market.probability) * 100)}</span>
                               </button>
                            </div>
                         )}
@@ -514,16 +516,16 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                            <div className="bg-slate-50 dark:bg-white/5 rounded-[1.5rem] p-5 space-y-4 border border-slate-100 dark:border-white/5">
                               <div className="flex justify-between items-center text-xs">
                                  <span className="font-bold text-slate-500 dark:text-slate-500 uppercase tracking-widest">Investment</span>
-                                 <span className="font-black text-slate-900 dark:text-white tabular-nums text-sm">Rs. {estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                 <span className="font-black text-slate-900 dark:text-white tabular-nums text-sm">{formatMoney(estimatedCost * 100)}</span>
                               </div>
                               <div className="flex justify-between items-center pt-4 border-t border-slate-200/50 dark:border-white/10">
                                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Win Potential</span>
-                                 <span className="text-xl font-black text-emerald-600 dark:text-emerald-500 tabular-nums">Rs. {potentialPayout.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                 <span className="text-xl font-black text-emerald-600 dark:text-emerald-500 tabular-nums">{formatMoney(potentialPayout * 100)}</span>
                               </div>
                            </div>
 
                            <Button
-                              className={`w-full h-16 rounded-[1.5rem] text-sm font-black uppercase tracking-[0.3em] shadow-xl active-scale ${activeSide === Side.YES ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                              className={`w-full h-16 rounded-[1.5rem] text-sm font-black uppercase tracking-[0.3em] shadow-xl active-scale ${activeSide === Side.YES ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'}`}
                               onClick={handleOrder}
                               disabled={isProcessing || numContracts <= 0 || (market.outcomes && market.outcomes.length > 0 && !activeOutcomeId)}
                            >
@@ -551,21 +553,21 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                               <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-700/50">
                                  <div>
                                     <div className="flex items-center gap-2 mb-1.5">
-                                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${pos.side === Side.YES ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
+                                       <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${pos.side === Side.YES ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'}`}>
                                           {pos.side} {pos.outcomeId ? getOutcomeName(pos.outcomeId) : ''}
                                        </span>
                                        <span className="text-xs font-bold text-slate-500">{pos.qty.toLocaleString()} Shares</span>
                                     </div>
                                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                                       <span>Avg: Rs. {(pos.avgPrice / 100).toFixed(2)}</span>
+                                       <span>Avg: {formatMoney(pos.avgPrice)}</span>
                                        <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                                       <span>Invested: Rs. {(pos.invested / 100).toFixed(2)}</span>
+                                       <span>Invested: {formatMoney(pos.invested)}</span>
                                     </div>
                                  </div>
                                  <div className="text-left sm:text-right">
                                     <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Payout</div>
                                     <div className={`text-xl font-black tabular-nums tracking-tight ${pos.payout > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500'}`}>
-                                       Rs. {(pos.payout / 100).toFixed(2)}
+                                       {formatMoney(pos.payout)}
                                     </div>
                                  </div>
                               </div>
@@ -576,13 +578,13 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                            <div className="bg-white/50 dark:bg-slate-900/50 px-5 py-4 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 flex-1">
                               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total Payout</div>
                               <div className="text-2xl font-black text-slate-900 dark:text-white tabular-nums tracking-tight">
-                                 Rs. {(totalPayout / 100).toFixed(2)}
+                                 {formatMoney(totalPayout)}
                               </div>
                            </div>
                            <div className={`px-5 py-4 rounded-2xl border flex-1 ${totalProfit >= 0 ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/20' : 'bg-red-50 dark:bg-red-500/10 border-red-200 dark:border-red-500/20'}`}>
                               <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Net Profit</div>
                               <div className={`text-2xl font-black tabular-nums tracking-tight ${totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-500' : 'text-red-600 dark:text-red-500'}`}>
-                                 {totalProfit >= 0 ? '+' : ''}Rs. {(totalProfit / 100).toFixed(2)}
+                                 {totalProfit >= 0 ? '+' : ''}{formatMoney(Math.abs(totalProfit))}
                               </div>
                            </div>
                         </div>
@@ -598,7 +600,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                   </div>
                   <div>
                      <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wallet Balance</div>
-                     <div className="text-base font-black text-slate-900 dark:text-white tabular-nums tracking-tight">Rs. {((userProfile?.balance || 0) / 100).toLocaleString()}</div>
+                     <div className="text-base font-black text-slate-900 dark:text-white tabular-nums tracking-tight">{formatMoney(userProfile?.balance || 0)}</div>
                   </div>
                </div>
                <button className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-[0.2em] px-4 py-2.5 bg-indigo-50 dark:bg-indigo-400/10 rounded-xl hover:bg-indigo-100 transition-colors">Add</button>
@@ -661,7 +663,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">
                                                 {isBuy ? 'bought' : 'sold'}
                                              </span>
-                                             <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${isYes ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400'}`}>
+                                             <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${isYes ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400'}`}>
                                                 {trade.outcome_id ? getOutcomeName(trade.outcome_id) : trade.side}
                                              </span>
                                           </div>
@@ -678,7 +680,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                           {trade.shares} shares
                                        </div>
                                        <div className="text-[10px] font-bold text-slate-500 tabular-nums">
-                                          @ Rs. {(trade.price / 100).toFixed(2)}
+                                          @ {formatMoney(trade.price)}
                                        </div>
                                     </div>
                                  </div>

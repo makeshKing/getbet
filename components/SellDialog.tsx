@@ -4,6 +4,7 @@ import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import { Position, Side } from '../types';
 import { useApp } from '../context/AppContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { TrendingUp, TrendingDown, Info, Zap } from 'lucide-react';
 
 interface SellDialogProps {
@@ -22,6 +23,7 @@ export const SellDialog: React.FC<SellDialogProps> = ({
     currentPrice
 }) => {
     const { sell } = useApp();
+  const { formatMoney } = useCurrency();
     const [quantity, setQuantity] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,11 +66,11 @@ export const SellDialog: React.FC<SellDialogProps> = ({
                 <div className="bg-slate-50 dark:bg-slate-950/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-4">
                     <div>
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Buy Avg</span>
-                        <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs.{(position.avgPrice / 100).toFixed(2)}</span>
+                        <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">{formatMoney(position.avgPrice)}</span>
                     </div>
                     <div className="text-right">
                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Market Price</span>
-                        <span className="text-sm font-black text-emerald-500 tabular-nums">Rs.{(currentPrice / 100).toFixed(2)}</span>
+                        <span className="text-sm font-black text-emerald-500 tabular-nums">{formatMoney(currentPrice)}</span>
                     </div>
                 </div>
 
@@ -108,12 +110,12 @@ export const SellDialog: React.FC<SellDialogProps> = ({
                             <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Est. Return</span>
                         </div>
                         <span className={`text-sm font-black tabular-nums ${realizedPL >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                            {realizedPL >= 0 ? '+' : ''}Rs.{(realizedPL / 100).toFixed(2)} ({roi.toFixed(1)}%)
+                            {realizedPL >= 0 ? '+' : ''}{formatMoney(Math.abs(realizedPL))} ({roi.toFixed(1)}%)
                         </span>
                     </div>
                     <div className="flex justify-between items-center pt-3 border-t border-slate-200/20 dark:border-white/5">
                         <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Withdrawal Total</span>
-                        <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">Rs.{(proceeds / 100).toFixed(2)}</span>
+                        <span className="text-xl font-black text-slate-900 dark:text-white tabular-nums">{formatMoney(proceeds)}</span>
                     </div>
                 </div>
 

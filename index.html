@@ -13,13 +13,60 @@
       theme: {
         extend: {
           colors: {
-            'pm-bg': '#0f111a',
-            'pm-card': '#1a1d26',
-            'pm-green': '#00d286',
-            'pm-red': '#e1355a',
-            'pm-blue': '#0085ff',
+            slate: {
+              50: '#f8fafc',
+              100: '#f1f5f9',
+              200: '#cbd5e1',
+              300: '#94a3b8',
+              400: '#70839e',
+              500: '#50688c',
+              600: '#33455f',
+              700: '#202c3f',
+              800: '#172231',
+              900: '#111926',
+              950: '#0d131f',
+            },
+            emerald: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              200: '#bbf7d0',
+              300: '#86efac',
+              400: '#4ade80',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              950: '#132c23',
+            },
+            red: {
+              50: '#fef2f2',
+              100: '#fee2e2',
+              200: '#fecaca',
+              300: '#fca5a5',
+              400: '#f87171',
+              500: '#ef4444',
+              600: '#dc2626',
+              700: '#b91c1c',
+              950: '#2e1215',
+            },
+            indigo: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              850: '#1d2c4b',
+              950: '#131e33',
+            },
+            'pm-bg': '#111926',
+            'pm-card': '#1b2433',
+            'pm-green': '#10b981',
+            'pm-red': '#ef4444',
+            'pm-blue': '#2563eb',
             'pm-text': '#f5f9fc',
-            'pm-subtext': '#97a1ad',
+            'pm-subtext': '#70839e',
           },
           fontFamily: {
             sans: ['Inter', 'sans-serif'],
@@ -33,20 +80,20 @@
 
     :root {
       --app-bg-light: #fafafa;
-      --app-bg-dark: #0f111a;
+      --app-bg-dark: #111926;
 
       /* Premium Dark Theme Variables */
-      --dark-bg-primary: #0f111a;
-      --dark-bg-secondary: #1a1d26;
-      --dark-bg-tertiary: #232732;
-      --dark-border-primary: #2d3342;
-      --dark-border-secondary: #3f4759;
+      --dark-bg-primary: #111926;
+      --dark-bg-secondary: #172231;
+      --dark-bg-tertiary: #202c3f;
+      --dark-border-primary: #202c3f;
+      --dark-border-secondary: #33455f;
       --dark-text-primary: #f5f9fc;
-      --dark-text-secondary: #97a1ad;
-      --dark-text-tertiary: #64748b;
-      --dark-accent-green: #00d286;
-      --dark-accent-red: #e1355a;
-      --dark-accent-blue: #0085ff;
+      --dark-text-secondary: #70839e;
+      --dark-text-tertiary: #50688c;
+      --dark-accent-green: #10b981;
+      --dark-accent-red: #ef4444;
+      --dark-accent-blue: #2563eb;
     }
 
     body {
@@ -147,7 +194,7 @@
 </head>
 
 <body
-  class="bg-[#fafafa] dark:bg-[#0f111a] text-slate-900 dark:text-[#f5f9fc] transition-colors duration-500 overflow-x-hidden -webkit-font-smoothing-antialiased">
+  class="bg-[#fafafa] dark:bg-[#111926] text-slate-900 dark:text-[#f5f9fc] transition-colors duration-500 overflow-x-hidden -webkit-font-smoothing-antialiased">
   <div id="root"></div>
   <script type="module" src="/index.tsx"></script>
 </body>

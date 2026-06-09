@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import { useApp } from '../context/AppContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { SavedAddress } from '../types';
 
 interface WithdrawDialogProps {
@@ -19,6 +20,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
   const [error, setError] = useState<string>('');
 
   const { requestWithdrawal } = useApp();
+  const { formatMoney } = useCurrency();
   const handleWithdraw = async () => {
     setError('');
     const val = parseFloat(amount);
@@ -51,7 +53,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
     <Dialog isOpen={isOpen} onClose={onClose} title="Withdraw Funds">
       <div className="space-y-4">
         <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-xl text-sm text-amber-800 dark:text-amber-400 border border-amber-200 dark:border-amber-900/30 font-medium">
-          Available to withdraw: <strong>Rs. {(withdrawableBalance / 100).toFixed(2)}</strong>
+          Available to withdraw: <strong>{formatMoney(withdrawableBalance)}</strong>
         </div>
 
         <div>

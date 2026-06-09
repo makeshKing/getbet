@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Market, Outcome } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
@@ -14,6 +15,7 @@ interface AdminMarketResolutionProps {
 
 export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ marketId, onBack }) => {
     const { markets, adminResolveMarket } = useApp();
+    const { formatMoney } = useCurrency();
     const { addToast } = useToast();
     const market = markets.find(m => m.id === marketId);
     const [selectedOutcome, setSelectedOutcome] = useState<Outcome | null>(null);
@@ -58,7 +60,7 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
         if (confirm(`Irreversibly resolve "${market.title}" in favor of ${winningName}?`)) {
             try {
                 const result = await adminResolveMarket(market.id, selectedOutcome);
-                addToast(`Market resolved! ${result.winners} winners. Paid: Rs. ${(result.total_paid/100).toFixed(2)}, House Profit: Rs. ${(result.house_profit/100).toFixed(2)}`, 'success');
+                addToast(`Market resolved! ${result.winners} winners. Paid: ${formatMoney(result.total_paid)}, House Profit: ${formatMoney(result.house_profit)}`, 'success');
                 onBack();
             } catch (e: any) {
                 addToast("Error resolving market: " + e.message, 'error');
@@ -105,12 +107,12 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                              <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-700">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Volume</span>
-                                    <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">Rs. {((market.volume || 0)/100).toLocaleString()}</span>
+                                    <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">{formatMoney(market.volume || 0)}</span>
                                 </div>
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Invested</span>
                                     <span className="text-sm font-black text-slate-900 dark:text-white tabular-nums">
-                                        {loadingPreview ? '...' : `Rs. ${totalInvested.toLocaleString()}`}
+                                        {loadingPreview ? '...' : formatMoney(totalInvested * 100)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center">
@@ -187,13 +189,13 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                     <div className="flex justify-between text-xs font-bold border-b border-slate-200/50 dark:border-slate-700/50 pb-2">
                                         <span className="text-slate-400 uppercase tracking-tighter">Projected Payout</span>
                                         <span className="text-slate-900 dark:text-white tabular-nums">
-                                            {loadingPreview ? '...' : `Rs. ${yesPayout.toFixed(2)}`}
+                                            {loadingPreview ? '...' : formatMoney(yesPayout * 100)}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-400 uppercase tracking-tighter">House Profit</span>
                                         <span className={`${yesProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} tabular-nums`}>
-                                            {loadingPreview ? '...' : `${yesProfit >= 0 ? '+' : ''}Rs. ${yesProfit.toFixed(2)}`}
+                                            {loadingPreview ? '...' : `${yesProfit >= 0 ? '+' : ''}${formatMoney(Math.abs(yesProfit) * 100)}`}
                                         </span>
                                     </div>
                                 </div>
@@ -230,13 +232,13 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                     <div className="flex justify-between text-xs font-bold border-b border-slate-200/50 dark:border-slate-700/50 pb-2">
                                         <span className="text-slate-400 uppercase tracking-tighter">Projected Payout</span>
                                         <span className="text-slate-900 dark:text-white tabular-nums">
-                                            {loadingPreview ? '...' : `Rs. ${noPayout.toFixed(2)}`}
+                                            {loadingPreview ? '...' : formatMoney(noPayout * 100)}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-400 uppercase tracking-tighter">House Profit</span>
                                         <span className={`${noProfit >= 0 ? 'text-emerald-500' : 'text-red-500'} tabular-nums`}>
-                                            {loadingPreview ? '...' : `${noProfit >= 0 ? '+' : ''}Rs. ${noProfit.toFixed(2)}`}
+                                            {loadingPreview ? '...' : `${noProfit >= 0 ? '+' : ''}${formatMoney(Math.abs(noProfit) * 100)}`}
                                         </span>
                                     </div>
                                 </div>
@@ -281,10 +283,10 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                                             </div>
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-slate-600 dark:text-slate-400">
-                                                            Rs. {((p.invested || 0) / 100).toFixed(2)}
+                                                            {formatMoney(p.invested || 0)}
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-emerald-500">
-                                                            +Rs. {((p.profit || 0) / 100).toFixed(2)}
+                                                            +{formatMoney(p.profit || 0)}
                                                         </td>
                                                     </tr>
                                                 ))

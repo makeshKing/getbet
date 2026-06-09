@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../components/ui/Toast';
+import { useAuth } from '../../context/AuthContext';
 
 interface AdminMarketCreateProps {
     onBack: () => void;
@@ -36,7 +37,8 @@ const FormRow = ({
 
 export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) => {
     const { addToast } = useToast();
-    const { adminCreateMarket } = useApp();
+    const { adminCreateMarket, categories, adminCreateCategory } = useApp();
+    const { isAdmin } = useAuth();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Mode State
@@ -55,6 +57,45 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
     const [initProb, setInitProb] = useState(50);
     const [commission, setCommission] = useState(0);
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // New Category Modal state
+    const [showNewCatModal, setShowNewCatModal] = useState(false);
+    const [newCatName, setNewCatName] = useState('');
+    const [newCatColor, setNewCatColor] = useState('#6366f1');
+    const [newCatIcon, setNewCatIcon] = useState('Tag');
+    const [creatingCat, setCreatingCat] = useState(false);
+
+    const CAT_ICON_OPTIONS = [
+        'Landmark', 'Bitcoin', 'Trophy', 'FlaskConical', 'BarChart3',
+        'TrendingUp', 'Music', 'Globe2', 'Zap', 'Star', 'Flame',
+        'Heart', 'Shield', 'Target', 'Rocket', 'Crown', 'Tag'
+    ];
+
+    const handleCategoryChange = (value: string) => {
+        if (value === '__new__') {
+            setShowNewCatModal(true);
+        } else {
+            setCategory(value);
+        }
+    };
+
+    const handleCreateNewCategory = async () => {
+        if (!newCatName.trim()) { addToast('Category name is required', 'error'); return; }
+        setCreatingCat(true);
+        try {
+            const created = await adminCreateCategory(newCatName.trim(), newCatIcon, newCatColor);
+            setCategory(created.name);
+            setShowNewCatModal(false);
+            setNewCatName('');
+            setNewCatColor('#6366f1');
+            setNewCatIcon('Tag');
+            addToast(`Category "${created.name}" created and selected!`, 'success');
+        } catch (err: any) {
+            addToast('Error creating category: ' + err.message, 'error');
+        } finally {
+            setCreatingCat(false);
+        }
+    };
 
     // Versus specific state
     const [candAName, setCandAName] = useState('');
@@ -205,6 +246,7 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
     };
 
     return (
+        <>
         <div className="max-w-6xl mx-auto pb-12">
             <div className="flex items-center justify-between mb-8">
                 <div>
@@ -480,14 +522,24 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
                             <select
                                 className="w-full border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 font-bold"
                                 value={category}
-                                onChange={e => setCategory(e.target.value)}
+                                onChange={e => handleCategoryChange(e.target.value)}
                             >
                                 <option value="">Select Category</option>
-                                <option value="Politics">Politics</option>
-                                <option value="Sports">Sports</option>
-                                <option value="Stock Market">Stock Market</option>
-                                <option value="Crypto">Crypto</option>
-                                <option value="Culture">Culture</option>
+                                {categories.length > 0 ? (
+                                    categories.map(cat => (
+                                        <option key={cat.id} value={cat.name}>{cat.name}</option>
+                                    ))
+                                ) : (
+                                    // Fallback if categories table not yet seeded
+                                    <>
+                                        <option value="Politics">Politics</option>
+                                        <option value="Sports">Sports</option>
+                                        <option value="Stock Market">Stock Market</option>
+                                        <option value="Crypto">Crypto</option>
+                                        <option value="Culture">Culture</option>
+                                    </>
+                                )}
+                                <option value="__new__" className="font-black text-indigo-600">+ Add New Category...</option>
                             </select>
                             <input
                                 type="text"
@@ -588,5 +640,86 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
                 </form>
             </div>
         </div>
-    );
+
+        {/* ── New Category Modal ─────────────────────────────────────────── */}
+        {showNewCatModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowNewCatModal(false)}>
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+                <div
+                    className="relative bg-white dark:bg-[#1a1d26] rounded-[2rem] border border-slate-200 dark:border-[#2d3342] shadow-2xl p-8 w-full max-w-md animate-fade-in-up"
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2.5 bg-indigo-600 text-white rounded-2xl">
+                            <Plus size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight">New Category</h3>
+                            <p className="text-xs text-slate-500 mt-0.5">It will be saved and auto-selected</p>
+                        </div>
+                        <button onClick={() => setShowNewCatModal(false)} className="ml-auto p-2 text-slate-400 hover:text-slate-600 rounded-xl">
+                            <X size={18} />
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Name *</label>
+                            <input
+                                type="text"
+                                value={newCatName}
+                                onChange={e => setNewCatName(e.target.value)}
+                                placeholder="e.g. Entertainment"
+                                autoFocus
+                                onKeyDown={e => e.key === 'Enter' && handleCreateNewCategory()}
+                                className="w-full border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Icon</label>
+                                <select
+                                    value={newCatIcon}
+                                    onChange={e => setNewCatIcon(e.target.value)}
+                                    className="w-full border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-3 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 font-bold text-sm"
+                                >
+                                    {CAT_ICON_OPTIONS.map(i => <option key={i} value={i}>{i}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Accent Color</label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={newCatColor}
+                                        onChange={e => setNewCatColor(e.target.value)}
+                                        className="w-full pl-9 border border-slate-300 dark:border-slate-600 rounded-xl px-3 py-3 bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm"
+                                    />
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border border-slate-200" style={{ backgroundColor: newCatColor }} />
+                                    <input type="color" value={newCatColor} onChange={e => setNewCatColor(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        <button
+                            onClick={handleCreateNewCategory}
+                            disabled={creatingCat || !newCatName.trim()}
+                            className="flex-1 flex items-center justify-center gap-2 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all"
+                        >
+                            {creatingCat ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={16} />}
+                            Create & Select
+                        </button>
+                        <button
+                            onClick={() => setShowNewCatModal(false)}
+                            className="px-6 py-3 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+    </>);
 };

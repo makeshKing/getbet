@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, LayoutDashboard, ShieldCheck, UserCircle, LogOut, Sun, Moon, ChevronDown, Banknote } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { Role } from '../types';
 
 interface NavbarProps {
@@ -13,6 +14,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMode, toggleTheme }) => {
   const { userProfile: user, signOut } = useAuth();
+  const { currency, setCurrency, formatMoney } = useCurrency();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -26,10 +28,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  const formatMoney = (cents: number) => {
-    return `Rs. ${(cents / 100).toLocaleString('en-NP', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-  };
 
   const handleNav = (page: string) => {
     onNavigate(page);
@@ -77,6 +75,14 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
 
           {/* Right Actions */}
           <div className="flex items-center space-x-2 sm:space-x-5">
+            <button
+              onClick={() => setCurrency(currency === 'NPR' ? 'USD' : 'NPR')}
+              className="p-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"
+              title="Toggle Currency"
+            >
+              {currency}
+            </button>
+
             <button
               onClick={toggleTheme}
               className="p-2.5 text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"

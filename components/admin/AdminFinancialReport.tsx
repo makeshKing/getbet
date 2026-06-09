@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { getAllLedger } from '../../services/supabaseService';
 import { LedgerEntry, LedgerType } from '../../types';
+import { useCurrency } from '../../context/CurrencyContext';
 import { ArrowUpRight, ArrowDownLeft, Wallet, TrendingUp, Activity, Clock, Percent } from 'lucide-react';
 
 type TimePeriod = 'today' | 'week' | 'month' | 'all';
@@ -16,6 +17,7 @@ interface FinancialStats {
 export const AdminFinancialReport: React.FC = () => {
     const [period, setPeriod] = useState<TimePeriod>('today');
     const [ledger, setLedger] = useState<LedgerEntry[]>([]);
+    const { formatMoney } = useCurrency();
 
     useEffect(() => {
         getAllLedger().then(setLedger);
@@ -82,8 +84,6 @@ export const AdminFinancialReport: React.FC = () => {
             withdrawals: pWithdrawals.length
         };
     }, [ledger]);
-
-    const formatMoney = (cents: number) => `Rs. ${(Math.abs(cents) / 100).toLocaleString('en-NP', { minimumFractionDigits: 2 })}`;
 
     return (
         <div className="space-y-6 animate-fade-in-up">

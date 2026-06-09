@@ -297,6 +297,43 @@ export const AdminSettings: React.FC = () => {
                 </div>
             </section>
 
+            {/* Currency Settings */}
+            <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-lg">
+                            <Banknote size={20} />
+                        </div>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">Currency Settings</h2>
+                    </div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden p-6">
+                    <div className="flex flex-col md:flex-row gap-6 items-end">
+                        <div className="flex-1 w-full">
+                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                Base Exchange Rate (1 USD = X NPR)
+                            </label>
+                            <input
+                                type="number"
+                                step="0.01"
+                                defaultValue={config.value.usdToNprRate || 130.0}
+                                onBlur={async (e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if (!isNaN(val) && val > 0) {
+                                        await adminUpdateConfig({ ...config.value, usdToNprRate: val });
+                                        addToast('Exchange rate updated successfully.', 'success');
+                                    }
+                                }}
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-lg font-black focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                        <div className="text-xs text-slate-500 mb-3">
+                            Modifies how prices convert from NPR to USD for users.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* JSON Config section */}
             <section className="space-y-6">
                 <div className="flex items-center justify-between">

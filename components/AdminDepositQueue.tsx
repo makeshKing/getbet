@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { Button } from './ui/Button';
 import { LedgerEntry } from '../types';
 import { Check, X, Clock, Wallet, ExternalLink, Image, Eye, AlertCircle } from 'lucide-react';
@@ -7,6 +8,7 @@ import { useToast } from './ui/Toast';
 import { ImageViewerModal } from './ImageViewerModal';
 
 export const AdminDepositQueue: React.FC = () => {
+  const { formatMoney } = useCurrency();
   const { addToast } = useToast();
   const { getPendingDeposits, approveDeposit, rejectDeposit } = useApp();
   const deposits = getPendingDeposits();
@@ -132,7 +134,7 @@ export const AdminDepositQueue: React.FC = () => {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-black text-slate-900 dark:text-white tabular-nums">
-                  Rs. {(d.amount / 100).toLocaleString()}
+                  {formatMoney(d.amount)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
                   <div className="flex flex-col sm:flex-row gap-2">

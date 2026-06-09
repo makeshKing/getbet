@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { Side, Position } from '../types';
 import { Button } from '../components/ui/Button';
 import { SellDialog } from '../components/SellDialog';
@@ -26,6 +27,7 @@ import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, 
 export const Portfolio: React.FC = () => {
     const { positions, trades, markets, ledger } = useApp();
     const { userProfile: user } = useAuth();
+    const { formatMoney } = useCurrency();
     const [selectedPos, setSelectedPos] = useState<Position | null>(null);
     const [chartMode, setChartMode] = useState<'equity' | 'pnl'>('equity');
     // animKey forces Recharts to remount & replay the animation when mode switches
@@ -296,7 +298,7 @@ export const Portfolio: React.FC = () => {
                         </div>
                         <div className="flex items-baseline gap-3">
                             <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
-                                Rs. {(chartMode === 'equity' ? netWorth / 100 : lifetimePnl / 100).toLocaleString()}
+                                {formatMoney(chartMode === 'equity' ? netWorth : lifetimePnl)}
                             </span>
                             <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center ${allTimeROI >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
                                 {allTimeROI >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
@@ -336,19 +338,19 @@ export const Portfolio: React.FC = () => {
                                                     <div className="space-y-1">
                                                         <div className="flex justify-between items-center gap-4">
                                                             <span className="text-[10px] font-bold text-slate-500">Net Worth</span>
-                                                            <span className="text-xs font-black text-slate-900 dark:text-white">Rs. {(data.equity ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                            <span className="text-xs font-black text-slate-900 dark:text-white">{formatMoney((data.equity ?? 0) * 100)}</span>
                                                         </div>
                                                         {chartMode === 'equity' && (
                                                             <div className="flex justify-between items-center gap-4">
                                                                 <span className="text-[10px] font-bold text-slate-400">Invested</span>
-                                                                <span className="text-xs font-bold text-slate-500">Rs. {(data.invested ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                                                <span className="text-xs font-bold text-slate-500">{formatMoney((data.invested ?? 0) * 100)}</span>
                                                             </div>
                                                         )}
                                                         <div className="border-t border-slate-100 dark:border-slate-800 my-1 pt-1"></div>
                                                         <div className="flex justify-between items-center gap-4">
                                                             <span className="text-[10px] font-bold text-slate-500">Total P/L</span>
                                                             <span className={`text-xs font-black ${(data.pnl ?? 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                                                {(data.pnl ?? 0) >= 0 ? '+' : ''}Rs. {(data.pnl ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                {(data.pnl ?? 0) >= 0 ? '+' : ''}{formatMoney(Math.abs(data.pnl ?? 0) * 100)}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -411,14 +413,14 @@ export const Portfolio: React.FC = () => {
                             <div className="text-right">
                                 <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lifetime P/L</div>
                                 <div className={`text-xl font-black ${lifetimePnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                    {lifetimePnl >= 0 ? '+' : ''}Rs. {(lifetimePnl / 100).toFixed(2)}
+                                    {lifetimePnl >= 0 ? '+' : ''}{formatMoney(Math.abs(lifetimePnl))}
                                 </div>
                             </div>
                         </div>
                         <div className="space-y-3 pt-4">
                             <div className="flex justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800 pt-3">
                                 <span className="text-slate-500">Unrealized Gain</span>
-                                <span className={unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>Rs. {(unrealizedPL / 100).toFixed(2)}</span>
+                                <span className={unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>{formatMoney(unrealizedPL)}</span>
                             </div>
                         </div>
                     </div>
@@ -427,7 +429,7 @@ export const Portfolio: React.FC = () => {
                         <div className="absolute -right-6 -bottom-6 text-white opacity-5"><Flame size={120} /></div>
                         <div className="relative z-10">
                             <h3 className="text-xl font-black mb-1">Power Trader</h3>
-                            <p className="text-xs text-indigo-200 leading-relaxed opacity-70 tracking-tight">High Stakes Enabled. Standard contract face value increased to Rs. 10.00.</p>
+                            <p className="text-xs text-indigo-200 leading-relaxed opacity-70 tracking-tight">High Stakes Enabled. Standard contract face value increased to {formatMoney(1000)}.</p>
                         </div>
                     </div>
                 </div>
@@ -462,14 +464,14 @@ export const Portfolio: React.FC = () => {
                                     </div>
                                     <div className="text-right">
                                         <div className={`text-sm font-black ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                            {pl >= 0 ? '+' : ''}Rs.{(pl / 100).toFixed(1)}
+                                            {pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}
                                         </div>
-                                        <div className="text-[9px] font-bold text-slate-400 tabular-nums">@Rs.{currentPrice / 100}</div>
+                                        <div className="text-[9px] font-bold text-slate-400 tabular-nums">@{formatMoney(currentPrice)}</div>
                                     </div>
                                 </div>
                                 <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/50">
                                     <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
-                                        <Target size={10} /> Buy: Rs.{pos.avgPrice / 100}
+                                        <Target size={10} /> Buy: {formatMoney(pos.avgPrice)}
                                     </div>
                                     <button className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1 uppercase tracking-widest">
                                         Sell Now <ExternalLink size={10} />
@@ -515,9 +517,9 @@ export const Portfolio: React.FC = () => {
                                                 <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border-2 ${pos.side === Side.YES ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/20' : 'bg-red-500/5 text-red-600 border-red-500/20'}`}>{pos.side}</span>
                                             </td>
                                             <td className="px-6 py-5 text-right text-xs font-black text-slate-700 dark:text-slate-300">{pos.quantity.toLocaleString()}</td>
-                                            <td className="px-6 py-5 text-right text-xs text-slate-400 font-bold tabular-nums">Rs.{(pos.avgPrice / 100).toFixed(2)}</td>
+                                            <td className="px-6 py-5 text-right text-xs text-slate-400 font-bold tabular-nums">{formatMoney(pos.avgPrice)}</td>
                                             <td className="px-6 py-5 text-right">
-                                                <div className={`text-sm font-black tabular-nums ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{pl >= 0 ? '+' : ''}Rs.{(pl / 100).toFixed(2)}</div>
+                                                <div className={`text-sm font-black tabular-nums ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}</div>
                                                 <div className={`text-[9px] font-black ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'} opacity-70`}>{pl >= 0 ? '+' : ''}{plPercent.toFixed(1)}%</div>
                                             </td>
                                             <td className="px-8 py-5 text-right">

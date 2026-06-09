@@ -10,7 +10,7 @@ import {
   Market, User, Position, Trade, LedgerEntry, LedgerType,
   Side, Outcome, KycStatus, Role, DepositMethodConfig,
   QuizQuestion, QuizAnswer, Config, AuditLogEntry, SavedAddress,
-  MarketOutcome, MarketDynamics
+  MarketOutcome, MarketDynamics, Category
 } from '../types';
 
 // ─────────────────────────────────────────────────────────────
@@ -1155,4 +1155,82 @@ export async function getAuditLogs(): Promise<AuditLogEntry[]> {
     payload: r.payload,
     createdAt: r.created_at,
   }));
+}
+
+// ─────────────────────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────────────────────
+
+function mapCategory(row: any): Category {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    color: row.color,
+    isActive: row.is_active,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+  };
+}
+
+/** Fetch all active categories — usable by any authenticated or anonymous user */
+export async function getCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapCategory);
+}
+
+/** Admin: fetch ALL categories including inactive */
+export async function adminGetAllCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapCategory);
+}
+
+/** Admin: create a new category */
+export async function adminCreateCategory(
+  name: string,
+  icon?: string,
+  color?: string
+): Promise<Category> {
+  const { data, error } = await supabase
+    .from('categories')
+    .insert({
+      name: name.trim(),
+      icon: icon || null,
+      color: color || '#6366f1',
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapCategory(data);
+}
+
+/** Admin: update a category */
+export async function adminUpdateCategory(
+  id: string,
+  updates: { name?: string; icon?: string; color?: string; isActive?: boolean; sortOrder?: number }
+) {
+  const payload: any = {};
+  if (updates.name      !== undefined) payload.name       = updates.name.trim();
+  if (updates.icon      !== undefined) payload.icon       = updates.icon;
+  if (updates.color     !== undefined) payload.color      = updates.color;
+  if (updates.isActive  !== undefined) payload.is_active  = updates.isActive;
+  if (updates.sortOrder !== undefined) payload.sort_order = updates.sortOrder;
+
+  const { error } = await supabase.from('categories').update(payload).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Admin: delete a category */
+export async function adminDeleteCategory(id: string) {
+  const { error } = await supabase.from('categories').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }

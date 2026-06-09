@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { LedgerTable } from '../components/LedgerTable';
 
 import { DepositDialog } from '../components/DepositDialog';
@@ -12,6 +13,7 @@ import { Wallet, ArrowDownCircle, ArrowUpCircle, ShieldCheck, User as UserIcon, 
 export const Profile: React.FC = () => {
   const { ledger, trades } = useApp();
   const { userProfile: user, updateProfile, uploadAvatar } = useAuth();
+  const { formatMoney } = useCurrency();
   const [isDepositOpen, setIsDepositOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
 
@@ -49,10 +51,6 @@ export const Profile: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const formatMoney = (cents: number) => {
-    return `Rs. ${(cents / 100).toLocaleString('en-NP', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
   if (!user) return null;

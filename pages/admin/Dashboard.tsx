@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { StatCard } from '../../components/admin/StatCard';
 import { Users, FileText, DollarSign, ShieldAlert, CheckCircle, PlusCircle, Settings, TrendingUp } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
@@ -11,6 +12,7 @@ interface AdminDashboardProps {
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) => {
   const { adminGetStats } = useApp();
+  const { formatMoney } = useCurrency();
   const [stats, setStats] = useState<any>({
     totalUsers: 0,
     totalMarkets: 0,
@@ -49,12 +51,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
         />
         <StatCard 
             title="Total Volume" 
-            value={`Rs. ${(stats.totalVolume / 100).toLocaleString()}`} 
+            value={formatMoney(stats.totalVolume)} 
             icon={DollarSign} 
         />
         <StatCard 
             title="Commission Earned" 
-            value={`Rs. ${(stats.totalCommission / 100).toLocaleString()}`} 
+            value={formatMoney(stats.totalCommission)} 
             icon={TrendingUp} 
         />
         <StatCard 

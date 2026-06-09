@@ -5,9 +5,19 @@ import { MarketCard } from '../components/MarketCard';
 import { Button } from '../components/ui/Button';
 import {
     Search, ArrowUpDown, TrendingUp, Clock, BarChart3,
-    Check, Zap, Flame, Globe2, Bitcoin, Trophy, Landmark, FlaskConical
+    Check, Zap, Flame, Globe2, Bitcoin, Trophy, Landmark, FlaskConical,
+    Music, Tag, Star, Shield, Target, Rocket, Crown, Heart
 } from 'lucide-react';
 import { Market } from '../types';
+
+// Map of icon name strings (stored in DB) to Lucide components
+const ICON_MAP: Record<string, React.FC<{ size?: number; className?: string }>> = {
+    Landmark, Bitcoin, Trophy, FlaskConical, BarChart3, TrendingUp,
+    Music, Tag, Star, Shield, Target, Rocket, Crown, Heart, Globe2, Flame, Zap,
+};
+
+const resolveIcon = (name?: string): React.FC<{ size?: number; className?: string }> =>
+    (name && ICON_MAP[name]) ? ICON_MAP[name] : Tag;
 
 interface MarketListProps {
     onMarketClick: (id: string) => void;
@@ -15,14 +25,8 @@ interface MarketListProps {
 
 type SortOption = 'trending' | 'volume' | 'ending-soon' | 'newest';
 
-const CATEGORIES = [
-    { id: '', label: 'All', icon: Globe2 },
-    { id: 'Politics', label: 'Politics', icon: Landmark },
-    { id: 'Crypto', label: 'Crypto', icon: Bitcoin },
-    { id: 'Sports', label: 'Sports', icon: Trophy },
-    { id: 'Science', label: 'Science', icon: FlaskConical },
-    { id: 'Finance', label: 'Finance', icon: BarChart3 },
-];
+// Static "All" entry; dynamic categories come from AppContext
+const ALL_CATEGORY = { id: '', label: 'All', icon: Globe2 };
 
 const SORT_OPTIONS: { id: SortOption; label: string; icon: React.FC<{ size?: number }> }[] = [
     { id: 'trending', label: 'Trending', icon: Flame },
@@ -38,7 +42,18 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
     const [categoryFilter, setCategoryFilter] = useState('');
     const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
 
-    const { markets } = useApp();
+    const { markets, categories } = useApp();
+
+    // Build the full category list: "All" first, then dynamic DB categories
+    const CATEGORIES = useMemo(() => [
+        ALL_CATEGORY,
+        ...categories.map(cat => ({
+            id: cat.name,
+            label: cat.name,
+            icon: resolveIcon(cat.icon),
+            color: cat.color,
+        }))
+    ], [categories]);
 
     const filteredMarkets = useMemo(() => {
         let result = markets.filter(m => {

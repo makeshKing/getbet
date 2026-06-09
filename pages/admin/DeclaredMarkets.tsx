@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { useCurrency } from '../../context/CurrencyContext';
 import { Market, Outcome } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Switch } from '../../components/ui/Switch';
@@ -12,6 +13,7 @@ interface AdminDeclaredMarketsProps {
 
 export const AdminDeclaredMarkets: React.FC<AdminDeclaredMarketsProps> = ({ onResolveClick }) => {
   const { markets, adminUpdateMarketField } = useApp();
+  const { formatMoney } = useCurrency();
   const [activeTab, setActiveTab] = useState<'pending' | 'resolved'>('pending');
   
   // Filters
@@ -136,7 +138,7 @@ export const AdminDeclaredMarkets: React.FC<AdminDeclaredMarketsProps> = ({ onRe
                         </div>
                         
                         <div className="col-span-2">
-                             <div className="text-xs font-black text-slate-900 dark:text-white tabular-nums">Rs. {((m.volume || 0) / 100).toLocaleString()}</div>
+                             <div className="text-xs font-black text-slate-900 dark:text-white tabular-nums">{formatMoney(m.volume || 0)}</div>
                              <div className="text-[10px] font-bold text-indigo-500 uppercase tabular-nums">{m.probability}% Prob</div>
                         </div>
 
@@ -154,7 +156,7 @@ export const AdminDeclaredMarkets: React.FC<AdminDeclaredMarketsProps> = ({ onRe
                             ) : (
                                 <div className="flex flex-col items-center">
                                     <span className={`text-xs font-black tabular-nums ${pl.isPositive ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {pl.isPositive ? '+' : '-'}Rs. {pl.amount}
+                                        {pl.isPositive ? '+' : '-'}{formatMoney(parseFloat(pl.amount.replace(/,/g, '')) * 100)}
                                     </span>
                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Est. House Fee</span>
                                 </div>

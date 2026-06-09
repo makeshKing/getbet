@@ -210,3 +210,13 @@ export interface QuizAnswer {
   rewardCents: number;
   timestamp: string;
 }
+
+export interface Category {
+  id: string;
+  name: string;
+  icon?: string;      // lucide icon name string, e.g. "Trophy"
+  color?: string;     // hex colour for UI accents
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+}

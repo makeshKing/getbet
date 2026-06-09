@@ -1,3 +1,4 @@
+import { useCurrency } from '../context/CurrencyContext';
 import React from 'react';
 import { Trade } from '../types';
 import { Monitor } from 'lucide-react';
@@ -6,7 +7,9 @@ interface ShareHistoryTableProps {
   trades: Trade[];
 }
 
-export const ShareHistoryTable: React.FC<ShareHistoryTableProps> = ({ trades }) => {
+export const ShareHistoryTable: React.FC<{trades: any[]}> = ({ trades }) => {
+  const { formatMoney } = useCurrency();
+  // DUMMY REPLACE FOR SHARE: React.FC<ShareHistoryTableProps> = ({ trades }) => {
   return (
     <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm overflow-hidden border border-slate-200 dark:border-slate-700 transition-colors">
       <div className="overflow-x-auto">
@@ -42,10 +45,10 @@ export const ShareHistoryTable: React.FC<ShareHistoryTableProps> = ({ trades }) 
                   {trade.shares}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-slate-500 dark:text-slate-400">
-                  Rs. {(trade.price / 100).toFixed(2)}
+                  {formatMoney(trade.price)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-bold text-slate-900 dark:text-white">
-                  Rs. {(trade.amount / 100).toFixed(2)}
+                  {formatMoney(trade.amount)}
                 </td>
               </tr>
             ))}

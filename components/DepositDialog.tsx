@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import { useApp } from '../context/AppContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { useToast } from './ui/Toast';
 import { ShieldCheck, Info, Copy, Check, Upload, X, Image } from 'lucide-react';
 import { DepositMethodConfig } from '../types';
@@ -13,6 +14,7 @@ interface DepositDialogProps {
 }
 
 export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose }) => {
+  const { formatMoney } = useCurrency();
   const { addToast } = useToast();
   const { depositMethods: methods, requestDeposit } = useApp();
   const [activeMethodId, setActiveMethodId] = useState<string>('esewa');
@@ -152,7 +154,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
         
         <div className="space-y-4 pt-2">
             <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Deposit Amount (Rs.)</label>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Deposit Amount</label>
                 <div className="relative">
                     <input 
                         type="number" 
@@ -172,7 +174,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
                         onClick={() => setAmount(val.toString())}
                         className="py-2.5 text-[9px] font-black bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-xl transition-all uppercase tracking-widest border border-transparent active:scale-95"
                     >
-                        Rs. {val}
+                        {formatMoney(val * 100)}
                     </button>
                 ))}
             </div>
