@@ -30,6 +30,7 @@ function mapProfile(row: any): User {
     withdrawableBalance: row.withdrawable_balance,
     kycStatus: row.kyc_status as KycStatus,
     role: row.role as Role,
+    isBanned: row.is_banned ?? false,
     savedAddresses: [], // loaded separately
   };
 }
@@ -162,64 +163,12 @@ export async function signUp(email: string, password: string, name: string) {
   return data;
 }
 
-// Hardcoded admin email — always gets ADMIN role regardless of DB state
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD as string;
-
+/**
+ * Sign in any user (admin or regular). Admin accounts must be created directly
+ * via the Supabase Dashboard — never auto-created from the client.
+ * Role is determined by the `profiles.role` column, not the email address.
+ */
 export async function signIn(email: string, password: string) {
-  const isHardcodedAdmin =
-    ADMIN_EMAIL && email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-
-  // If this is the hardcoded admin, try to sign in; if account doesn't exist yet, create it
-  if (isHardcodedAdmin) {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      // Account may not exist yet — auto-create it
-      if (
-        error.message.toLowerCase().includes('invalid login') ||
-        error.message.toLowerCase().includes('user not found') ||
-        error.message.toLowerCase().includes('email not confirmed') ||
-        error.message.toLowerCase().includes('invalid credentials')
-      ) {
-        // Sign up the admin account
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { name: 'Admin' } },
-        });
-        if (signUpErr) throw new Error(signUpErr.message);
-        if (!signUpData.user) throw new Error('Admin account creation failed');
-
-        // Wait briefly for the trigger to create the profile row
-        await new Promise(r => setTimeout(r, 800));
-
-        // Force-set ADMIN role
-        await supabase
-          .from('profiles')
-          .update({ role: 'ADMIN', updated_at: new Date().toISOString() })
-          .eq('id', signUpData.user.id);
-
-        // Now sign in with the freshly created account
-        const { data: signInData, error: signInErr } =
-          await supabase.auth.signInWithPassword({ email, password });
-        if (signInErr) throw new Error(signInErr.message);
-        return signInData;
-      }
-      throw new Error(error.message);
-    }
-
-    // Account exists — ensure ADMIN role is set in DB (idempotent)
-    if (data.user) {
-      await supabase
-        .from('profiles')
-        .update({ role: 'ADMIN', updated_at: new Date().toISOString() })
-        .eq('id', data.user.id);
-    }
-    return data;
-  }
-
-  // Regular user sign-in
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw new Error(error.message);
   return data;
@@ -229,6 +178,7 @@ export async function signOut() {
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(error.message);
 }
+
 
 // ─────────────────────────────────────────────────────────────
 // PROFILE
@@ -726,9 +676,14 @@ export async function requestDeposit(
   method: string,
   screenshotProofUrl?: string
 ) {
+  if (amountCents <= 0) {
+    throw new Error('Deposit amount must be greater than zero');
+  }
+
   const description = screenshotProofUrl
     ? `${method} Deposit with Screenshot Proof`
-    : `${method} Deposit (Ref: ${reference})`;
+    : `${method} Deposit (Ref: ${reference});`
+
 
   const { error } = await supabase.from('ledger').insert({
     user_id: userId,
@@ -874,6 +829,14 @@ export async function adminAdjustBalance(
   if (error) throw new Error(error.message);
 }
 
+export async function adminUpdateUserBanStatus(userId: string, isBanned: boolean) {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ is_banned: isBanned, updated_at: new Date().toISOString() })
+    .eq('id', userId);
+  if (error) throw new Error(error.message);
+}
+
 // ─────────────────────────────────────────────────────────────
 // ADMIN — STATS
 // ─────────────────────────────────────────────────────────────
@@ -937,12 +900,12 @@ export async function getConfig(): Promise<Config> {
 export async function adminUpdateConfig(updaterName: string, value: Record<string, any>) {
   const { error } = await supabase
     .from('app_config')
-    .update({
+    .upsert({
+      key: 'app',
       value,
       updated_at: new Date().toISOString(),
       updated_by: updaterName,
-    })
-    .eq('key', 'app');
+    }, { onConflict: 'key' });
   if (error) throw new Error(error.message);
 }
 

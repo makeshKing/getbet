@@ -81,6 +81,32 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Banned users (non-admins) cannot access ANY protected route
+  if (user.isBanned && user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Account Suspended</h1>
+          <p className="text-slate-500 dark:text-slate-400 mb-6">
+            Your account has been suspended by an administrator. If you believe this is a mistake, please contact support.
+          </p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-900 transition-colors font-bold"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') {
     // User doesn't have admin role
     return fallback;
@@ -89,6 +115,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // User has required role, render children
   return <>{children}</>;
 };
+
 
 type View =
   | 'home' | 'market-detail' | 'portfolio' | 'leaderboard' | 'profile' | 'login' | 'signup'
@@ -180,7 +207,7 @@ function App() {
   }, [location]);
 
   useEffect(() => {
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (localStorage.theme === 'dark') {
       setIsDarkMode(true);
       document.documentElement.classList.add('dark');
     } else {

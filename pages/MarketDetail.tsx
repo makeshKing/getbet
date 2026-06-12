@@ -439,25 +439,25 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                     <div
                                        key={outcome.id}
                                        onClick={() => { setActiveOutcomeId(outcome.id); setActiveSide(Side.YES); }}
-                                       className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between group ${activeOutcomeId === outcome.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700'}`}
+                                       className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0 group ${activeOutcomeId === outcome.id ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-500 shadow-md' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700'}`}
                                     >
-                                       <div className="flex-1 min-w-0 mr-4">
+                                       <div className="flex-1 min-w-0 sm:mr-4 w-full">
                                           <div className="text-sm font-black text-slate-900 dark:text-white mb-0.5 truncate" title={outcome.name}>{outcome.name}</div>
                                           <div className="flex items-center gap-2">
-                                             <div className="w-2 h-2 rounded-full" style={{ backgroundColor: outcome.color || '#cbd5e1' }} />
-                                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{outcome.probability.toFixed(1)}% Probability</span>
+                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: outcome.color || '#cbd5e1' }} />
+                                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider truncate">{outcome.probability.toFixed(1)}% Probability</span>
                                           </div>
                                        </div>
-                                       <div className="flex gap-2 shrink-0">
+                                       <div className="flex gap-2 shrink-0 w-full sm:w-auto">
                                           <button
                                              onClick={(e) => { e.stopPropagation(); setActiveOutcomeId(outcome.id); setActiveSide(Side.YES); }}
-                                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.YES ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-600'}`}
+                                             className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.YES ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 hover:text-emerald-600'}`}
                                           >
                                              Yes {outcome.probability.toFixed(1)}¢
                                           </button>
                                           <button
                                              onClick={(e) => { e.stopPropagation(); setActiveOutcomeId(outcome.id); setActiveSide(Side.NO); }}
-                                             className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.NO ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-red-100 dark:hover:bg-red-950/30 hover:text-red-600'}`}
+                                             className={`flex-1 sm:flex-none px-4 py-2.5 sm:py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${activeOutcomeId === outcome.id && activeSide === Side.NO ? 'bg-red-500 text-white shadow-lg shadow-red-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-red-100 dark:hover:bg-red-950/30 hover:text-red-600'}`}
                                           >
                                              No {(100 - outcome.probability).toFixed(1)}¢
                                           </button>

@@ -60,6 +60,7 @@ interface AppContextType {
   adminUpdateKycStatus: (userId: string, status: KycStatus) => Promise<void>;
   adminAdjustBalance: (userId: string, amount: number, description: string) => Promise<void>;
   adminCreateUser: (email: string, password: string, name: string, role: Role) => Promise<void>;
+  adminUpdateUserBanStatus: (userId: string, isBanned: boolean) => Promise<void>;
 
   // Settings ops
   adminUpdateConfig: (value: Record<string, any>) => Promise<void>;
@@ -227,29 +228,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const commission = Math.round((cost * commissionPercent) / 100);
     const tradingFee = Math.round((cost * TRADING_FEE_PERCENT) / 100);
 
+    // execute_buy (migration 016) handles ALL probability updates server-side,
+    // including normalisation of multi-outcome arrays and directional YES/NO
+    // bumps. A secondary client-side update is no longer needed and would
+    // cause a race condition / double-bump.
     await svc.executeBuy(userId, marketId, side, price, quantity, outcomeId, commission, tradingFee);
-
-    const increment = Math.floor(quantity / 100);
-    if (increment > 0 && market) {
-      if (outcomeId && market.outcomes) {
-        const updatedOutcomes = market.outcomes.map(o => {
-          if (o.id === outcomeId) {
-            return { ...o, probability: Math.min(100, o.probability + increment) };
-          }
-          return o;
-        });
-        await svc.adminUpdateMarketField(marketId, 'outcomes', updatedOutcomes);
-      } else {
-        const currentProb = market.probability;
-        let newProb = currentProb;
-        if (side === 'YES') {
-          newProb = Math.min(100, currentProb + increment);
-        } else if (side === 'NO') {
-          newProb = Math.max(0, currentProb - increment);
-        }
-        await svc.adminUpdateMarketField(marketId, 'probability', newProb);
-      }
-    }
 
     await Promise.all([refreshPortfolio(), refreshProfile(), refreshMarkets()]);
   };
@@ -345,6 +328,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     email: string, password: string, name: string, role: Role
   ) => {
     await svc.adminCreateUser(email, password, name, role);
+    await refreshAllUsers();
+  };
+
+  const adminUpdateUserBanStatus = async (userId: string, isBanned: boolean) => {
+    await svc.adminUpdateUserBanStatus(userId, isBanned);
     await refreshAllUsers();
   };
 
@@ -451,7 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     approveDeposit, rejectDeposit, approveWithdrawal, rejectWithdrawal,
     getPendingDeposits, getPendingWithdrawals,
     allUsers, refreshAllUsers,
-    adminUpdateUserRole, adminUpdateKycStatus, adminAdjustBalance, adminCreateUser,
+    adminUpdateUserRole, adminUpdateKycStatus, adminAdjustBalance, adminCreateUser, adminUpdateUserBanStatus,
     adminUpdateConfig, adminCreateDepositMethod, adminUpdateDepositMethod, adminDeleteDepositMethod,
     getUserQuizAnswer, answerQuiz,
     adminGetQuizzes, adminCreateQuiz, adminDeleteQuiz, adminEndQuizEarly,

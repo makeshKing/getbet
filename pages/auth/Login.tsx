@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { signIn, getProfile } from '../../services/supabaseService';
-import { Mail, Lock, Loader2, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { signIn } from '../../services/supabaseService';
+import { Mail, Lock, Loader2, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 
 export const Login: React.FC = () => {
@@ -17,23 +17,19 @@ export const Login: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const authData = await signIn(email, password);
-            if (authData?.user) {
-                const profile = await getProfile(authData.user.id);
-                if (profile?.role === 'ADMIN') {
-                    window.location.href = '/admin/dashboard';
-                } else {
-                    window.location.href = '/';
-                }
-            } else {
-                window.location.href = '/';
-            }
+            // Just authenticate — AuthContext picks up the session change and
+            // loads the full profile (including role and isBanned).
+            // ProtectedRoute then enforces authorization on every protected page.
+            await signIn(email, password);
+            // Navigate to home; ProtectedRoute will redirect admins or block banned users
+            navigate('/');
         } catch (err: any) {
             setError(err.message || 'An error occurred during login');
         } finally {
             setIsLoading(false);
         }
     };
+
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-[#fcfcfd] dark:bg-[#0f111a] p-4 animate-fade-in relative overflow-hidden">

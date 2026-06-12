@@ -309,25 +309,37 @@ export const AdminSettings: React.FC = () => {
                 </div>
                 <div className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden p-6">
                     <div className="flex flex-col md:flex-row gap-6 items-end">
-                        <div className="flex-1 w-full">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
-                                Base Exchange Rate (1 USD = X NPR)
-                            </label>
-                            <input
-                                type="number"
-                                step="0.01"
-                                defaultValue={config.value.usdToNprRate || 130.0}
-                                onBlur={async (e) => {
-                                    const val = parseFloat(e.target.value);
-                                    if (!isNaN(val) && val > 0) {
-                                        await adminUpdateConfig({ ...config.value, usdToNprRate: val });
-                                        addToast('Exchange rate updated successfully.', 'success');
+                        <div className="flex-1 w-full flex gap-3 items-end">
+                            <div className="flex-1">
+                                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                    Base Exchange Rate (1 USD = X NPR)
+                                </label>
+                                <input
+                                    id="exchange-rate-input"
+                                    key={`usd-rate-${config.value.usdToNprRate || 130}`}
+                                    type="number"
+                                    step="0.01"
+                                    defaultValue={config.value.usdToNprRate || 130.0}
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-lg font-black focus:ring-2 focus:ring-indigo-500 outline-none"
+                                />
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    const input = document.getElementById('exchange-rate-input') as HTMLInputElement;
+                                    if (input) {
+                                        const val = parseFloat(input.value);
+                                        if (!isNaN(val) && val > 0) {
+                                            await adminUpdateConfig({ ...config.value, usdToNprRate: val });
+                                            addToast('Exchange rate updated successfully.', 'success');
+                                        }
                                     }
                                 }}
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-lg font-black focus:ring-2 focus:ring-indigo-500 outline-none"
-                            />
+                                className="h-[52px] px-6 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30 transition-all flex items-center justify-center"
+                            >
+                                Update
+                            </button>
                         </div>
-                        <div className="text-xs text-slate-500 mb-3">
+                        <div className="text-xs text-slate-500 mb-3 md:w-1/3">
                             Modifies how prices convert from NPR to USD for users.
                         </div>
                     </div>

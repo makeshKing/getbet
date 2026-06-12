@@ -42,6 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     // Check component state to determine if an error should be displayed
     if (this.state.hasError) {
+      const isDev = import.meta.env.DEV;
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 px-4">
           <div className="max-w-md w-full bg-white dark:bg-slate-900 shadow-xl rounded-2xl p-8 border border-slate-200 dark:border-slate-800 text-center">
@@ -50,13 +51,17 @@ export class ErrorBoundary extends Component<Props, State> {
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Something went wrong</h1>
             <p className="text-slate-500 dark:text-slate-400 mb-6">
-              We encountered an unexpected error. Our team has been notified.
+              {isDev
+                ? 'An unexpected error occurred (details shown below).'
+                : 'We encountered an unexpected error. Please reload and try again.'}
             </p>
-            <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg text-left mb-6 overflow-auto max-h-32">
+            {isDev && (
+              <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-lg text-left mb-6 overflow-auto max-h-32">
                 <code className="text-xs text-red-500 font-mono">
-                    {this.state.error?.message}
+                  {this.state.error?.message}
                 </code>
-            </div>
+              </div>
+            )}
             <Button onClick={() => window.location.reload()} className="w-full">
               <RefreshCw size={16} className="mr-2" /> Reload Application
             </Button>

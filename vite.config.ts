@@ -1,23 +1,21 @@
 import path from 'path';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, '.', '');
-    return {
-      server: {
+export default defineConfig({
+    server: {
         port: 3000,
-        host: '0.0.0.0',
-      },
-      plugins: [react()],
-      define: {
-        'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
-      },
-      resolve: {
+        // Bind to localhost only — never expose the dev server to the network
+        host: '127.0.0.1',
+    },
+    plugins: [react()],
+    // NOTE: Do NOT inject any API keys here. All secrets must remain server-side
+    // (Supabase Edge Functions, backend services). VITE_* env vars are bundled
+    // into the client JS and are publicly readable.
+    resolve: {
         alias: {
-          '@': path.resolve(__dirname, '.'),
+            '@': path.resolve(__dirname, '.'),
         }
-      }
-    };
+    }
 });
+

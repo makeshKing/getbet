@@ -68,31 +68,20 @@ export const AdminDepositQueue: React.FC = () => {
                     {d.screenshotProof ? (
                       <div className="flex items-center gap-2">
                         <div className="relative group">
-                          <img 
-                            src={d.screenshotProof} 
-                            alt="Payment proof" 
-                            className="w-12 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={() => {
-                              console.log('Opening screenshot in modal:', d.screenshotProof);
-                              setSelectedImageUrl(d.screenshotProof || null);
-                              setImageViewerOpen(true);
-                            }}
-                            onLoad={(e) => {
-                              console.log('Image loaded successfully:', d.screenshotProof?.substring(0, 100));
-                            }}
-                            onError={(e) => {
-                              console.error('Image failed to load:', d.screenshotProof);
-                              console.error('Error event:', e);
-                              const target = e.target as HTMLImageElement;
-                              // Show a placeholder with the data type info
-                              if (d.screenshotProof?.startsWith('data:image')) {
-                                target.alt = 'Base64 Image (click to view)';
-                                target.title = 'Base64 encoded image - click to view in modal';
-                              } else {
+                            <img 
+                              src={d.screenshotProof} 
+                              alt="Payment proof screenshot" 
+                              className="w-12 h-12 object-cover rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={() => {
+                                setSelectedImageUrl(d.screenshotProof || null);
+                                setImageViewerOpen(true);
+                              }}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.alt = 'Image failed to load';
                                 target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iOCIgZmlsbD0iI2VmNDQ0NCIvPgo8cGF0aCBkPSJNMjQgMzJDMjguNDIxIDMyIDMyIDI4LjQyMSAzMiAyNEMzMiAxOS41NzkgMjguNDIxIDE2IDI0IDE2QzE5LjU3OSAxNiAxNiAxOS41NzkgMTYgMjRDMTYgMjguNDIxIDE5LjU3OSAzMiAyNCAzMloiIGZpbGw9IndoaXRlIi8+CjxwYXRoIGQ9Ik0yNCAzMUMyMi44OTU0IDMxIDIyIDMwLjEwNDYgMjIgMjlDMjIgMjcuODk1NCAyMi44OTU0IDI3IDI0IDI3QzI1LjEwNDYgMjcgMjYgMjcuODk1NCAyNiAyOUMyNiAzMC4xMDQ2IDI1LjEwNDYgMzEgMjQgMzFaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K';
-                              }
-                            }}
-                          />
+                              }}
+                            />
                           <div className="absolute inset-0 bg-black bg-opacity-50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <Eye size={16} className="text-white" />
                           </div>
@@ -102,18 +91,24 @@ export const AdminDepositQueue: React.FC = () => {
                         </span>
                         <div className="flex flex-col gap-1">
                           <button 
+                            aria-label="Copy screenshot image data to clipboard"
                             onClick={() => {
-                              console.log('Screenshot data:', d.screenshotProof);
-                              navigator.clipboard.writeText(d.screenshotProof || '');
-                              addToast('Screenshot data copied to clipboard', 'info');
+                              if (!d.screenshotProof) return;
+                              if (navigator.clipboard && window.isSecureContext) {
+                                navigator.clipboard.writeText(d.screenshotProof)
+                                  .then(() => addToast('Screenshot URL copied to clipboard', 'info'))
+                                  .catch(() => addToast('Copy failed — not supported in this browser', 'error'));
+                              } else {
+                                addToast('Clipboard not available (requires HTTPS)', 'error');
+                              }
                             }}
                             className="text-xs text-blue-500 hover:text-blue-700"
                           >
                             Copy Data
                           </button>
                           <button 
+                            aria-label="View payment proof screenshot in full-screen modal"
                             onClick={() => {
-                              console.log('Opening screenshot in modal:', d.screenshotProof);
                               setSelectedImageUrl(d.screenshotProof || null);
                               setImageViewerOpen(true);
                             }}
@@ -141,6 +136,7 @@ export const AdminDepositQueue: React.FC = () => {
                     <Button 
                       variant="kalshi" 
                       className="h-9 px-3 text-[10px] font-black uppercase tracking-widest w-full sm:w-auto"
+                      aria-label={`Approve deposit of ${d.amount} for user ${d.userId}`}
                       onClick={() => handleApprove(d.id)}
                       disabled={!d.screenshotProof}
                     >
@@ -149,6 +145,7 @@ export const AdminDepositQueue: React.FC = () => {
                     <Button 
                       variant="outline" 
                       className="h-9 px-3 text-[10px] font-black uppercase tracking-widest border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white w-full sm:w-auto"
+                      aria-label={`Reject deposit request for user ${d.userId}`}
                       onClick={() => handleReject(d.id)}
                     >
                       <X size={14} className="mr-1.5" /> Reject

@@ -28,10 +28,18 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
   const activeMethod = methods.find(m => m.id === activeMethodId) || methods[0];
   
   const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setHasCopied(true);
-    addToast('Account number copied to clipboard', 'info');
-    setTimeout(() => setHasCopied(false), 2000);
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => {
+          setHasCopied(true);
+          addToast('Account number copied to clipboard', 'info');
+          setTimeout(() => setHasCopied(false), 2000);
+        })
+        .catch(() => addToast('Copy failed — clipboard not accessible', 'error'));
+    } else {
+      addToast('Clipboard requires a secure (HTTPS) connection', 'error');
+    }
   };
 
   const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -70,28 +78,25 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
   
   const handleRequest = async () => {
     const val = parseFloat(amount);
-    if (!val || val <= 0) return;
-    if (!screenshot) {
-        addToast('Please upload a screenshot proof of payment', 'error');
-        return;
+    if (!val || val <= 0) {
+      addToast('Please enter a valid deposit amount', 'error');
+      return;
     }
-      
+    // H6: Minimum deposit validation
+    if (val < 100) {
+      addToast('Minimum deposit amount is NPR 100', 'error');
+      return;
+    }
+    if (!screenshot) {
+      addToast('Please upload a screenshot proof of payment', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
-    await new Promise(r => setTimeout(r, 800));
-  
     try {
-      // In a real implementation, you would upload the file to a storage service
-      // and get a URL. For this demo, we'll simulate with a base64 data URL.
-      let screenshotUrl = '';
-      if (screenshotPreview) {
-        screenshotUrl = screenshotPreview;
-      }
-        
-      console.log('About to submit deposit with screenshot length:', screenshotUrl.length);
-      console.log('Screenshot URL starts with:', screenshotUrl.substring(0, 50));
+      const screenshotUrl = screenshotPreview ?? '';
       await requestDeposit(Math.floor(val * 100), '', activeMethod.name, screenshotUrl);
-      console.log('Deposit submitted successfully');
-      addToast('Deposit request submitted with screenshot proof! Admin will verify and credit your account shortly.', 'success');
+      addToast('Deposit request submitted! Admin will verify and credit your account shortly.', 'success');
       setAmount('');
       removeScreenshot();
       onClose();

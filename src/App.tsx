@@ -33,8 +33,8 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // Check local storage or system preference
-    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    // Check local storage
+    if (localStorage.theme === 'dark') {
       setIsDarkMode(true);
       document.documentElement.classList.add('dark');
     } else {

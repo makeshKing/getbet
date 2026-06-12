@@ -70,6 +70,7 @@ export interface User {
   withdrawableBalance: number;
   kycStatus: KycStatus;
   role: Role;
+  isBanned?: boolean;
   savedAddresses?: SavedAddress[];
   password?: string;
 }
