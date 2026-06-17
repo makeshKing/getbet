@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { Calendar, MessageCircle, Share2, Download, ListFilter, ChevronDown, ChevronUp, Search, Info, Activity, Clock, ArrowLeft, Heart, MoreHorizontal } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { getMarketRecentTrades, RecentTrade } from '../services/supabaseService';
 import { format } from 'date-fns';
@@ -17,28 +17,6 @@ interface MarketDetailProps {
 }
 
 const TIME_FILTERS = ['6H', '1D', '1W', '1M', 'ALL'];
-
-interface CustomDotProps {
-  cx?: number;
-  cy?: number;
-  payload?: any;
-  index?: number;
-  color?: string;
-  hoveredIndex?: number | null;
-}
-
-const CustomDot = (props: CustomDotProps) => {
-  const { cx, cy, index, color, hoveredIndex } = props;
-
-  if (index !== hoveredIndex) return null;
-  if (cx === undefined || cy === undefined || !color) return null;
-
-  return (
-    <g style={{ pointerEvents: 'none' }}>
-      <circle cx={cx} cy={cy} r={5} fill={color} stroke="none" />
-    </g>
-  );
-};
 
 export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) => {
    const { addToast } = useToast();
@@ -59,11 +37,25 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
    const [chartHistory, setChartHistory] = useState<any[]>([]);
    const [chartLoading, setChartLoading] = useState(true);
    const [showError, setShowError] = useState(false);
-   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
-   const [floatingPrice, setFloatingPrice] = useState<string | null>(null);
    
    // UI states
    const [isTradePanelOpen, setIsTradePanelOpen] = useState(false);
+
+   // Hide mobile bottom nav when trade panel is open
+   useEffect(() => {
+      const nav = document.getElementById('mobile-bottom-nav');
+      if (nav) {
+         if (isTradePanelOpen) {
+            nav.style.display = 'none';
+         } else {
+            nav.style.display = '';
+         }
+      }
+      return () => {
+         if (nav) nav.style.display = '';
+      }
+   }, [isTradePanelOpen]);
+
    const [isRulesOpen, setIsRulesOpen] = useState(false);
 
    // Realtime local outcomes state
@@ -71,6 +63,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
 
    // Refs
    const tradePanelRef = useRef<HTMLDivElement>(null);
+   const chartContainerRef = useRef<HTMLDivElement>(null);
 
    useEffect(() => {
      if (market?.outcomes && market.outcomes.length > 0) {
@@ -206,10 +199,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
       return market.probability || 50;
    };
 
-    const currentProb = getProbability();
-    const activeIndex = hoveredIndex !== null ? hoveredIndex : chartHistory.length - 1;
-    const activeDataPoint = chartHistory[activeIndex] || chartHistory[chartHistory.length - 1];
-
     const selectedOutcome = localOutcomes.find(o => o.id === activeOutcomeId) || localOutcomes[0];
     const yes_price = selectedOutcome ? Math.round(selectedOutcome.probability) : 50;
     const no_price = selectedOutcome ? Math.round(100 - selectedOutcome.probability) : 50;
@@ -264,42 +253,85 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
       }
    };
 
-   const handleChartTouchMove = (e: any) => {
-      if (e?.activeTooltipIndex !== undefined) {
-         setHoveredIndex(e.activeTooltipIndex);
-         setFloatingPrice(`+ $${Math.floor(Math.random() * 50) + 10}`); // mock floating price
-      }
-   };
+    // DOM-based hover handlers — no React state changes, no re-renders, no animation replay
+    const handleChartMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+       const rect = chartContainerRef.current?.getBoundingClientRect();
+       if (!rect || !chartHistory.length) return;
 
-   const handleChartTouchEnd = () => {
-      setHoveredIndex(null);
-      setFloatingPrice(null);
-   };
+       const rightMargin = 40; // matches LineChart margin.right
+       const chartWidth = rect.width - rightMargin;
+       const x = e.clientX - rect.left;
+       const index = Math.round((x / chartWidth) * (chartHistory.length - 1));
+       const clampedIndex = Math.max(0, Math.min(index, chartHistory.length - 1));
+       const point = chartHistory[clampedIndex];
+       if (!point) return;
+
+       // Update legend values directly via DOM
+       localOutcomes.forEach(o => {
+          const el = document.getElementById(`legend-val-${o.id}`);
+          if (el && point[o.id] !== undefined) {
+             el.textContent = `${Number(point[o.id]).toFixed(localOutcomes.length === 1 ? 0 : 1)}${localOutcomes.length === 1 ? '% chance' : '%'}`;
+          }
+       });
+
+       // Update cursor line position via DOM
+       const cursorEl = document.getElementById('chart-hover-cursor');
+       if (cursorEl) {
+          const pct = (clampedIndex / (chartHistory.length - 1)) * 100;
+          cursorEl.style.left = `${pct}%`;
+          cursorEl.style.display = 'block';
+       }
+    };
+
+    const handleChartMouseLeave = () => {
+       // Reset legend to current live values
+       localOutcomes.forEach(o => {
+          const el = document.getElementById(`legend-val-${o.id}`);
+          if (el) {
+             el.textContent = `${Number(o.probability).toFixed(localOutcomes.length === 1 ? 0 : 1)}${localOutcomes.length === 1 ? '% chance' : '%'}`;
+          }
+       });
+       // Hide cursor line
+       const cursorEl = document.getElementById('chart-hover-cursor');
+       if (cursorEl) cursorEl.style.display = 'none';
+    };
+
+    const handleChartTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+       if (!e.touches[0]) return;
+       const rect = chartContainerRef.current?.getBoundingClientRect();
+       if (!rect || !chartHistory.length) return;
+
+       const rightMargin = 40;
+       const chartWidth = rect.width - rightMargin;
+       const x = e.touches[0].clientX - rect.left;
+       const index = Math.round((x / chartWidth) * (chartHistory.length - 1));
+       const clampedIndex = Math.max(0, Math.min(index, chartHistory.length - 1));
+       const point = chartHistory[clampedIndex];
+       if (!point) return;
+
+       localOutcomes.forEach(o => {
+          const el = document.getElementById(`legend-val-${o.id}`);
+          if (el && point[o.id] !== undefined) {
+             el.textContent = `${Number(point[o.id]).toFixed(localOutcomes.length === 1 ? 0 : 1)}${localOutcomes.length === 1 ? '% chance' : '%'}`;
+          }
+       });
+
+       const cursorEl = document.getElementById('chart-hover-cursor');
+       if (cursorEl) {
+          const pct = (clampedIndex / (chartHistory.length - 1)) * 100;
+          cursorEl.style.left = `${pct}%`;
+          cursorEl.style.display = 'block';
+       }
+    };
+
+    const handleChartTouchEnd = () => {
+       handleChartMouseLeave();
+    };
 
    return (
       <div className="min-h-screen bg-[#080808] lg:pb-24 text-white flex flex-col font-sans selection:bg-[#00D964]/30 relative">
          
-         {/* MOBILE TOP NAVIGATION (Hidden on lg screens) */}
-         <div className="flex lg:hidden items-center justify-between px-4 py-3 border-b border-[#1E2440] bg-[#0A0E1A]/90 backdrop-blur-md sticky top-0 z-40">
-            <button
-               onClick={onBack}
-               className="w-9 h-9 rounded-full bg-[#1D1F26] flex items-center justify-center text-white hover:bg-[#2A2E35] transition-colors"
-               aria-label="Go back"
-            >
-               <ArrowLeft size={18} />
-            </button>
-            <div className="flex items-center gap-2">
-               <button className="w-9 h-9 rounded-full bg-[#1D1F26] flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#2A2E35] transition-colors">
-                  <Heart size={17} />
-               </button>
-               <button className="w-9 h-9 rounded-full bg-[#1D1F26] flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#2A2E35] transition-colors">
-                  <Share2 size={17} />
-               </button>
-               <button className="w-9 h-9 rounded-full bg-[#1D1F26] flex items-center justify-center text-gray-400 hover:text-white hover:bg-[#2A2E35] transition-colors">
-                  <MoreHorizontal size={17} />
-               </button>
-            </div>
-         </div>
+         {/* MOBILE TOP NAVIGATION REMOVED */}
 
          <div className="max-w-[1200px] mx-auto w-full px-0 lg:px-4 py-4 lg:py-8 flex flex-col lg:flex-row gap-8 lg:gap-12 flex-1">
             
@@ -333,12 +365,12 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                {/* Chart Area */}
                <div className="mb-0 relative group w-full">
                   
-                  {/* Chart Legend (inline) */}
+                  {/* Chart Legend (inline) — values updated via DOM, no re-renders */}
                   <div className="flex justify-between items-center mb-0 px-4 lg:px-0 flex-wrap gap-y-1">
                      {localOutcomes.length === 1 ? (
                         <div className="flex items-center gap-3">
-                           <span className="text-white font-bold text-2xl md:text-3xl">
-                              {Number((hoveredIndex !== null && activeDataPoint && activeDataPoint[localOutcomes[0].id] !== undefined) ? activeDataPoint[localOutcomes[0].id] : localOutcomes[0].probability).toFixed(0)}% chance
+                           <span id={`legend-val-${localOutcomes[0].id}`} className="text-white font-bold text-2xl md:text-3xl">
+                              {Number(localOutcomes[0].probability).toFixed(0)}% chance
                            </span>
                            <span className="text-[#00E5CC] font-bold text-base md:text-lg flex items-center">
                               ▲ 30.6
@@ -346,39 +378,71 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                         </div>
                      ) : (
                         <div className="flex items-center gap-2 md:gap-3 lg:gap-6 flex-wrap">
-                           {localOutcomes.map(outcome => {
-                              const val = (hoveredIndex !== null && activeDataPoint && activeDataPoint[outcome.id] !== undefined) 
-                                 ? activeDataPoint[outcome.id] 
-                                 : outcome.probability;
-                              return (
-                                 <div key={outcome.id} className="flex items-center gap-1.5 md:gap-2 text-xs md:text-[13px] font-medium">
-                                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full" style={{ backgroundColor: outcome.color || '#3B82F6' }} />
-                                    <span className="text-gray-400">{outcome.name}</span>
-                                    <span className="text-white font-bold">{Number(val).toFixed(1)}%</span>
-                                 </div>
-                              );
-                           })}
+                           {localOutcomes.map(outcome => (
+                              <div key={outcome.id} className="flex items-center gap-1.5 md:gap-2 text-xs md:text-[13px] font-medium">
+                                 <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full" style={{ backgroundColor: outcome.color || '#3B82F6' }} />
+                                 <span className="text-gray-400">{outcome.name}</span>
+                                 <span id={`legend-val-${outcome.id}`} className="text-white font-bold">{Number(outcome.probability).toFixed(1)}%</span>
+                              </div>
+                           ))}
                         </div>
                      )}
                      <div className="text-[11px] md:text-[13px] font-bold text-gray-400 tracking-tight select-none pointer-events-none pr-4 lg:pr-0">PredictKit</div>
                   </div>
 
-                  {/* Chart Container */}
+                  {/* Chart Container — mouse events here, NOT on LineChart, to avoid re-renders */}
                   <div 
+                     ref={chartContainerRef}
                      className="h-40 md:h-[180px] lg:h-[220px] w-full relative"
+                     onMouseMove={handleChartMouseMove}
+                     onMouseLeave={handleChartMouseLeave}
                      onTouchMove={handleChartTouchMove}
                      onTouchEnd={handleChartTouchEnd}
                      onTouchCancel={handleChartTouchEnd}
                   >
-                     {chartHistory.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                     {/* DOM-based cursor line — positioned absolutely, updated via JS */}
+                     <div
+                        id="chart-hover-cursor"
+                        className="absolute top-0 bottom-0 w-px pointer-events-none"
+                        style={{ display: 'none', zIndex: 10, background: 'rgba(255,255,255,0.2)' }}
+                     />
+
+                     {chartLoading ? (
+                        /* Skeleton loading state while data fetches */
+                        <div className="w-full h-full flex flex-col justify-end gap-2 pb-4 px-2">
+                           <div className="w-full h-[2px] bg-gradient-to-r from-[#15171C] via-[#00E5CC]/30 to-[#15171C] rounded animate-pulse" />
+                           <div className="flex gap-1 items-end h-32">
+                              {Array.from({ length: 40 }).map((_, i) => (
+                                 <div
+                                    key={i}
+                                    className="flex-1 bg-[#1E2025] rounded-sm animate-pulse"
+                                    style={{
+                                       height: `${30 + Math.sin(i * 0.4) * 20 + Math.random() * 15}%`,
+                                       animationDelay: `${i * 20}ms`
+                                    }}
+                                 />
+                              ))}
+                           </div>
+                           <div className="flex justify-between px-2">
+                              {['May', 'Jun'].map(d => (
+                                 <span key={d} className="text-[#9AA0A6] text-xs animate-pulse">{d}</span>
+                              ))}
+                           </div>
+                        </div>
+                     ) : chartHistory.length > 0 ? (
+                        /* Smooth fade-in after animation */
+                        <div
+                           className="w-full h-full"
+                           style={{
+                              opacity: 1,
+                              transition: 'opacity 500ms ease-in-out'
+                           }}
+                        >
+                        {/* key={activeTimeFilter} forces re-mount & re-animation on filter change */}
+                        <ResponsiveContainer key={activeTimeFilter} width="100%" height="100%">
                            <LineChart 
                              data={chartHistory} 
                              margin={{ top: 10, right: 40, left: 0, bottom: 5 }}
-                             onMouseMove={(e) => {
-                               if (e?.activeTooltipIndex !== undefined) setHoveredIndex(e.activeTooltipIndex);
-                             }}
-                             onMouseLeave={() => setHoveredIndex(null)}
                            >
                               <CartesianGrid strokeDasharray="3 3" vertical={false} horizontal={true} stroke="#2A2D35" opacity={0.5} />
                               <XAxis
@@ -406,15 +470,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                               />
                               <Tooltip cursor={false} content={() => null} />
                               
-                              {hoveredIndex !== null && activeDataPoint && (
-                                <ReferenceLine
-                                  x={activeDataPoint.timestamp}
-                                  stroke="rgba(255,255,255,0.2)"
-                                  strokeWidth={1}
-                                  strokeDasharray="3 3"
-                                />
-                              )}
-
+                              {/* Line draw animation — plays once on mount, never on hover */}
                               {localOutcomes.length > 0 ? (
                                  localOutcomes.map((outcome) => (
                                     <Line
@@ -423,26 +479,23 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                        dataKey={outcome.id}
                                        stroke={outcome.color || '#3B82F6'}
                                        strokeWidth={2}
-                                       dot={<CustomDot color={outcome.color || '#3B82F6'} hoveredIndex={hoveredIndex} />}
+                                       dot={false}
                                        activeDot={false}
-                                       isAnimationActive={false}
+                                       isAnimationActive={true}
+                                       animationBegin={0}
+                                       animationDuration={1200}
+                                       animationEasing="ease-out"
                                     />
                                  ))
                               ) : null}
                            </LineChart>
                         </ResponsiveContainer>
-                     ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm font-bold">
-                           {chartLoading ? <Spinner size="sm" /> : 'No chart data available'}
-                        </div>
-                     )}
-
-                     {/* Mobile Floating Bubble */}
-                     {floatingPrice && (
-                        <div className="absolute top-1/2 left-4 bg-white text-black px-2 py-0.5 rounded text-[10px] font-bold shadow-lg pointer-events-none lg:hidden">
-                           {floatingPrice}
-                        </div>
-                     )}
+                         </div>
+                      ) : (
+                         <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm font-bold">
+                            No chart data available
+                         </div>
+                      )}
                   </div>
 
                   {/* Chart controls rows */}
@@ -578,127 +631,135 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
             </div>
 
             {/* Mobile Bottom Trading Panel */}
-            <div 
-               className={`
-                  fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out transform bg-[#15171C] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] lg:hidden max-h-[85vh] overflow-y-auto
-                  ${isTradePanelOpen ? 'translate-y-0' : 'translate-y-full'}
-               `}
-               ref={tradePanelRef}
-            >
-               {/* Mobile Drag Handle + Close */}
-               <div className="flex items-center justify-between px-5 pt-3 pb-1">
-                  <div className="w-8" />
-                  <div className="w-10 h-1 bg-gray-600 rounded-full cursor-pointer" onClick={() => setIsTradePanelOpen(false)} />
-                  <button 
+            {isTradePanelOpen && (
+               <>
+                  {/* Backdrop */}
+                  <div
+                     className="fixed inset-0 bg-black/50 z-[45] lg:hidden"
                      onClick={() => setIsTradePanelOpen(false)}
-                     className="w-8 h-8 rounded-full bg-[#2A2E35] flex items-center justify-center text-gray-400 hover:text-white transition-colors text-sm font-bold"
-                     aria-label="Close trading panel"
-                  >
-                     ✕
-                  </button>
-               </div>
+                  />
 
-               <div className="p-5 pb-8">
-                  {/* Panel Header */}
-                  <div className="flex justify-between items-center mb-6">
-                     <div className="flex gap-4">
-                        <span className="text-white font-bold text-[13px] tracking-wide uppercase">BUY</span>
-                        <span className="text-gray-500 font-bold text-[13px] tracking-wide uppercase">SELL</span>
+                  {/* Bottom Sheet */}
+                  <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#15171C] rounded-t-3xl flex flex-col lg:hidden"
+                     style={{ maxHeight: '90vh' }}>
+
+                     {/* Drag handle + close button */}
+                     <div className="flex items-center justify-center pt-3 pb-1 relative flex-shrink-0">
+                        <div className="w-10 h-1 bg-gray-600 rounded-full cursor-pointer" onClick={() => setIsTradePanelOpen(false)} />
+                        <button
+                           onClick={() => setIsTradePanelOpen(false)}
+                           className="absolute right-4 top-3 text-gray-400 hover:text-white"
+                        >
+                           ✕
+                        </button>
                      </div>
-                     <button className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 hover:text-white uppercase tracking-widest transition-colors">
-                        DOLLARS <ChevronDown size={14} />
-                     </button>
-                  </div>
 
-                  {/* Selected Outcome Info */}
-                  <div className="mb-4">
-                     <p className="text-[12px] text-[#9AA0A6] mb-2 leading-snug capitalize">{market.title}</p>
-                     {activeOutcomeId && (
-                        <div className="flex items-center gap-2">
-                           {selectedOutcome?.icon ? (
-                              selectedOutcome.icon.length <= 4 ? (
-                                 <div className="w-5 h-5 flex items-center justify-center text-base">{selectedOutcome.icon}</div>
+                     {/* Scrollable content */}
+                     <div className="flex-1 overflow-y-auto px-4 py-2 min-h-0">
+
+                        {/* BUY / SELL tabs */}
+                        <div className="flex items-center justify-between mb-4">
+                           <div className="flex gap-4">
+                              <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
+                              <span className="text-[#9AA0A6] text-sm">SELL</span>
+                           </div>
+                           <span className="text-[#9AA0A6] text-sm">DOLLARS ▾</span>
+                        </div>
+
+                        {/* Market name */}
+                        <p className="text-[#9AA0A6] text-xs mb-1">{market.title}</p>
+
+                        {/* Selected outcome */}
+                        {activeOutcomeId && (
+                           <div className="flex items-center gap-2 mb-4">
+                              {selectedOutcome?.icon ? (
+                                 selectedOutcome.icon.length <= 4 ? (
+                                    <div className="text-xl flex items-center justify-center">{selectedOutcome.icon}</div>
+                                 ) : (
+                                    <img src={selectedOutcome.icon} className="w-5 h-5 rounded-full object-cover" alt="" />
+                                 )
                               ) : (
-                                 <img src={selectedOutcome.icon} className="w-5 h-5 rounded-full object-cover" alt="" />
-                              )
-                           ) : (
-                              <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
-                           )}
-                           <span className="text-white font-medium text-[15px]">{selectedOutcome?.name}</span>
+                                 <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
+                              )}
+                              <span className="text-white text-lg font-bold">{selectedOutcome?.name}</span>
+                           </div>
+                        )}
+
+                        {/* YES / NO buttons */}
+                        <div className="flex items-center gap-2 mb-4">
+                           <button onClick={() => setActiveSide(Side.YES)}
+                              className={`px-5 py-2 rounded-full text-sm font-bold border-2 transition-all ${
+                                 activeSide === Side.YES
+                                    ? 'bg-[#00D964] border-[#00D964] text-black'
+                                    : 'bg-transparent border-[#00D964] text-[#00D964]'
+                              }`}>
+                              YES {yes_price}¢
+                           </button>
+                           <button onClick={() => setActiveSide(Side.NO)}
+                              className={`px-5 py-2 rounded-full text-sm font-bold border-2 transition-all ${
+                                 activeSide === Side.NO
+                                    ? 'bg-[#9AA0A6] border-[#9AA0A6] text-black'
+                                    : 'bg-transparent border-[#9AA0A6] text-[#9AA0A6]'
+                              }`}>
+                              NO {no_price}¢
+                           </button>
+                           <span className="ml-auto text-[#9AA0A6] text-xs underline decoration-gray-700 underline-offset-2">3.25% Interest</span>
                         </div>
-                     )}
-                  </div>
 
-                  {/* YES/NO Toggle */}
-                  <div className="flex items-center justify-between mb-4">
-                     <div className="flex gap-2">
-                        <button 
-                           onClick={() => setActiveSide(Side.YES)}
-                           className={`px-[14px] py-[4px] rounded-xl text-[12px] font-bold transition-colors uppercase tracking-wide border ${activeSide === Side.YES ? 'bg-[#00D964] text-black border-[#00D964]' : 'bg-transparent text-[#00D964] border-[#00D964]'}`}
-                        >
-                           YES {yes_price}¢
-                        </button>
-                        <button 
-                           onClick={() => setActiveSide(Side.NO)}
-                           className={`px-[14px] py-[4px] rounded-xl text-[12px] font-bold transition-colors uppercase tracking-wide border ${activeSide === Side.NO ? 'bg-[#FF4D4D] text-white border-[#FF4D4D]' : 'bg-transparent text-[#FF4D4D] border-[#FF4D4D]'}`}
-                        >
-                           NO {no_price}¢
-                        </button>
-                     </div>
-                     <span className="text-[10px] text-[#9AA0A6] hover:text-white underline decoration-gray-700 underline-offset-2 cursor-pointer transition-colors">3.25% Interest</span>
-                  </div>
-
-                  {/* Amount Input */}
-                  <div 
-                     className="bg-[#1D1F26] border border-[#2A2A2A] rounded-[8px] flex items-center justify-between p-3.5 mb-5 focus-within:border-gray-500 transition-colors cursor-text group"
-                     onClick={() => document.getElementById('dollar-input-mobile')?.focus()}
-                  >
-                     <span className="text-[13px] text-gray-400 font-medium">Dollars</span>
-                     <div className="flex items-center justify-end flex-1">
-                        <span className="text-white text-xl font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">$</span>
-                        <input
-                           id="dollar-input-mobile"
-                           type="number"
-                           inputMode="numeric"
-                           value={quantity}
-                           onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
-                           className="bg-transparent text-right text-xl font-medium text-white outline-none w-28 placeholder:text-[#333]"
-                           placeholder="0"
-                        />
-                     </div>
-                  </div>
-
-                  {/* Odds & Payout */}
-                  <div className="space-y-4 mb-6">
-                     <div className="flex justify-between items-center text-[13px]">
-                        <span className="text-gray-400 font-medium flex items-center gap-1.5">
-                           Odds 
-                           <span className="w-3.5 h-3.5 rounded-full border border-gray-600 text-gray-400 flex items-center justify-center text-[9px] font-bold">i</span>
-                        </span>
-                        <span className="text-white font-medium">{activeSide === Side.YES ? yes_price : no_price}% chance</span>
-                     </div>
-                     <div className="flex justify-between items-end text-[13px]">
-                        <div className="flex flex-col gap-1">
-                           <span className="text-gray-400 font-medium">Max payout</span>
-                           <span className="text-gray-500 text-[11px]">{resolutionDate}</span>
+                        {/* Dollar input */}
+                        <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-3 mb-4 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group">
+                           <span className="text-[#9AA0A6] text-sm font-medium">Dollars</span>
+                           <div className="flex items-center justify-end flex-1">
+                              <span className="text-white text-xl font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">$</span>
+                              <input
+                                 type="number"
+                                 inputMode="numeric"
+                                 value={quantity || ''}
+                                 onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
+                                 placeholder="0"
+                                 className="bg-transparent text-white text-right text-xl font-medium outline-none w-24 placeholder:text-[#333]"
+                              />
+                           </div>
                         </div>
-                        <span className="text-white text-[22px] font-bold tracking-tight">${maxPayout.toFixed(2)}</span>
-                     </div>
-                  </div>
+                        {showError && (
+                           <p className="text-[#FF4D4D] text-xs mb-2 text-center font-bold">Please enter an amount</p>
+                        )}
 
-                  {/* Action Button */}
-                  <Button 
-                     onClick={handleOrder}
-                     disabled={isProcessing}
-                     className="w-full h-12 bg-[#00D964] hover:bg-[#00c255] text-black font-bold rounded-xl active-scale text-[15px] transition-colors"
-                  >
-                     {isProcessing ? <Spinner size="sm" color="black" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
-                  </Button>
-                  {showError && (
-                     <p className="text-[#FF4D4D] text-xs mt-2 text-center font-bold">Please enter an amount</p>
-                  )}
-               </div>
-            </div>
+                        {/* Odds */}
+                        <div className="flex items-center justify-between mb-2">
+                           <div className="flex items-center gap-1">
+                              <span className="text-[#9AA0A6] text-sm">Odds</span>
+                              <span className="w-3.5 h-3.5 rounded-full border border-gray-600 text-gray-400 flex items-center justify-center text-[9px] font-bold">i</span>
+                           </div>
+                           <span className="text-white text-sm">{activeSide === Side.YES ? yes_price : no_price}% chance</span>
+                        </div>
+
+                        {/* Max payout */}
+                        <div className="flex items-center justify-between mb-2">
+                           <div>
+                              <p className="text-[#9AA0A6] text-sm">Max payout</p>
+                              <p className="text-[#9AA0A6] text-xs">{resolutionDate}</p>
+                           </div>
+                           <span className="text-white text-2xl font-bold tracking-tight">${maxPayout.toFixed(2)}</span>
+                        </div>
+
+                     </div>
+
+                     {/* STICKY BUTTON — always visible, never hidden */}
+                     <div className="flex-shrink-0 px-4 py-4 bg-[#15171C]"
+                          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
+                        <Button
+                           onClick={handleOrder}
+                           disabled={isProcessing}
+                           className="w-full bg-[#00D964] text-black font-bold text-base py-4 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all h-auto"
+                        >
+                           {isProcessing ? <Spinner size="sm" color="black" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
+                        </Button>
+                     </div>
+
+                  </div>
+               </>
+            )}
 
             {/* DESKTOP TRADING PANEL */}
             <div className="hidden lg:block w-72 xl:w-80 flex-shrink-0">

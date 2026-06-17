@@ -15,7 +15,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ onNavigate, ac
   ];
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-[60] pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-[#070b14]/90 backdrop-blur-2xl border-t border-slate-200/50 dark:border-white/5 shadow-[0_-8px_40px_rgba(0,0,0,0.12)]">
+    <div id="mobile-bottom-nav" className="md:hidden fixed bottom-0 left-0 right-0 z-30 pb-[env(safe-area-inset-bottom)] bg-white/80 dark:bg-[#070b14]/90 backdrop-blur-2xl border-t border-slate-200/50 dark:border-white/5 shadow-[0_-8px_40px_rgba(0,0,0,0.12)]">
       <div className="flex justify-around items-center h-16 sm:h-20 px-6">
         {navItems.map((item) => {
           const isActive = activePage === item.id || (item.id === 'home' && activePage.startsWith('market'));

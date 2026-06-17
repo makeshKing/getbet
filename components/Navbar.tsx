@@ -54,9 +54,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
               className="flex-shrink-0 flex items-center cursor-pointer group"
               onClick={() => onNavigate('home')}
             >
-              <div className="bg-gradient-to-br from-indigo-600 to-violet-600 text-white p-2 rounded-xl mr-3 shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-all duration-300">
-                <LayoutDashboard size={20} />
-              </div>
               <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white hidden sm:block">PredictKit</span>
             </div>
 
@@ -75,14 +72,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
               ))}
             </div>
 
-            {/* Mobile Hamburger Button */}
-            <button
-              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
-              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
-              aria-label="Toggle menu"
-            >
-              {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
-            </button>
+            {/* Mobile Hamburger Button Removed */}
           </div>
 
           {/* Right Actions */}
