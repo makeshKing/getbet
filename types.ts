@@ -86,6 +86,7 @@ export interface MarketOutcome {
   name: string;
   probability: number; // 0-100
   color?: string;
+  icon?: string;
 }
 
 export interface MarketDynamics {

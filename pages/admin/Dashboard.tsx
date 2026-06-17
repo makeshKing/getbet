@@ -5,6 +5,7 @@ import { useCurrency } from '../../context/CurrencyContext';
 import { StatCard } from '../../components/admin/StatCard';
 import { Users, FileText, DollarSign, ShieldAlert, CheckCircle, PlusCircle, Settings, TrendingUp } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { PromoBanner } from '../../components/PromoBanner';
 
 interface AdminDashboardProps {
     onNavigate: (page: string) => void;
@@ -79,6 +80,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate }) =>
             }
             trendUp={false}
         />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-slate-800 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-700 p-8">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest mb-6">User-Facing Promotional Banner</h3>
+            <div className="max-w-sm mx-auto">
+                <PromoBanner 
+                    featuredMarket={stats.totalMarkets > 0 ? { id: 'admin-preview', title: 'Featured Market Example', description: 'This is a live preview of the promotional banner that users see in the sidebar.', category: 'Sports', probability: 50, volume: 1000000, isTrending: true } as any : undefined} 
+                    onClick={() => {}} 
+                />
+            </div>
+            <p className="text-xs text-slate-500 mt-6 text-center">This banner automatically highlights the top trending market to drive user engagement.</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -324,12 +324,20 @@ export async function getMarket(id: string): Promise<Market | null> {
 }
 
 export async function adminCreateMarket(marketData: Partial<Market>): Promise<Market> {
+  // Auto-generate a unique slug from the title if not provided
+  const baseSlug = (marketData.slug || marketData.title || 'market')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 60);
+  const uniqueSlug = `${baseSlug}-${Date.now().toString(36)}`;
+
   const payload: any = {
     title: marketData.title || '',
     description: marketData.description || '',
     category: marketData.category || '',
     subcategory: marketData.subcategory,
-    slug: marketData.slug,
+    slug: uniqueSlug,
     close_date: marketData.closeDate,
     start_date: marketData.startDate,
     resolution_source: marketData.resolutionSource || '',

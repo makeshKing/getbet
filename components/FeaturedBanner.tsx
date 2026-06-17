@@ -39,7 +39,7 @@ export const FeaturedBanner: React.FC<FeaturedBannerProps> = ({ market, onClick 
                     className="w-24 h-24 rounded-2xl object-cover shadow-sm bg-white/50 flex-shrink-0" 
                 />
                 <div className="pt-1">
-                     <h2 className="text-3xl font-bold text-slate-900 dark:text-white leading-tight mb-2 tracking-tight">
+                     <h2 className="text-3xl font-bold text-slate-900 dark:text-white leading-tight mb-2 tracking-tight capitalize">
                         {market.title}
                     </h2>
                 </div>
@@ -60,8 +60,8 @@ export const FeaturedBanner: React.FC<FeaturedBannerProps> = ({ market, onClick 
                         <div className="flex items-center gap-4">
                             <span className="text-base font-bold text-slate-900 dark:text-white w-10 text-right">{item.prob}%</span>
                             <div className="flex gap-1.5">
-                                <button className="px-3 py-1 bg-indigo-50/80 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-md hover:bg-indigo-100 transition-colors backdrop-blur-sm">Yes</button>
-                                <button className="px-3 py-1 bg-purple-50/80 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 text-xs font-bold rounded-md hover:bg-purple-100 transition-colors backdrop-blur-sm">No</button>
+                                <button className="px-3 py-1 bg-transparent border border-[#00D964] text-[#00D964] text-xs font-bold rounded-full transition-colors">Yes</button>
+                                <button className="px-3 py-1 bg-transparent border border-[#FF4D4D] text-[#FF4D4D] text-xs font-bold rounded-full transition-colors">No</button>
                             </div>
                         </div>
                     </div>

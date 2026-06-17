@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { LedgerTable } from '../components/LedgerTable';
+import { PnLCalendar } from '../components/PnLCalendar';
 
 import { DepositDialog } from '../components/DepositDialog';
 import { WithdrawDialog } from '../components/WithdrawDialog';
@@ -161,6 +162,11 @@ export const Profile: React.FC = () => {
 
 
 
+
+          {/* P&L Calendar Section */}
+          <div>
+            <PnLCalendar ledger={ledger} trades={trades} />
+          </div>
 
           {/* Ledger Table Section */}
           <div>
