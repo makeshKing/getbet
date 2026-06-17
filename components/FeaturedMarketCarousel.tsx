@@ -140,13 +140,13 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
 
   return (
     <div 
-      className="bg-[#15171C] rounded-2xl border border-[#22252B] p-5 lg:p-6 cursor-pointer hover:border-slate-600 transition-colors duration-200 group relative overflow-hidden flex flex-col"
+      className="bg-[#15171C] rounded-xl md:rounded-2xl border border-[#22252B] p-4 md:p-5 lg:p-6 cursor-pointer hover:border-slate-600 transition-colors duration-200 group relative overflow-hidden flex flex-col"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onClick={() => onSelectMarket?.(currentSlide.id)}
     >
       {/* 1. Top row (Header - doesn't slide) */}
-      <div className="flex items-center justify-between mb-4 shrink-0">
+      <div className="flex items-center justify-between mb-3 md:mb-4 shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded bg-amber-500/20 flex items-center justify-center text-amber-500">
             {currentSlide.category.icon}
@@ -192,15 +192,15 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
               <div key={slide.id} className="w-full flex-shrink-0">
                 
                 {/* 2. Title */}
-                <h2 className="text-2xl lg:text-[28px] font-semibold text-white mb-6 tracking-tight leading-tight line-clamp-2 capitalize">
+                <h2 className="text-lg md:text-2xl lg:text-[28px] font-semibold text-white mb-3 md:mb-6 tracking-tight leading-tight line-clamp-2 capitalize">
                   {slide.title}
                 </h2>
 
                 {/* 3. Two-column content area */}
-                <div className="flex flex-col lg:flex-row gap-8 mb-6">
+                <div className="flex flex-col lg:flex-row gap-4 md:gap-8 mb-4 md:mb-6">
                   
                   {/* Left column (~55% width) */}
-                  <div className="lg:w-[55%] flex flex-col justify-center">
+                  <div className="w-full lg:w-[55%] flex flex-col justify-center">
                     <div className="space-y-1">
                       {slide.outcomes.map((outcome, idx) => {
                         const prob = hoveredIndex !== null && activeDataPoint 
@@ -208,22 +208,22 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                           : outcome.probability;
 
                         return (
-                          <div key={idx} className="flex items-center gap-3 py-2">
+                          <div key={idx} className="flex items-center gap-2 md:gap-3 py-1.5 md:py-2 border-b border-[#22252B] last:border-b-0 md:border-b-0">
                             {outcome.icon ? (
                               outcome.icon.length <= 4 ? (
-                                <span className="text-2xl w-8 h-8 flex items-center justify-center">{outcome.icon}</span>
+                                <span className="text-xl md:text-2xl w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">{outcome.icon}</span>
                               ) : (
-                                <img src={outcome.icon} alt={outcome.name} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                                <img src={outcome.icon} alt={outcome.name} className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shrink-0" />
                               )
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs md:text-sm font-bold text-white shrink-0">
                                 {outcome.name.charAt(0)}
                               </div>
                             )}
-                            <span className="text-white font-medium flex-1">{outcome.name}</span>
-                            <span className="text-[#9AA0A6] text-sm">{outcome.payoutMultiplier.toFixed(2)}x</span>
+                            <span className="text-white font-medium flex-1 text-sm md:text-base">{outcome.name}</span>
+                            <span className="text-[#9AA0A6] text-xs md:text-sm hidden sm:inline">{outcome.payoutMultiplier.toFixed(2)}x</span>
                             <span 
-                              className="border text-sm font-bold px-3 py-1 rounded-full bg-transparent transition-colors" 
+                              className="border text-xs px-2 py-0.5 md:text-sm font-bold md:px-3 md:py-1 rounded-full bg-transparent transition-colors" 
                               style={{ 
                                 borderColor: outcome.color, 
                                 color: outcome.color,
@@ -240,7 +240,7 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
 
                   {/* Right column (~45% width) */}
                   <div 
-                    className="lg:w-[45%] h-[160px] relative mt-4 lg:mt-0"
+                    className="hidden md:block lg:w-[45%] h-[160px] relative mt-4 lg:mt-0"
                     onClick={(e) => {
                       // Prevent clicking the chart from triggering the outer card click
                       if (hoveredIndex !== null) {
@@ -318,9 +318,9 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                 </div>
 
                 {/* 4. Divider + news row */}
-                <div className="border-t border-[#22252B] pt-4 mb-4">
-                  <p className="text-[13px] text-[#9AA0A6] flex items-center gap-2 truncate">
-                    <span className="font-bold text-white shrink-0">News</span>
+                <div className="border-t border-[#22252B] pt-3 md:pt-4 mb-3 md:mb-4">
+                  <p className="text-xs md:text-[13px] text-[#9AA0A6] flex items-center gap-2 truncate">
+                    <span className="font-bold text-white shrink-0">News ·</span>
                     <span className="truncate">{slide.news || "No recent news for this market."}</span>
                   </p>
                 </div>

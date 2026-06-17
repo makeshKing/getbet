@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LayoutDashboard, ShieldCheck, UserCircle, LogOut, Sun, Moon, ChevronDown, Banknote } from 'lucide-react';
+import { User, LayoutDashboard, ShieldCheck, UserCircle, LogOut, Sun, Moon, ChevronDown, Banknote, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { Role } from '../types';
@@ -16,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
   const { userProfile: user, signOut } = useAuth();
   const { currency, setCurrency, formatMoney } = useCurrency();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
   const handleNav = (page: string) => {
     onNavigate(page);
     setIsMenuOpen(false);
+    setIsMobileNavOpen(false);
   };
 
   const navItems = [
@@ -41,9 +43,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
   ];
 
   return (
+    <>
     <nav className="border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-[#0B0F19]/80 backdrop-blur-xl sticky top-0 z-50 transition-all duration-500 supports-[backdrop-filter]:bg-white/60">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16">
+        <div className="flex justify-between h-14 md:h-16">
 
           {/* Logo & Desktop Links */}
           <div className="flex items-center gap-8">
@@ -71,6 +74,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
                 </button>
               ))}
             </div>
+
+            {/* Mobile Hamburger Button */}
+            <button
+              onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+              className="md:hidden p-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              aria-label="Toggle menu"
+            >
+              {isMobileNavOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
           </div>
 
           {/* Right Actions */}
@@ -165,5 +177,32 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
         </div>
       </div>
     </nav>
+
+    {/* Mobile Navigation Drawer */}
+    {isMobileNavOpen && (
+      <div className="md:hidden fixed inset-0 top-14 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileNavOpen(false)}>
+        <div 
+          className="bg-white dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-3 space-y-1">
+            {navItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => handleNav(item.id)}
+                className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  activePage === item.id || (item.id === 'home' && activePage.startsWith('market'))
+                    ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 };

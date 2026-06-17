@@ -314,7 +314,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                   </div>
                   
                   <div className="flex justify-between items-start mb-1.5">
-                     <h1 className="text-[24px] sm:text-[32px] font-bold text-white leading-tight break-words tracking-tight max-w-2xl capitalize">{market.title}</h1>
+                     <h1 className="text-xl sm:text-[24px] md:text-[32px] font-bold text-white leading-tight break-words tracking-tight max-w-2xl capitalize">{market.title}</h1>
                      {/* Desktop icons */}
                      <div className="hidden lg:flex items-center gap-4 text-gray-400 pt-1">
                         <Calendar size={18} className="cursor-pointer hover:text-white transition-colors" />
@@ -334,25 +334,25 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                <div className="mb-0 relative group w-full">
                   
                   {/* Chart Legend (inline) */}
-                  <div className="flex justify-between items-center mb-0 px-4 lg:px-0">
+                  <div className="flex justify-between items-center mb-0 px-4 lg:px-0 flex-wrap gap-y-1">
                      {localOutcomes.length === 1 ? (
                         <div className="flex items-center gap-3">
-                           <span className="text-white font-bold text-3xl">
+                           <span className="text-white font-bold text-2xl md:text-3xl">
                               {Number((hoveredIndex !== null && activeDataPoint && activeDataPoint[localOutcomes[0].id] !== undefined) ? activeDataPoint[localOutcomes[0].id] : localOutcomes[0].probability).toFixed(0)}% chance
                            </span>
-                           <span className="text-[#00E5CC] font-bold text-lg flex items-center">
+                           <span className="text-[#00E5CC] font-bold text-base md:text-lg flex items-center">
                               ▲ 30.6
                            </span>
                         </div>
                      ) : (
-                        <div className="flex items-center gap-3 lg:gap-6 flex-wrap">
+                        <div className="flex items-center gap-2 md:gap-3 lg:gap-6 flex-wrap">
                            {localOutcomes.map(outcome => {
                               const val = (hoveredIndex !== null && activeDataPoint && activeDataPoint[outcome.id] !== undefined) 
                                  ? activeDataPoint[outcome.id] 
                                  : outcome.probability;
                               return (
-                                 <div key={outcome.id} className="flex items-center gap-2 text-[13px] font-medium">
-                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: outcome.color || '#3B82F6' }} />
+                                 <div key={outcome.id} className="flex items-center gap-1.5 md:gap-2 text-xs md:text-[13px] font-medium">
+                                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full" style={{ backgroundColor: outcome.color || '#3B82F6' }} />
                                     <span className="text-gray-400">{outcome.name}</span>
                                     <span className="text-white font-bold">{Number(val).toFixed(1)}%</span>
                                  </div>
@@ -360,12 +360,12 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                            })}
                         </div>
                      )}
-                     <div className="text-[13px] font-bold text-gray-400 tracking-tight select-none pointer-events-none pr-4 lg:pr-0">PredictKit</div>
+                     <div className="text-[11px] md:text-[13px] font-bold text-gray-400 tracking-tight select-none pointer-events-none pr-4 lg:pr-0">PredictKit</div>
                   </div>
 
                   {/* Chart Container */}
                   <div 
-                     className="h-[180px] lg:h-[220px] w-full relative"
+                     className="h-40 md:h-[180px] lg:h-[220px] w-full relative"
                      onTouchMove={handleChartTouchMove}
                      onTouchEnd={handleChartTouchEnd}
                      onTouchCancel={handleChartTouchEnd}
@@ -374,7 +374,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                         <ResponsiveContainer width="100%" height="100%">
                            <LineChart 
                              data={chartHistory} 
-                             margin={{ top: 10, right: 50, left: 0, bottom: 5 }}
+                             margin={{ top: 10, right: 40, left: 0, bottom: 5 }}
                              onMouseMove={(e) => {
                                if (e?.activeTooltipIndex !== undefined) setHoveredIndex(e.activeTooltipIndex);
                              }}
@@ -388,17 +388,20 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                                  axisLine={false}
                                  tickLine={false}
                                  tickFormatter={(tick) => format(tick, 'MMM')}
-                                 tick={{ fill: '#9AA0A6', fontSize: 11 }}
+                                 tick={{ fill: '#9AA0A6', fontSize: 10 }}
                                  dy={10}
-                                 minTickGap={50}
+                                 minTickGap={40}
+                                 tickCount={4}
                               />
                               <YAxis
                                  orientation="right"
                                  domain={['auto', 'auto']}
                                  axisLine={false}
                                  tickLine={false}
-                                 tick={{ fill: '#9AA0A6', fontSize: 11 }}
+                                 tick={{ fill: '#9AA0A6', fontSize: 10 }}
                                  tickFormatter={(val) => `${val}%`}
+                                 tickCount={4}
+                                 width={36}
                                  dx={10}
                               />
                               <Tooltip cursor={false} content={() => null} />
@@ -444,27 +447,27 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
 
                   {/* Chart controls rows */}
                   <div className="px-4 lg:px-0">
-                     <div className="flex items-center justify-between mt-2 mb-4">
-                        <div className="flex items-center gap-3">
-                           <span className="px-2 py-0.5 rounded-full border border-[#00E5CC] text-[#00E5CC] text-[10px] font-bold uppercase tracking-wide">
-                              No fees
-                           </span>
-                           <span className="text-[13px] font-medium text-[#9AA0A6]">
-                              {formatVol(market.volume || 3140658200)} vol
-                           </span>
-                        </div>
-                        <div className="flex gap-4 text-[13px] font-bold text-[#9AA0A6]">
-                           {TIME_FILTERS.map(tf => (
-                              <button 
-                                key={tf}
-                                onClick={() => setActiveTimeFilter(tf)}
-                                className={`transition-colors border-none bg-transparent ${activeTimeFilter === tf ? 'text-white' : 'hover:text-gray-300'}`}
-                              >
-                                {tf}
-                              </button>
-                           ))}
-                        </div>
-                     </div>
+                     <div className="flex items-center justify-between mt-2 mb-4 gap-2">
+                         <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                            <span className="px-2 py-0.5 rounded-full border border-[#00E5CC] text-[#00E5CC] text-[10px] font-bold uppercase tracking-wide">
+                               No fees
+                            </span>
+                            <span className="text-xs md:text-[13px] font-medium text-[#9AA0A6]">
+                               {formatVol(market.volume || 3140658200)} vol
+                            </span>
+                         </div>
+                         <div className="flex gap-2 md:gap-4 text-xs md:text-[13px] font-bold text-[#9AA0A6] overflow-x-auto no-scrollbar">
+                            {TIME_FILTERS.map(tf => (
+                               <button 
+                                 key={tf}
+                                 onClick={() => setActiveTimeFilter(tf)}
+                                 className={`px-2 py-1 md:px-3 transition-colors border-none bg-transparent whitespace-nowrap ${activeTimeFilter === tf ? 'text-white' : 'hover:text-gray-300'}`}
+                               >
+                                 {tf}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
                      
                      <div className="flex items-center justify-between border-b border-[#1E2440] pb-2 mb-2 mt-4">
                         <div className="text-xs font-medium text-gray-500 w-[120px] text-center">Chance</div>
@@ -485,33 +488,29 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                      const changeStr = Math.floor(Math.random() * 10) / 10;
                      const isUp = Math.random() > 0.5;
                      
-                     // Get a random flag emoji or use color
-                     const flags = ['🇪🇸', '🇫🇷', '🇵🇹', '🇩🇪', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🇧🇷', '🇦🇷'];
-                     const flag = flags[idx % flags.length];
-
                      return (
                         <div 
                            key={outcome.id} 
-                           className={`flex flex-col gap-3 py-4 lg:py-5 lg:grid lg:grid-cols-[1fr_auto_auto] lg:items-center hover:bg-[#1E2440]/30 transition-colors cursor-pointer group ${!isLast ? 'border-b border-[#1E2440]' : ''}`}
+                           className={`flex flex-col gap-2 md:gap-3 py-3 md:py-4 lg:py-5 lg:grid lg:grid-cols-[1fr_auto_auto] lg:items-center hover:bg-[#1E2440]/30 transition-colors cursor-pointer group ${!isLast ? 'border-b border-[#1E2440]' : ''}`}
                         >
                            {/* Top Line Mobile / Left Col Desktop */}
                            <div className="flex items-center justify-between lg:justify-start lg:gap-4 w-full">
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2 md:gap-3">
                                  {outcome.icon ? (
                                     outcome.icon.length <= 4 ? (
-                                       <div className="w-8 h-8 flex items-center justify-center text-2xl shrink-0">{outcome.icon}</div>
+                                       <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center text-xl md:text-2xl shrink-0">{outcome.icon}</div>
                                     ) : (
-                                       <img src={outcome.icon} className="w-8 h-8 rounded-full object-cover shrink-0" alt={outcome.name} />
+                                       <img src={outcome.icon} className="w-7 h-7 md:w-8 md:h-8 rounded-full object-cover shrink-0" alt={outcome.name} />
                                     )
                                  ) : (
-                                    <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-sm font-bold text-white shrink-0">
+                                    <div className="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs md:text-sm font-bold text-white shrink-0">
                                        {outcome.name.charAt(0)}
                                     </div>
                                  )}
-                                 <span className="text-white font-medium text-[15px]">{outcome.name}</span>
+                                 <span className="text-white font-medium text-sm md:text-[15px]">{outcome.name}</span>
                               </div>
                               <div className="flex items-center gap-2 lg:w-32 lg:justify-center">
-                                 <span className="text-white font-bold text-[19px]">{price}%</span>
+                                 <span className="text-white font-bold text-lg md:text-[19px]">{price}%</span>
                                  <span className={`text-[10px] font-bold flex items-center gap-0.5 ${isUp ? 'text-[#00D964]' : 'text-[#FF4D4D]'}`}>
                                     {isUp ? '▲' : '▼'} {changeStr}
                                  </span>
@@ -519,16 +518,16 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                            </div>
                            
                            {/* Bottom Line Mobile / Right Col Desktop */}
-                           <div className="flex items-center justify-between gap-3 w-full lg:w-[180px] lg:justify-end">
+                           <div className="flex items-center gap-2 w-full lg:w-[180px] lg:justify-end">
                               <button 
                                  onClick={(e) => { e.stopPropagation(); selectOutcomeForTrade(outcome.id, Side.YES); }} 
-                                 className={`flex-1 lg:w-[84px] py-1 border border-[#00D964] rounded-xl text-[12px] font-bold transition-colors ${(activeOutcomeId === outcome.id && activeSide === Side.YES) ? 'bg-[#00D964] text-black' : 'bg-transparent text-[#00D964]'}`}
+                                 className={`flex-1 lg:flex-none lg:w-[84px] h-10 md:h-auto md:py-1 border border-[#00D964] rounded-full md:rounded-xl text-[13px] md:text-[12px] font-bold transition-colors ${(activeOutcomeId === outcome.id && activeSide === Side.YES) ? 'bg-[#00D964] text-black' : 'bg-transparent text-[#00D964]'}`}
                               >
                                  Yes {price}¢
                               </button>
                               <button 
                                  onClick={(e) => { e.stopPropagation(); selectOutcomeForTrade(outcome.id, Side.NO); }} 
-                                 className={`flex-1 lg:w-[84px] py-1 border border-[#FF4D4D] rounded-xl text-[12px] font-bold transition-colors ${(activeOutcomeId === outcome.id && activeSide === Side.NO) ? 'bg-[#FF4D4D] text-white' : 'bg-transparent text-[#FF4D4D]'}`}
+                                 className={`flex-1 lg:flex-none lg:w-[84px] h-10 md:h-auto md:py-1 border border-[#FF4D4D] rounded-full md:rounded-xl text-[13px] md:text-[12px] font-bold transition-colors ${(activeOutcomeId === outcome.id && activeSide === Side.NO) ? 'bg-[#FF4D4D] text-white' : 'bg-transparent text-[#FF4D4D]'}`}
                               >
                                  No {noPrice}¢
                               </button>
@@ -581,14 +580,22 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
             {/* Mobile Bottom Trading Panel */}
             <div 
                className={`
-                  fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-in-out transform bg-[#15171C] rounded-t-[20px] shadow-[0_-10px_40px_rgba(0,0,0,0.5)] lg:hidden
+                  fixed inset-x-0 bottom-0 z-50 transition-transform duration-300 ease-out transform bg-[#15171C] rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.5)] lg:hidden max-h-[85vh] overflow-y-auto
                   ${isTradePanelOpen ? 'translate-y-0' : 'translate-y-full'}
                `}
                ref={tradePanelRef}
             >
-               {/* Mobile Drag Handle */}
-               <div className="flex justify-center pt-3 pb-1" onClick={() => setIsTradePanelOpen(false)}>
-                  <div className="w-10 h-1.5 bg-gray-600 rounded-full"></div>
+               {/* Mobile Drag Handle + Close */}
+               <div className="flex items-center justify-between px-5 pt-3 pb-1">
+                  <div className="w-8" />
+                  <div className="w-10 h-1 bg-gray-600 rounded-full cursor-pointer" onClick={() => setIsTradePanelOpen(false)} />
+                  <button 
+                     onClick={() => setIsTradePanelOpen(false)}
+                     className="w-8 h-8 rounded-full bg-[#2A2E35] flex items-center justify-center text-gray-400 hover:text-white transition-colors text-sm font-bold"
+                     aria-label="Close trading panel"
+                  >
+                     ✕
+                  </button>
                </div>
 
                <div className="p-5 pb-8">
