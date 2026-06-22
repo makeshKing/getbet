@@ -24,18 +24,25 @@ export const Dialog: React.FC<DialogProps> = ({ isOpen, onClose, title, children
   if (!isOpen || !mounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 border border-slate-200 dark:border-slate-700 mx-auto relative">
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 z-10 backdrop-blur-md bg-opacity-90 dark:bg-opacity-90">
-          <h3 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{title}</h3>
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div 
+        className="w-full bg-[#15171C] border border-[#22252B] rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 relative mx-auto"
+        style={{ maxWidth: '420px' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[#22252B] sticky top-0 bg-[#15171C] z-10">
+          <h2 className="text-white text-lg font-bold">{title}</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="text-[#9AA0A6] hover:text-white transition-colors text-xl p-1"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="p-5 text-slate-700 dark:text-slate-300">
+        <div className="p-5 text-[#9AA0A6]">
           {children}
         </div>
       </div>

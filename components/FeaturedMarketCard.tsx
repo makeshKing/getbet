@@ -28,6 +28,7 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
 }) => {
     const isVs = market.subcategory === 'Head-to-Head' && market.candidateA && market.candidateB;
     const isMultiOutcome = !isVs && market.outcomes && market.outcomes.length > 0;
+    const isResolved = !!market.outcome || market.status === 'resolved';
     
     const displayOutcomes = [];
     if (isVs) {
@@ -69,9 +70,37 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
 
     return (
         <div 
-            className="bg-[#12161f] rounded-2xl border border-slate-800 p-5 cursor-pointer hover:border-slate-700 transition-colors duration-200"
-            onClick={() => onClick(market.id)}
+            className={`rounded-2xl border p-5 relative group flex flex-col h-full
+                ${isResolved 
+                    ? 'bg-[#12161f] border-slate-800 opacity-70 grayscale-[20%] cursor-not-allowed'
+                    : 'bg-[#12161f] border-slate-800 cursor-pointer hover:border-slate-700 transition-colors duration-200'
+                }`}
+            onClick={() => {
+                if (isResolved) return;
+                onClick(market.id);
+            }}
         >
+            {/* Lock overlay — only shows on resolved cards on hover */}
+            {isResolved && (
+                <div className="absolute inset-0 z-10 rounded-2xl flex items-center justify-center bg-black/0 group-hover:bg-black/50 transition-all duration-200">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center gap-2">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-8 h-8 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span className="text-white text-xs font-bold uppercase tracking-wide">
+                            Market Closed
+                        </span>
+                    </div>
+                </div>
+            )}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-8">
                 
                 {/* Left Column: Details */}
@@ -83,6 +112,15 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
                                 <CategoryIcon size={16} />
                             </div>
                             <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">{market.category}</span>
+                            {isResolved && (
+                                <span className="ml-2 flex items-center gap-1 text-[#9AA0A6] text-[10px] font-medium border border-[#9AA0A6]/30 px-2 py-0.5 rounded-full bg-[#9AA0A6]/5">
+                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                    RESOLVED
+                                </span>
+                            )}
                         </div>
                         
                         {totalFeatured > 1 && (

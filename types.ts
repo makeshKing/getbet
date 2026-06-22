@@ -123,6 +123,9 @@ export interface Market {
   candidateB?: MarketCandidate; // Associated with NO
   outcomes?: MarketOutcome[]; // For multi-choice markets
   dynamics?: MarketDynamics;  // Admin probability control preset
+  status?: 'active' | 'resolved';
+  resolved_outcome?: string;
+  resolved_at?: string;
 }
 
 export interface Order {
@@ -143,6 +146,9 @@ export interface Position {
   side: Side;
   quantity: number;
   avgPrice: number;
+  status?: 'open' | 'won' | 'lost' | 'cancelled';
+  payout?: number;
+  pnl?: number;
 }
 
 export interface Comment {

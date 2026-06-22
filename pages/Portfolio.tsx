@@ -3,10 +3,12 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
-import { Side, Position } from '../types';
+import { Side, Position, Trade } from '../types';
 import { Button } from '../components/ui/Button';
-import { SellDialog } from '../components/SellDialog';
+
 import { ShareHistoryTable } from '../components/ShareHistoryTable';
+import { PnLCalendar } from '../components/PnLCalendar';
+import { WinCard } from '../components/WinCard';
 import { Search } from 'lucide-react';
 import {
     TrendingUp,
@@ -18,7 +20,6 @@ import {
     Wallet,
     History,
     Activity,
-    Target,
     Flame,
     ExternalLink
 } from 'lucide-react';
@@ -27,11 +28,39 @@ import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, 
 export const Portfolio: React.FC = () => {
     const { positions, trades, markets, ledger } = useApp();
     const { userProfile: user } = useAuth();
-    const { formatMoney } = useCurrency();
-    const [selectedPos, setSelectedPos] = useState<Position | null>(null);
+    const { formatMoney, currency, usdToNprRate } = useCurrency();
+
+    // Convert cents (NPR cents) into the user's selected currency units for the win card
+    const toWinUnits = (cents: number) => {
+        const npr = cents / 100;
+        return currency === 'USD' ? npr / usdToNprRate : npr;
+    };
+
     const [chartMode, setChartMode] = useState<'equity' | 'pnl'>('equity');
     // animKey forces Recharts to remount & replay the animation when mode switches
     const [animKey, setAnimKey] = useState(0);
+    const [showWinCard, setShowWinCard] = useState(false);
+    const [selectedWin, setSelectedWin] = useState<Trade | null>(null);
+
+    // Won trades
+    const wonTrades = useMemo(() => trades.filter(t => t.status === 'WON'), [trades]);
+
+    function handleShareWin(trade: any) {
+        // Safety check — only proceed if this is a winning position
+        if (trade.status !== 'WON' && (trade.pnl || 0) <= 0) {
+            console.warn('Not a winning position');
+            return;
+        }
+
+        const priceInDecimal = (trade.price || 50) / 100;
+        const calculatedPayout = trade.amount / priceInDecimal;
+
+        setSelectedWin({
+            ...trade,
+            potentialWin: trade.payout || trade.paid_out || calculatedPayout
+        });
+        setShowWinCard(true);
+    }
 
     const getMarket = (id: string) => markets.find(m => m.id === id);
 
@@ -311,17 +340,13 @@ export const Portfolio: React.FC = () => {
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={chartData}>
                                 <defs>
-                                    <linearGradient id="equityGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.35} />
-                                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                                    <linearGradient id="greenGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#00D4AA" stopOpacity={0.25} />
+                                        <stop offset="100%" stopColor="#00D4AA" stopOpacity={0} />
                                     </linearGradient>
-                                    <linearGradient id="pnlGradPos" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.35} />
-                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="pnlGradNeg" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.35} />
-                                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                                    <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#FF4757" stopOpacity={0.25} />
+                                        <stop offset="100%" stopColor="#FF4757" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" strokeOpacity={0.08} />
@@ -376,30 +401,30 @@ export const Portfolio: React.FC = () => {
                                      />
                                  )}
                                  <Area
-                                     type="linear"
+                                     type="monotone"
                                      dataKey={chartMode === 'equity' ? 'equity' : 'pnl'}
                                      stroke={
                                          chartMode === 'equity'
-                                             ? '#6366f1'
-                                             : lifetimePnl >= 0 ? '#10b981' : '#ef4444'
+                                             ? '#00D4AA'
+                                             : lifetimePnl >= 0 ? '#00D4AA' : '#FF4757'
                                      }
-                                     strokeWidth={2.5}
+                                     strokeWidth={2}
                                      fill={
                                          chartMode === 'equity'
-                                             ? 'url(#equityGrad)'
-                                             : lifetimePnl >= 0 ? 'url(#pnlGradPos)' : 'url(#pnlGradNeg)'
+                                             ? 'url(#greenGradient)'
+                                             : lifetimePnl >= 0 ? 'url(#greenGradient)' : 'url(#redGradient)'
                                      }
                                      dot={false}
                                      activeDot={{
                                          r: 5,
-                                         fill: chartMode === 'equity' ? '#6366f1' : lifetimePnl >= 0 ? '#10b981' : '#ef4444',
-                                         stroke: '#fff',
+                                         fill: chartMode === 'equity' ? '#00D4AA' : lifetimePnl >= 0 ? '#00D4AA' : '#FF4757',
+                                         stroke: '#15171C',
                                          strokeWidth: 2,
                                      }}
                                      isAnimationActive={true}
                                      animationBegin={0}
                                      animationDuration={1000}
-                                     animationEasing="linear"
+                                     animationEasing="ease-out"
                                  />
                             </ComposedChart>
                         </ResponsiveContainer>
@@ -407,123 +432,165 @@ export const Portfolio: React.FC = () => {
                 </div>
 
                 <div className="lg:col-span-4 grid grid-cols-1 gap-4">
-                    <div className="glass-panel p-6 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 flex flex-col justify-between bg-gradient-to-br from-white to-slate-50 dark:from-slate-900 dark:to-slate-950">
-                        <div className="flex justify-between items-start">
-                            <div className="p-3 bg-indigo-500/10 text-indigo-600 rounded-2xl"><Target size={24} /></div>
-                            <div className="text-right">
-                                <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Lifetime P/L</div>
-                                <div className={`text-xl font-black ${lifetimePnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                    {lifetimePnl >= 0 ? '+' : ''}{formatMoney(Math.abs(lifetimePnl))}
-                                </div>
-                            </div>
-                        </div>
-                        <div className="space-y-3 pt-4">
-                            <div className="flex justify-between text-xs font-bold border-t border-slate-100 dark:border-slate-800 pt-3">
-                                <span className="text-slate-500">Unrealized Gain</span>
-                                <span className={unrealizedPL >= 0 ? 'text-emerald-500' : 'text-red-500'}>{formatMoney(unrealizedPL)}</span>
-                            </div>
+                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4">
+                        <p className="text-[#9AA0A6] text-xs uppercase tracking-wide mb-1">
+                            Lifetime P/L
+                        </p>
+                        <p className={`text-2xl font-bold ${lifetimePnl >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+                            {lifetimePnl >= 0 ? '+' : ''}{formatMoney(Math.abs(lifetimePnl))}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#22252B]">
+                            <span className="text-[#9AA0A6] text-xs">Unrealized Gain</span>
+                            <span className={unrealizedPL >= 0 ? 'text-[#00D4AA] text-sm font-medium' : 'text-[#FF4757] text-sm font-medium'}>
+                                {unrealizedPL >= 0 ? '+' : ''}{formatMoney(unrealizedPL)}
+                            </span>
                         </div>
                     </div>
 
-                    <div className="glass-panel p-6 rounded-3xl border border-slate-200/50 dark:border-slate-800/50 flex flex-col justify-between bg-slate-900 dark:bg-indigo-950 text-white relative overflow-hidden">
-                        <div className="absolute -right-6 -bottom-6 text-white opacity-5"><Flame size={120} /></div>
-                        <div className="relative z-10">
-                            <h3 className="text-xl font-black mb-1">Power Trader</h3>
-                            <p className="text-xs text-indigo-200 leading-relaxed opacity-70 tracking-tight">High Stakes Enabled. Standard contract face value increased to {formatMoney(1000)}.</p>
-                        </div>
+                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4">
+                        <h3 className="text-white font-bold text-base mb-1">Power Trader</h3>
+                        <p className="text-[#9AA0A6] text-xs leading-relaxed">
+                            High-Stakes Enabled. Standard contract face value increased to {formatMoney(1000)}.
+                        </p>
                     </div>
                 </div>
             </div >
 
             {/* Positions Section */}
             < div className="space-y-4" >
-                <div className="flex items-center justify-between px-2">
-                    <div className="flex items-center gap-3">
-                        <PieChart size={20} className="text-indigo-600" />
-                        <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Active Positions</h2>
-                    </div>
-                    <span className="text-[10px] font-black bg-indigo-600 text-white px-2 py-1 rounded-full uppercase tracking-widest">{positions.length}</span>
+                {/* Section header (desktop only — mobile header lives inside the card container) */}
+                <div className="hidden md:flex items-center justify-between px-2">
+                    <h3 className="text-white text-sm font-bold uppercase tracking-wide">
+                        Active Positions
+                    </h3>
+                    <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                        {positions.length}
+                    </span>
                 </div>
 
-                {/* Mobile View: Snappy Cards (YouTube Style) */}
-                <div className="md:hidden grid grid-cols-1 gap-3">
-                    {positions.map((pos, idx) => {
-                        const market = getMarket(pos.marketId);
-                        const currentPrice = getMarketCurrentPrice(pos.marketId, pos.side, pos.outcomeId);
-                        const pl = (currentPrice * pos.quantity) - (pos.avgPrice * pos.quantity);
-                        return (
-                            <div key={idx} className="glass-panel p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 flex flex-col gap-3 active:scale-[0.98] transition-all" onClick={() => setSelectedPos(pos)}>
-                                <div className="flex items-center gap-3">
-                                    <img src={market?.imageUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight line-clamp-1">{market?.title || 'Unknown Asset'}</h3>
+                {/* Mobile View: Clean minimal cards */}
+                <div className="md:hidden bg-[#15171C] rounded-2xl border border-[#22252B] overflow-hidden">
+                    {/* Section header */}
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#22252B]">
+                        <h3 className="text-white text-sm font-bold uppercase tracking-wide">
+                            Active Positions
+                        </h3>
+                        <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                            {positions.length}
+                        </span>
+                    </div>
+
+                    {/* Cards */}
+                    <div className="px-4">
+                        {positions.map((pos) => {
+                            const market = getMarket(pos.marketId);
+                            const isOpen = !pos.status || pos.status === 'open';
+                            // Potential max payout IF this position wins.
+                            // Settlement pays 1 NPR (=100 cents) per share (migration 017: v_payout := quantity * 100).
+                            const potentialPayoutCents = pos.quantity * 100;
+                            return (
+                                <div key={`${pos.marketId}-${pos.side}-${pos.outcomeId ?? 'main'}`} className="flex items-center gap-3 py-3.5 border-b border-[#22252B] last:border-0">
+
+                                    {/* Market icon */}
+                                    <img
+                                        src={market?.imageUrl}
+                                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                                        alt=""
+                                    />
+
+                                    {/* Center — market name + side + shares */}
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-white text-sm font-medium truncate">
+                                            {market?.title || 'Unknown Asset'}
+                                        </p>
                                         <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${pos.side === Side.YES ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400'}`}>{pos.side}</span>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{pos.quantity} Shares</span>
+                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                                pos.side === Side.YES
+                                                    ? 'bg-[#00D4AA]/15 text-[#00D4AA]'
+                                                    : 'bg-[#FF4757]/15 text-[#FF4757]'
+                                            }`}>
+                                                {pos.side}
+                                            </span>
+                                            <span className="text-[#9AA0A6] text-xs">
+                                                {pos.quantity} shares
+                                            </span>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`text-sm font-black ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                            {pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}
-                                        </div>
-                                        <div className="text-[9px] font-bold text-slate-400 tabular-nums">@{formatMoney(currentPrice)}</div>
+
+                                    {/* Right — potential payout + LIVE badge */}
+                                    <div className="text-right flex-shrink-0">
+                                        {isOpen ? (
+                                            <p className="text-[#00D4AA] text-sm font-bold">
+                                                {formatMoney(potentialPayoutCents)}
+                                            </p>
+                                        ) : (
+                                            <p className="text-[#9AA0A6] text-sm font-bold">
+                                                {formatMoney(potentialPayoutCents)}
+                                            </p>
+                                        )}
+                                        {pos.status === 'won' && <span className="inline-block text-[10px] font-bold text-[#00D4AA] border border-[#00D4AA]/40 px-1.5 py-0.5 rounded-full">Won</span>}
+                                        {pos.status === 'lost' && <span className="inline-block text-[10px] font-bold text-[#FF4757] border border-[#FF4757]/40 px-1.5 py-0.5 rounded-full">Lost</span>}
+                                        {pos.status === 'cancelled' && <span className="inline-block text-[10px] font-bold text-[#9AA0A6] border border-[#9AA0A6]/40 px-1.5 py-0.5 rounded-full">Cancelled</span>}
+                                        {isOpen && (
+                                            <span className="inline-flex items-center gap-1.5 mt-1 text-[#00D4AA] text-[10px] font-bold border border-[#00D4AA]/40 px-2 py-0.5 rounded-full bg-[#00D4AA]/10">
+                                                <span className="relative flex h-1.5 w-1.5">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00D4AA] opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00D4AA]"></span>
+                                                </span>
+                                                LIVE
+                                            </span>
+                                        )}
                                     </div>
+
                                 </div>
-                                <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/50">
-                                    <div className="flex items-center gap-1.5 text-[9px] font-bold text-indigo-500 uppercase tracking-widest">
-                                        <Target size={10} /> Buy: {formatMoney(pos.avgPrice)}
-                                    </div>
-                                    <button className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 flex items-center gap-1 uppercase tracking-widest">
-                                        Sell Now <ExternalLink size={10} />
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        })}
+                    </div>
                 </div>
 
                 {/* Desktop View: Pro Table */}
-                <div className="hidden md:block glass-panel rounded-[2rem] shadow-sm overflow-hidden border border-slate-200/50 dark:border-slate-800/50">
+                <div className="hidden md:block bg-[#15171C] border border-[#22252B] rounded-xl overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="min-w-full">
-                            <thead className="bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-100 dark:border-slate-800">
-                                <tr>
-                                    <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Asset</th>
-                                    <th className="px-6 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Side</th>
-                                    <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Qty</th>
-                                    <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Avg Cost</th>
-                                    <th className="px-6 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">P/L</th>
-                                    <th className="px-8 py-4 text-right text-[9px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-[#22252B]">
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Asset</th>
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Side</th>
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Qty</th>
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Avg Cost</th>
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">P/L</th>
+                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50">
+                            <tbody>
                                 {positions.map((pos, idx) => {
                                     const market = getMarket(pos.marketId);
                                     const currentPrice = getMarketCurrentPrice(pos.marketId, pos.side, pos.outcomeId);
                                     const pl = (currentPrice * pos.quantity) - (pos.avgPrice * pos.quantity);
                                     const plPercent = (pl / (pos.avgPrice * pos.quantity)) * 100;
                                     return (
-                                        <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-indigo-900/10 transition-colors group">
-                                            <td className="px-8 py-5">
-                                                <div className="flex items-center gap-4">
-                                                    <img className="h-10 w-10 rounded-xl object-cover" src={market?.imageUrl} alt="" />
-                                                    <div className="min-w-0">
-                                                        <div className="text-sm font-black text-slate-900 dark:text-white truncate">{market?.title || 'Unknown'}</div>
-                                                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{market?.category}</div>
-                                                    </div>
+                                        <tr key={idx} className="border-b border-[#22252B] last:border-0 hover:bg-[#1E2025]">
+                                            <td className="px-4 py-3 text-white text-sm">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="w-6 h-6 rounded-full bg-[#1E2025] flex items-center justify-center text-xs overflow-hidden">
+                                                        <img className="h-full w-full object-cover" src={market?.imageUrl} alt="" />
+                                                    </span>
+                                                    <span className="truncate max-w-[200px]">{market?.title || 'Unknown'}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-5 text-center">
-                                                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border-2 ${pos.side === Side.YES ? 'bg-emerald-500/5 text-emerald-600 border-emerald-500/20' : 'bg-red-500/5 text-red-600 border-red-500/20'}`}>{pos.side}</span>
+                                            <td className="px-4 py-3">
+                                                <span className={`text-xs font-bold ${pos.side === Side.YES ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>{pos.side}</span>
                                             </td>
-                                            <td className="px-6 py-5 text-right text-xs font-black text-slate-700 dark:text-slate-300">{pos.quantity.toLocaleString()}</td>
-                                            <td className="px-6 py-5 text-right text-xs text-slate-400 font-bold tabular-nums">{formatMoney(pos.avgPrice)}</td>
-                                            <td className="px-6 py-5 text-right">
-                                                <div className={`text-sm font-black tabular-nums ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}</div>
-                                                <div className={`text-[9px] font-black ${pl >= 0 ? 'text-emerald-500' : 'text-red-500'} opacity-70`}>{pl >= 0 ? '+' : ''}{plPercent.toFixed(1)}%</div>
+                                            <td className="px-4 py-3 text-white text-sm">{pos.quantity.toLocaleString()}</td>
+                                            <td className="px-4 py-3 text-white text-sm">{formatMoney(pos.avgPrice)}</td>
+                                            <td className="px-4 py-3">
+                                                <span className={`text-sm font-bold tabular-nums ${pl >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>{pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}</span>
                                             </td>
-                                            <td className="px-8 py-5 text-right">
-                                                <Button size="sm" variant="kalshi" className="h-9 px-4 text-[9px] font-black uppercase tracking-widest" onClick={() => setSelectedPos(pos)}>Sell Position</Button>
+                                            <td className="px-4 py-3 text-left">
+                                                {pos.status === 'won' && <span className="text-[#00D4AA] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#00D4AA]/30">Won</span>}
+                                                {pos.status === 'lost' && <span className="text-[#FF4757] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#FF4757]/30">Lost</span>}
+                                                {pos.status === 'cancelled' && <span className="text-[#9AA0A6] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#9AA0A6]/30">Cancelled</span>}
+                                                {(!pos.status || pos.status === 'open') && <span className="text-[#FFA500] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#FFA500]/30">Pending</span>}
                                             </td>
                                         </tr>
                                     );
@@ -543,6 +610,115 @@ export const Portfolio: React.FC = () => {
                 }
             </div >
 
+            {/* Historical Performance Calendar */}
+            <div className="space-y-4">
+                <PnLCalendar ledger={ledger} trades={trades} />
+            </div>
+
+            {/* Won Trades Section */}
+            {wonTrades.length > 0 && (
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between px-2 mb-3">
+                        <h3 className="text-white text-sm font-bold uppercase tracking-wide flex items-center gap-2">
+                            🏆 Won Trades
+                        </h3>
+                        <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold px-2 py-0.5 rounded-full">
+                            {wonTrades.length} won
+                        </span>
+                    </div>
+
+                    {/* Mobile View */}
+                    <div className="md:hidden grid grid-cols-1 gap-3">
+                        {wonTrades.map((trade) => {
+                            const market = getMarket(trade.marketId);
+                            return (
+                                <div key={trade.id} className="glass-panel p-4 rounded-2xl border border-emerald-500/20 dark:border-emerald-500/10 flex flex-col gap-3 relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/5 rounded-full -translate-y-6 translate-x-6" />
+                                    <div className="flex items-center gap-3">
+                                        <img src={market?.imageUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight line-clamp-1">{market?.title || trade.marketTitle}</h3>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">WON</span>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{trade.shares} Shares</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-sm font-black text-emerald-500">+{formatMoney(trade.potentialWin)}</div>
+                                            <div className="text-[9px] font-bold text-slate-400 tabular-nums">Cost: {formatMoney(trade.amount)}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/50">
+                                        <div className="text-[9px] font-bold text-slate-400">
+                                            {new Date(trade.createdAt).toLocaleDateString()}
+                                        </div>
+                                        <button
+                                            onClick={() => handleShareWin(trade)}
+                                            className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-400 transition-colors"
+                                        >
+                                            🎉 Share Win
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Desktop View */}
+                    <div className="hidden md:block bg-[#15171C] border border-[#22252B] rounded-xl overflow-hidden">
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead>
+                                    <tr className="bg-[#1E2025] border-b border-[#22252B]">
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Market</th>
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Side</th>
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Shares</th>
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Cost</th>
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Payout</th>
+                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {wonTrades.map((trade) => {
+                                        const market = getMarket(trade.marketId);
+                                        const profit = trade.potentialWin - trade.amount;
+                                        return (
+                                            <tr key={trade.id} className="border-b border-[#22252B] last:border-0 hover:bg-[#1E2025]">
+                                                <td className="px-4 py-3 text-white text-sm">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-6 h-6 rounded-full bg-[#1E2025] flex items-center justify-center text-xs overflow-hidden">
+                                                            <img className="h-full w-full object-cover" src={market?.imageUrl} alt="" />
+                                                        </span>
+                                                        <span className="truncate max-w-[200px]">{market?.title || trade.marketTitle}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-[#00D4AA]/30 text-[#00D4AA]`}>{trade.side}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-white text-sm">{trade.shares.toLocaleString()}</td>
+                                                <td className="px-4 py-3 text-[#9AA0A6] text-sm tabular-nums">{formatMoney(trade.amount)}</td>
+                                                <td className="px-4 py-3">
+                                                    <div className="text-sm font-bold tabular-nums text-[#00D4AA]">{formatMoney(trade.potentialWin)}</div>
+                                                    <div className="text-[10px] font-bold text-[#00D4AA] opacity-70">+{formatMoney(profit)} profit</div>
+                                                </td>
+                                                <td className="px-4 py-3 text-left">
+                                                    <button
+                                                        onClick={() => handleShareWin(trade)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide border border-[#00D4AA]/20 text-[#00D4AA] hover:bg-[#00D4AA]/10 transition-colors"
+                                                    >
+                                                        🎉 Share Win
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Purchase History Section */}
             < div className="space-y-4" >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
@@ -554,13 +730,22 @@ export const Portfolio: React.FC = () => {
                 <ShareHistoryTable trades={trades.filter(t => t.type === 'BUY')} />
             </div >
 
-            <SellDialog
-                isOpen={!!selectedPos}
-                onClose={() => setSelectedPos(null)}
-                position={selectedPos}
-                marketTitle={selectedPos ? getMarket(selectedPos.marketId)?.title || '' : ''}
-                currentPrice={selectedPos ? getMarketCurrentPrice(selectedPos.marketId, selectedPos.side, selectedPos.outcomeId) : 0}
-            />
+
+
+            {/* Win Card Overlay */}
+            {showWinCard && selectedWin && (() => {
+                const winMarket = getMarket(selectedWin.marketId);
+                return (
+                    <WinCard
+                        marketTitle={winMarket?.title || selectedWin.marketTitle}
+                        predictedOutcome={selectedWin.outcomeTitle || selectedWin.side}
+                        invested={toWinUnits(selectedWin.amount)}
+                        won={toWinUnits(selectedWin.potentialWin)}
+                        currency={currency}
+                        onClose={() => setShowWinCard(false)}
+                    />
+                );
+            })()}
         </div >
     );
 };

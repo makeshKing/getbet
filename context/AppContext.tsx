@@ -37,7 +37,7 @@ interface AppContextType {
 
   // Trade ops
   buy: (marketId: string, side: Side, price: number, quantity: number, outcomeId?: string) => Promise<void>;
-  sell: (marketId: string, side: Side, price: number, quantity: number, outcomeId?: string) => Promise<void>;
+
   refreshPortfolio: () => Promise<void>;
 
   // Finance ops
@@ -228,27 +228,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const commission = Math.round((cost * commissionPercent) / 100);
     const tradingFee = Math.round((cost * TRADING_FEE_PERCENT) / 100);
 
-    // execute_buy (migration 016) handles ALL probability updates server-side,
-    // including normalisation of multi-outcome arrays and directional YES/NO
-    // bumps. A secondary client-side update is no longer needed and would
-    // cause a race condition / double-bump.
+    // execute_buy handles all ledger and state updates server-side.
     await svc.executeBuy(userId, marketId, side, price, quantity, outcomeId, commission, tradingFee);
 
-    await Promise.all([refreshPortfolio(), refreshProfile(), refreshMarkets()]);
-  };
-
-  const sell = async (
-    marketId: string, side: Side, price: number,
-    quantity: number, outcomeId?: string
-  ) => {
-    if (!userId) throw new Error('Not authenticated');
-    const market = markets.find(m => m.id === marketId);
-    const commissionPercent = market?.commission || 0;
-    const revenue = price * quantity;
-    const commission = Math.round((revenue * commissionPercent) / 100);
-    const tradingFee = Math.round((revenue * TRADING_FEE_PERCENT) / 100);
-
-    await svc.executeSell(userId, marketId, side, price, quantity, outcomeId, commission, tradingFee);
     await Promise.all([refreshPortfolio(), refreshProfile(), refreshMarkets()]);
   };
 
@@ -434,7 +416,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     markets, positions, trades, ledger, depositMethods, config, activeQuiz,
     marketsLoading, portfolioLoading,
     refreshMarkets, adminCreateMarket, adminUpdateMarketField, adminResolveMarket,
-    buy, sell, refreshPortfolio,
+    buy, refreshPortfolio,
     requestDeposit, requestWithdrawal, refreshLedger,
     approveDeposit, rejectDeposit, approveWithdrawal, rejectWithdrawal,
     getPendingDeposits, getPendingWithdrawals,

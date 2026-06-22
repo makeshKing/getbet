@@ -580,35 +580,13 @@ export async function executeBuy(
   return data;
 }
 
-export async function executeSell(
-  userId: string,
-  marketId: string,
-  side: Side,
-  price: number,
-  quantity: number,
-  outcomeId?: string,
-  commission: number = 0,
-  tradingFee: number = 0
-) {
-  const { data, error } = await supabase.rpc('execute_sell', {
-    p_user_id: userId,
-    p_market_id: marketId,
-    p_side: side,
-    p_price: price,
-    p_quantity: quantity,
-    p_outcome_id: outcomeId || null,
-    p_commission: commission,
-    p_trading_fee: tradingFee,
-  });
-  if (error) throw new Error(error.message);
-  return data;
-}
 
 export async function getPositions(userId: string): Promise<Position[]> {
   const { data, error } = await supabase
     .from('positions')
     .select('*')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .or('status.eq.open,status.is.null');
   if (error) throw new Error(error.message);
   return (data || []).map(mapPosition);
 }

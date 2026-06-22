@@ -64,10 +64,41 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
             role="button"
             tabIndex={0}
             aria-label={`Market: ${market.title}`}
-            className="bg-[#15171C] rounded-xl border border-[#22252B] p-4 shadow-sm hover:border-slate-600 transition-all duration-200 cursor-pointer flex flex-col h-full relative"
-            onClick={() => onClick(market.id)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onClick(market.id); }}
+            className={`bg-[#15171C] rounded-xl border border-[#22252B] p-4 flex flex-col h-full relative group
+                ${market.status === 'resolved' || isResolved
+                    ? 'opacity-70 grayscale-[20%] cursor-not-allowed'
+                    : 'hover:border-[#00D4AA]/30 transition-all duration-200 cursor-pointer shadow-sm'
+                }`}
+            onClick={() => {
+                if (market.status === 'resolved' || isResolved) return;
+                onClick(market.id);
+            }}
+            onKeyDown={(e) => { 
+                if (market.status === 'resolved' || isResolved) return;
+                if (e.key === 'Enter' || e.key === ' ') onClick(market.id); 
+            }}
         >
+            {/* Lock overlay — only shows on resolved cards on hover */}
+            {(market.status === 'resolved' || isResolved) && (
+                <div className="absolute inset-0 z-10 rounded-xl flex items-center justify-center bg-black/0 group-hover:bg-black/50 transition-all duration-200">
+                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center gap-2">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            className="w-8 h-8 text-white"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        <span className="text-white text-xs font-bold uppercase tracking-wide">
+                            Market Closed
+                        </span>
+                    </div>
+                </div>
+            )}
             {/* Header: Category / Tag */}
             <div className="flex items-center gap-2 mb-3">
                 {market.imageUrl ? (
@@ -85,9 +116,13 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
                     {market.subcategory || market.category || 'Market'}
                 </span>
                 
-                {isResolved && (
-                     <span className="ml-auto text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                        <Award size={10} /> Resolved
+                {(market.status === 'resolved' || isResolved) && (
+                     <span className="ml-auto flex items-center gap-1 text-[#9AA0A6] text-[10px] font-medium border border-[#9AA0A6]/30 px-2 py-0.5 rounded-full bg-[#9AA0A6]/5">
+                        <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <rect x="3" y="11" width="18" height="11" rx="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                        RESOLVED
                      </span>
                 )}
             </div>

@@ -85,7 +85,7 @@ function App() {
           
           <main>
             {currentView === 'home' && <MarketList onMarketClick={openMarket} />}
-            {currentView === 'market-detail' && selectedMarketId && <MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} />}
+            {currentView === 'market-detail' && selectedMarketId && <MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} onMarketClick={openMarket} />}
             {currentView === 'portfolio' && <Portfolio />}
             {currentView === 'profile' && <Profile />}
             {currentView === 'quiz' && <QuizPage />}

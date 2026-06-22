@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useCurrency, CurrencyType } from '../context/CurrencyContext';
 import { Side } from '../types';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
@@ -14,20 +15,32 @@ import { format } from 'date-fns';
 interface MarketDetailProps {
    marketId: string;
    onBack: () => void;
+   onMarketClick?: (id: string) => void;
 }
 
 const TIME_FILTERS = ['6H', '1D', '1W', '1M', 'ALL'];
 
-export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) => {
+export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, onMarketClick }) => {
    const { addToast } = useToast();
    const { markets, buy } = useApp();
    const { userProfile } = useAuth();
+   const { currency, setCurrency, usdToNprRate } = useCurrency();
    const market = markets.find(m => m.id === marketId);
    
    const [activeSide, setActiveSide] = useState<Side>(Side.YES);
    const [activeOutcomeId, setActiveOutcomeId] = useState<string | undefined>(undefined);
    const [quantity, setQuantity] = useState<string>('');
    const [isProcessing, setIsProcessing] = useState(false);
+
+   // Currency display config — symbol/label follow the user's selected currency.
+   // NOTE: the database stores NPR (rupees) as its base currency (see CurrencyContext.formatMoney),
+   // so all internal trade math runs in NPR and we only swap the *displayed* symbol/label.
+   const currencyConfig: Record<CurrencyType, { symbol: string; label: string; dropdownLabel: string }> = {
+      NPR: { symbol: 'Rs.', label: 'Rupees', dropdownLabel: 'RUPEES' },
+      USD: { symbol: '$', label: 'Dollars', dropdownLabel: 'DOLLARS' },
+   };
+   const config = currencyConfig[currency];
+   const [showCurrencyDropdown, setShowCurrencyDropdown] = useState(false);
 
    const [recentTrades, setRecentTrades] = useState<RecentTrade[]>([]);
    const [tradesLoading, setTradesLoading] = useState(true);
@@ -57,6 +70,9 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
    }, [isTradePanelOpen]);
 
    const [isRulesOpen, setIsRulesOpen] = useState(false);
+   const [timelineOpen, setTimelineOpen] = useState(false);
+   const [insiderOpen, setInsiderOpen] = useState(false);
+   const [relatedMarkets, setRelatedMarkets] = useState<any[]>([]);
 
    // Realtime local outcomes state
    const [localOutcomes, setLocalOutcomes] = useState(market?.outcomes || []);
@@ -106,6 +122,33 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
        .subscribe();
      return () => { supabase.removeChannel(channel); };
    }, [marketId]);
+
+   // Fetch related markets for "People are also trading"
+   useEffect(() => {
+     if (!market) return;
+     let isMounted = true;
+     async function fetchRelated() {
+       const { data } = await supabase
+         .from('markets')
+         .select('id, title, category, icon_url')
+         .neq('id', market.id)
+         .eq('category', market.category)
+         .limit(3);
+
+       if (!data || data.length < 3) {
+         const { data: fallback } = await supabase
+           .from('markets')
+           .select('id, title, category, icon_url')
+           .neq('id', market.id)
+           .limit(3);
+         if (isMounted) setRelatedMarkets(fallback ?? []);
+       } else {
+         if (isMounted) setRelatedMarkets(data);
+       }
+     }
+     fetchRelated();
+     return () => { isMounted = false; };
+   }, [market?.id, market?.category]);
 
    useEffect(() => {
      if (!marketId || !market) return;
@@ -179,6 +222,31 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
       );
    }
 
+   if (market.status === 'resolved' || !!market.outcome) {
+      return (
+         <div className="min-h-screen bg-[#0B0D10] flex items-center justify-center px-6">
+            <div className="bg-[#15171C] border border-[#22252B] rounded-2xl p-8 max-w-md w-full text-center">
+               <div className="text-5xl mb-4">🔒</div>
+               <h2 className="text-white text-xl font-bold mb-2">Market Resolved</h2>
+               <p className="text-[#9AA0A6] text-sm mb-2">
+                  This market has been closed and resolved.
+               </p>
+               {market.resolved_outcome && (
+                  <p className="text-[#9AA0A6] text-sm mb-6">
+                     Resolved outcome: <span className="text-[#00D4AA] font-bold">{market.resolved_outcome}</span>
+                  </p>
+               )}
+               <button
+                  onClick={onBack}
+                  className="bg-[#00D4AA] text-[#0A0C10] font-bold px-6 py-3 rounded-xl"
+               >
+                  Back to Markets
+               </button>
+            </div>
+         </div>
+      );
+   }
+
    useEffect(() => {
      if (market) {
        document.title = market.title.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) + " | PredictKit";
@@ -204,13 +272,27 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
     const no_price = selectedOutcome ? Math.round(100 - selectedOutcome.probability) : 50;
 
     const price = activeSide === Side.YES ? yes_price / 100 : no_price / 100;
-    const inputDollars = parseFloat(quantity) || 0;
+
+    // The user types in their selected currency. The DB stores NPR (rupees), so
+    // convert the typed amount into NPR rupees for all internal calc + order placement.
+    const typedAmount = parseFloat(quantity) || 0;
+    const inputDollars = currency === 'NPR' ? typedAmount : typedAmount * usdToNprRate;
+
     const maxPayout = inputDollars > 0 && price > 0
        ? parseFloat((inputDollars / price).toFixed(2))
        : 0;
 
-    const currentPrice = activeSide === Side.YES ? yes_price * 100 : no_price * 100;
-    const numContracts = Math.floor((inputDollars * 100) / (activeSide === Side.YES ? yes_price : no_price || 1));
+    // ── Unit model (verified against migrations 002/017/018 resolve_market) ──
+    // 1 share has a Rs.1.00 face value (100 paisa). On a win, payout = quantity * 100
+    // paisa. So the per-share BUY price at probability P% is P paisa (e.g. 54% → 54 paisa,
+    // i.e. Rs.0.54/share). The DB's execute_buy computes v_cost = p_price * p_quantity,
+    // with both balance and v_cost in paisa. Therefore p_price MUST be the raw 1–99
+    // probability integer (paisa/share), NOT probability × 100.
+    const sidePrice = activeSide === Side.YES ? yes_price : no_price; // 1–99 paisa/share
+    const numContracts = sidePrice > 0 ? Math.floor((inputDollars * 100) / sidePrice) : 0;
+
+    // Payout is computed in NPR rupees; display in the user's selected currency.
+    const maxPayoutDisplay = currency === 'NPR' ? maxPayout : maxPayout / usdToNprRate;
 
     const resolutionDate = (() => {
        try {
@@ -228,12 +310,29 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
       setShowError(false);
       setIsProcessing(true);
       try {
-         await buy(market.id, activeSide, currentPrice, numContracts, activeOutcomeId);
+         await buy(market.id, activeSide, sidePrice, numContracts, activeOutcomeId);
          addToast('Order placed successfully!', 'success');
          setQuantity('');
          setIsTradePanelOpen(false);
       } catch (e: any) {
-         addToast(e.message, 'error');
+         // The DB raises "Insufficient funds: need <paisa> have <paisa>".
+         // Translate that raw-paisa message into a clear, currency-aware one.
+         const msg: string = e?.message || '';
+         const m = msg.match(/Insufficient funds: need\s+(\d+)\s+have\s+(\d+)/i);
+         if (m) {
+            const needPaisa = Number(m[1]);
+            const havePaisa = Number(m[2]);
+            const toUnits = (p: number) =>
+               currency === 'USD'
+                  ? `$${(p / 100 / usdToNprRate).toFixed(2)}`
+                  : `Rs. ${(p / 100).toFixed(2)}`;
+            addToast(
+               `Not enough balance — you have ${toUnits(havePaisa)} but this order needs ${toUnits(needPaisa)}. Deposit more to place it.`,
+               'error'
+            );
+         } else {
+            addToast(msg || 'Order failed. Please try again.', 'error');
+         }
       } finally {
          setIsProcessing(false);
       }
@@ -627,7 +726,129 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                         </div>
                      </div>
                   )}
+
+                  {/* Timeline and Payout */}
+                  <div className="border-t border-[#22252B]">
+                     <button
+                        onClick={() => setTimelineOpen(!timelineOpen)}
+                        className="w-full flex items-center justify-between py-4 px-0 bg-transparent border-none cursor-pointer"
+                     >
+                        <div className="flex items-center gap-3">
+                           <span className="text-[#9AA0A6]">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                 <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                                 <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                              </svg>
+                           </span>
+                           <span className="text-white font-medium text-sm">Timeline and payout</span>
+                        </div>
+                        <span className="text-[#9AA0A6] text-xs">
+                           {timelineOpen ? '▲' : '▼'}
+                        </span>
+                     </button>
+
+                     {timelineOpen && (
+                        <div className="pb-4 text-sm text-[#9AA0A6] space-y-2 leading-relaxed">
+                           <p>
+                              This market resolves to <span className="text-white font-medium">Yes</span> if
+                              the event occurs before the resolution date, otherwise resolves to{' '}
+                              <span className="text-white font-medium">No</span>.
+                           </p>
+                           <p>
+                              Resolution date: <span className="text-white">{resolutionDate}</span>
+                           </p>
+                           <p>
+                              Payout: Winners receive their payout automatically after resolution.
+                              The payout per contract is $1.00.
+                           </p>
+                        </div>
+                     )}
+                  </div>
+
+                  {/* Insider Trading is Prohibited */}
+                  <div className="border-t border-[#22252B]">
+                     <button
+                        onClick={() => setInsiderOpen(!insiderOpen)}
+                        className="w-full flex items-center justify-between py-4 px-0 bg-transparent border-none cursor-pointer"
+                     >
+                        <div className="flex items-center gap-3">
+                           <span className="text-[#9AA0A6]">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                 <circle cx="12" cy="12" r="10"/>
+                                 <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                              </svg>
+                           </span>
+                           <span className="text-white font-medium text-sm">Insider trading is prohibited</span>
+                        </div>
+                        <span className="text-[#9AA0A6] text-xs">
+                           {insiderOpen ? '▲' : '▼'}
+                        </span>
+                     </button>
+
+                     {insiderOpen && (
+                        <div className="pb-4 text-sm text-[#9AA0A6] leading-relaxed">
+                           <p className="mb-2">The following are prohibited from trading this contract:</p>
+                           <ul className="list-disc list-inside space-y-1 ml-2">
+                              <li>
+                                 Persons who are employed by any of the Source Agencies are not
+                                 permitted to trade on the Contract.
+                              </li>
+                              <li>
+                                 Persons who hold any material, non-public information on the
+                                 Underlying are not permitted to trade on the Contract.
+                              </li>
+                           </ul>
+                        </div>
+                     )}
+                  </div>
                </div>
+
+               {/* People Are Also Trading Section */}
+               {relatedMarkets.length > 0 && (
+                  <div className="px-4 lg:px-0 mt-8 mb-8">
+                     <h3 className="text-white text-lg font-bold mb-4">
+                        People are also trading
+                     </h3>
+
+                     <div className="space-y-0">
+                        {relatedMarkets.map((related: any, index: number) => (
+                           <div key={related.id}>
+                              <button
+                                 onClick={() => {
+                                    if (onMarketClick) {
+                                       onMarketClick(related.id);
+                                    }
+                                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                                 }}
+                                 className="w-full flex items-center gap-3 py-4 hover:bg-[#15171C] rounded-lg px-2 -mx-2 transition-colors text-left bg-transparent border-none cursor-pointer"
+                              >
+                                 {related.icon_url ? (
+                                    <img
+                                       src={related.icon_url}
+                                       alt={related.title}
+                                       className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
+                                    />
+                                 ) : (
+                                    <div className="w-10 h-10 rounded-lg bg-[#22252B] flex items-center justify-center flex-shrink-0">
+                                       <span className="text-[#9AA0A6] text-sm font-bold">
+                                          {related.title.charAt(0).toUpperCase()}
+                                       </span>
+                                    </div>
+                                 )}
+
+                                 <span className="text-white text-sm font-medium leading-snug flex-1 line-clamp-2 text-left">
+                                    {related.title}
+                                 </span>
+                              </button>
+
+                              {index < relatedMarkets.length - 1 && (
+                                 <div className="h-px bg-[#22252B] mx-0" />
+                              )}
+                           </div>
+                        ))}
+                     </div>
+                  </div>
+               )}
             </div>
 
             {/* Mobile Bottom Trading Panel */}
@@ -639,56 +860,93 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                      onClick={() => setIsTradePanelOpen(false)}
                   />
 
-                  {/* Bottom Sheet */}
-                  <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#15171C] rounded-t-3xl flex flex-col lg:hidden"
-                     style={{ maxHeight: '90vh' }}>
-
-                     {/* Drag handle + close button */}
-                     <div className="flex items-center justify-center pt-3 pb-1 relative flex-shrink-0">
-                        <div className="w-10 h-1 bg-gray-600 rounded-full cursor-pointer" onClick={() => setIsTradePanelOpen(false)} />
-                        <button
-                           onClick={() => setIsTradePanelOpen(false)}
-                           className="absolute right-4 top-3 text-gray-400 hover:text-white"
-                        >
-                           ✕
-                        </button>
+                  {/* Bottom Sheet — fixed height, no scroll */}
+                  <div
+                     className="fixed bottom-0 left-0 right-0 z-50 bg-[#15171C] rounded-t-3xl flex flex-col lg:hidden"
+                     style={{ height: '72vh' }}
+                  >
+                     {/* Drag handle */}
+                     <div className="flex justify-center pt-2.5 pb-1 flex-shrink-0">
+                        <div className="w-10 h-1 bg-[#2A2D35] rounded-full cursor-pointer" onClick={() => setIsTradePanelOpen(false)} />
                      </div>
 
-                     {/* Scrollable content */}
-                     <div className="flex-1 overflow-y-auto px-4 py-2 min-h-0">
-
-                        {/* BUY / SELL tabs */}
-                        <div className="flex items-center justify-between mb-4">
-                           <div className="flex gap-4">
-                              <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
-                              <span className="text-[#9AA0A6] text-sm">SELL</span>
+                     {/* All content — no scroll, fits on screen */}
+                     <div className="flex-1 flex flex-col px-4 pt-2 pb-0 min-h-0">
+                     
+                     {market.status === 'resolved' ? (
+                        <div className="flex flex-col items-center justify-center flex-1 h-full py-8 text-center">
+                           <div className="w-16 h-16 rounded-full bg-[#1E2440] flex items-center justify-center mb-4">
+                              <span className="text-2xl">🏁</span>
                            </div>
-                           <span className="text-[#9AA0A6] text-sm">DOLLARS ▾</span>
+                           <h3 className="text-white text-lg font-bold mb-2">Market Resolved</h3>
+                           <p className="text-[#9AA0A6] text-sm leading-relaxed mb-6">
+                              This market has concluded and resolved to <span className="text-white font-bold">{market.resolved_outcome || market.outcome}</span>.
+                           </p>
+                           <Button onClick={() => setIsTradePanelOpen(false)} variant="secondary" className="w-full py-3.5 rounded-xl">Close Panel</Button>
+                        </div>
+                     ) : (
+                        <>
+                        {/* Header row: BUY + currency switcher + X */}
+                        <div className="flex items-center justify-between mb-3 flex-shrink-0">
+                           <div className="flex items-center gap-4">
+                              <span className="text-white text-sm font-bold border-b-2 border-white pb-0.5">BUY</span>
+                           </div>
+                           <div className="flex items-center gap-3">
+                              <div className="relative">
+                                 <button
+                                    onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                                    className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
+                                 >
+                                    {config.dropdownLabel} ▾
+                                 </button>
+                                 {showCurrencyDropdown && (
+                                    <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#2A2D35] rounded-lg overflow-hidden z-20 min-w-[150px] shadow-xl">
+                                       {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
+                                          <button
+                                             key={c}
+                                             onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
+                                             className={`block w-full text-left px-4 py-2.5 text-sm ${
+                                                currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
+                                             }`}
+                                          >
+                                             {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
+                                          </button>
+                                       ))}
+                                    </div>
+                                 )}
+                              </div>
+                              <button
+                                 onClick={() => setIsTradePanelOpen(false)}
+                                 className="text-[#9AA0A6] hover:text-white text-lg leading-none bg-transparent border-none cursor-pointer"
+                              >✕</button>
+                           </div>
                         </div>
 
-                        {/* Market name */}
-                        <p className="text-[#9AA0A6] text-xs mb-1">{market.title}</p>
+                        {/* Market title — 1 line only */}
+                        <p className="text-[#9AA0A6] text-xs mb-1.5 truncate flex-shrink-0">
+                           {market.title}
+                        </p>
 
-                        {/* Selected outcome */}
+                        {/* Outcome name — 1 line only */}
                         {activeOutcomeId && (
-                           <div className="flex items-center gap-2 mb-4">
+                           <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                               {selectedOutcome?.icon ? (
                                  selectedOutcome.icon.length <= 4 ? (
-                                    <div className="text-xl flex items-center justify-center">{selectedOutcome.icon}</div>
+                                    <div className="text-base flex items-center justify-center flex-shrink-0">{selectedOutcome.icon}</div>
                                  ) : (
-                                    <img src={selectedOutcome.icon} className="w-5 h-5 rounded-full object-cover" alt="" />
+                                    <img src={selectedOutcome.icon} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
                                  )
                               ) : (
-                                 <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
+                                 <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold flex-shrink-0">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
                               )}
-                              <span className="text-white text-lg font-bold">{selectedOutcome?.name}</span>
+                              <span className="text-white text-base font-bold truncate">{selectedOutcome?.name}</span>
                            </div>
                         )}
 
-                        {/* YES / NO buttons */}
-                        <div className="flex items-center gap-2 mb-4">
+                        {/* YES / NO buttons + Interest */}
+                        <div className="flex items-center gap-2 mb-3 flex-shrink-0">
                            <button onClick={() => setActiveSide(Side.YES)}
-                              className={`px-5 py-2 rounded-full text-sm font-bold border-2 transition-all ${
+                              className={`px-4 py-2 rounded-full text-sm font-bold border-2 transition-all ${
                                  activeSide === Side.YES
                                     ? 'bg-[#00D964] border-[#00D964] text-black'
                                     : 'bg-transparent border-[#00D964] text-[#00D964]'
@@ -696,67 +954,79 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                               YES {yes_price}¢
                            </button>
                            <button onClick={() => setActiveSide(Side.NO)}
-                              className={`px-5 py-2 rounded-full text-sm font-bold border-2 transition-all ${
+                              className={`px-4 py-2 rounded-full text-sm font-bold border-2 transition-all ${
                                  activeSide === Side.NO
                                     ? 'bg-[#9AA0A6] border-[#9AA0A6] text-black'
                                     : 'bg-transparent border-[#9AA0A6] text-[#9AA0A6]'
                               }`}>
                               NO {no_price}¢
                            </button>
-                           <span className="ml-auto text-[#9AA0A6] text-xs underline decoration-gray-700 underline-offset-2">3.25% Interest</span>
+                           <span className="ml-auto text-[#9AA0A6] text-xs flex-shrink-0">3.25% Interest</span>
                         </div>
 
-                        {/* Dollar input */}
-                        <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-3 mb-4 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group">
-                           <span className="text-[#9AA0A6] text-sm font-medium">Dollars</span>
+                        {/* Amount input — symbol & label follow selected currency */}
+                        <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group flex-shrink-0">
+                           <span className="text-[#9AA0A6] text-sm font-medium">{config.label}</span>
                            <div className="flex items-center justify-end flex-1">
-                              <span className="text-white text-xl font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">$</span>
+                              <span className="text-white text-lg font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">{config.symbol}</span>
                               <input
                                  type="number"
                                  inputMode="numeric"
                                  value={quantity || ''}
                                  onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
                                  placeholder="0"
-                                 className="bg-transparent text-white text-right text-xl font-medium outline-none w-24 placeholder:text-[#333]"
+                                 className="bg-transparent text-white text-right text-lg font-medium outline-none w-20 placeholder:text-[#333]"
                               />
                            </div>
                         </div>
+                        {/* Live conversion hint — shows the equivalent in the other currency */}
+                        {typedAmount > 0 && (
+                           <p className="text-[#9AA0A6] text-xs mb-2 px-1 flex-shrink-0">
+                              {currency === 'NPR'
+                                 ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
+                                 : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
+                           </p>
+                        )}
                         {showError && (
-                           <p className="text-[#FF4D4D] text-xs mb-2 text-center font-bold">Please enter an amount</p>
+                           <p className="text-[#FF4D4D] text-xs mb-2 text-center font-bold flex-shrink-0">Please enter an amount</p>
                         )}
 
-                        {/* Odds */}
-                        <div className="flex items-center justify-between mb-2">
-                           <div className="flex items-center gap-1">
-                              <span className="text-[#9AA0A6] text-sm">Odds</span>
-                              <span className="w-3.5 h-3.5 rounded-full border border-gray-600 text-gray-400 flex items-center justify-center text-[9px] font-bold">i</span>
-                           </div>
-                           <span className="text-white text-sm">{activeSide === Side.YES ? yes_price : no_price}% chance</span>
-                        </div>
-
-                        {/* Max payout */}
-                        <div className="flex items-center justify-between mb-2">
+                        {/* Odds + Max payout — COMBINED compact row */}
+                        <div className="flex items-center justify-between mb-3 bg-[#1E2025] rounded-lg px-3 py-2.5 flex-shrink-0">
                            <div>
-                              <p className="text-[#9AA0A6] text-sm">Max payout</p>
-                              <p className="text-[#9AA0A6] text-xs">{resolutionDate}</p>
+                              <p className="text-[#9AA0A6] text-xs">Odds</p>
+                              <p className="text-white text-sm font-medium">
+                                 {activeSide === Side.YES ? yes_price : no_price}% chance
+                              </p>
                            </div>
-                           <span className="text-white text-2xl font-bold tracking-tight">${maxPayout.toFixed(2)}</span>
+                           <div className="w-px h-8 bg-[#2A2D35]" />
+                           <div className="text-right">
+                              <p className="text-[#9AA0A6] text-xs">Max payout · {resolutionDate}</p>
+                              <p className="text-white text-sm font-bold">{config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                           </div>
                         </div>
 
-                     </div>
+                        {/* Spacer pushes button to bottom */}
+                        <div className="flex-1" />
 
-                     {/* STICKY BUTTON — always visible, never hidden */}
-                     <div className="flex-shrink-0 px-4 py-4 bg-[#15171C]"
-                          style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
-                        <Button
-                           onClick={handleOrder}
-                           disabled={isProcessing}
-                           className="w-full bg-[#00D964] text-black font-bold text-base py-4 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all h-auto"
+                        {/* Place Order button — always visible at bottom */}
+                        <div
+                           className="flex-shrink-0 pb-4"
+                           style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
                         >
-                           {isProcessing ? <Spinner size="sm" color="black" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
-                        </Button>
-                     </div>
+                           <Button
+                              onClick={handleOrder}
+                              disabled={isProcessing}
+                              className="w-full bg-[#00D964] text-black font-bold text-base py-3.5 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all h-auto"
+                           >
+                              {isProcessing ? <Spinner size="sm" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
+                           </Button>
+                           <p className="text-center mt-3 text-xs text-[#9AA0A6] font-medium">Positions are held until market resolution.</p>
+                        </div>
 
+                        </>
+                     )}
+                     </div>
                   </div>
                </>
             )}
@@ -765,14 +1035,47 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
             <div className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
                <div className="sticky top-6 bg-[#15171C] border border-[#22252B] rounded-2xl p-5 w-full">
                   
-                  {/* Header tabs */}
-                  <div className="flex items-center justify-between mb-4">
-                     <div className="flex gap-4">
-                        <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
-                        <span className="text-[#9AA0A6] text-sm cursor-pointer hover:text-white">SELL</span>
+                  {market.status === 'resolved' ? (
+                     <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="w-16 h-16 rounded-full bg-[#1E2440] flex items-center justify-center mb-4">
+                           <span className="text-2xl">🏁</span>
+                        </div>
+                        <h3 className="text-white text-lg font-bold mb-2">Market Resolved</h3>
+                        <p className="text-[#9AA0A6] text-sm leading-relaxed">
+                           This market has concluded and resolved to <span className="text-white font-bold">{market.resolved_outcome || market.outcome}</span>. Trading is closed.
+                        </p>
                      </div>
-                     <span className="text-[#9AA0A6] text-sm">DOLLARS ▾</span>
-                  </div>
+                  ) : (
+                     <>
+                     {/* Header tabs */}
+                     <div className="flex items-center justify-between mb-4">
+                        <div className="flex gap-4">
+                           <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
+                        </div>
+                        <div className="relative">
+                           <button
+                              onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                              className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
+                           >
+                              {config.dropdownLabel} ▾
+                           </button>
+                           {showCurrencyDropdown && (
+                              <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#22252B] rounded-lg overflow-hidden z-20 min-w-[160px] shadow-xl">
+                                 {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
+                                    <button
+                                       key={c}
+                                       onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
+                                       className={`block w-full text-left px-4 py-2.5 text-sm ${
+                                          currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
+                                       }`}
+                                    >
+                                       {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
+                                    </button>
+                                 ))}
+                              </div>
+                           )}
+                        </div>
+                     </div>
 
                   {/* Market title */}
                   <p className="text-[#9AA0A6] text-sm mb-1 capitalize">
@@ -829,21 +1132,33 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                      </span>
                   </div>
 
-                  {/* Dollar amount input */}
+                  {/* Amount input — symbol & label follow selected currency */}
                   <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-3 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors">
-                     <span className="text-[#9AA0A6] text-sm">Dollars</span>
-                     <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={quantity}
-                        onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
-                        placeholder="0"
-                        className="bg-transparent text-white text-right text-base font-medium outline-none w-24"
-                     />
+                     <span className="text-[#9AA0A6] text-sm">{config.label}</span>
+                     <div className="flex items-center">
+                        <span className="text-[#00D964] text-base font-medium mr-1">{config.symbol}</span>
+                        <input
+                           type="number"
+                           min="0"
+                           step="1"
+                           value={quantity}
+                           onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
+                           placeholder="0"
+                           className="bg-transparent text-white text-right text-base font-medium outline-none w-24"
+                        />
+                     </div>
                   </div>
+                  {/* Live conversion hint */}
+                  {typedAmount > 0 ? (
+                     <p className="text-[#9AA0A6] text-xs mb-3 px-1">
+                        {currency === 'NPR'
+                           ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
+                           : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
+                     </p>
+                  ) : (
+                     <div className="mb-3" />
+                  )}
                   {showError && <p className="text-[#FF4D4D] text-xs mb-3">Please enter an amount</p>}
-                  {!showError && <div className="mb-3" />}
 
                   {/* Odds row */}
                   <div className="flex items-center justify-between mb-2">
@@ -863,7 +1178,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                         <p className="text-[#9AA0A6] text-xs">{resolutionDate}</p>
                      </div>
                      <span className="text-white text-2xl font-bold">
-                        ${maxPayout.toFixed(2)}
+                        {config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                      </span>
                   </div>
 
@@ -873,9 +1188,11 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack }) 
                      disabled={isProcessing}
                      className="w-full bg-[#00D964] text-black font-bold text-base py-3.5 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all flex items-center justify-center"
                   >
-                     {isProcessing ? <Spinner size="sm" color="black" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
+                     {isProcessing ? <Spinner size="sm" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
                   </button>
-
+                  <p className="text-center mt-3 text-xs text-[#9AA0A6] font-medium">Positions are held until market resolution.</p>
+                  </>
+                  )}
                </div>
             </div>
 

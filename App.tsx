@@ -326,7 +326,7 @@ function App() {
 
       <main key={currentView} className={`animate-fade-in-up pb-20 md:pb-0 ${isAdminView || ['login', 'signup'].includes(currentView) ? '' : 'max-w-7xl mx-auto'}`}>
         {currentView === 'home' && <MarketList onMarketClick={openMarket} />}
-        {currentView === 'market-detail' && selectedMarketId && <ProtectedRoute requiredRole="USER"><MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} /></ProtectedRoute>}
+        {currentView === 'market-detail' && selectedMarketId && <ProtectedRoute requiredRole="USER"><MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} onMarketClick={openMarket} /></ProtectedRoute>}
         {currentView === 'portfolio' && <ProtectedRoute requiredRole="USER"><Portfolio /></ProtectedRoute>}
         {currentView === 'profile' && <ProtectedRoute requiredRole="USER"><Profile /></ProtectedRoute>}
         {currentView === 'login' && <Login />}

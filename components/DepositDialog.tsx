@@ -113,71 +113,80 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
     <Dialog isOpen={isOpen} onClose={onClose} title="Manual Deposit">
       <div className="space-y-6">
         {/* Method Selector Tabs */}
-        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div className="flex bg-[#1E2025] rounded-lg p-1 border border-[#22252B]">
             {methods.filter(m => m.isActive).map((m) => (
                 <button
                     key={m.id}
                     onClick={() => { setActiveMethodId(m.id); setHasCopied(false); }}
-                    className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${activeMethodId === m.id ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    className={`flex-1 py-2.5 rounded-md text-xs font-bold uppercase tracking-wide transition-colors ${
+                      activeMethodId === m.id 
+                        ? 'bg-[#00D4AA] text-[#0A0C10]' 
+                        : 'text-[#9AA0A6] hover:text-white'
+                    }`}
                 >
                     {m.name}
                 </button>
             ))}
         </div>
 
-        <div className="bg-indigo-50/50 dark:bg-indigo-900/10 p-5 rounded-2xl border border-indigo-100 dark:border-indigo-900/30 space-y-4 animate-fade-in-up">
-            <div className="flex items-center justify-between">
-                <div className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Target Account Details</div>
-                <div className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[8px] font-black uppercase">Official</div>
+        <div className="bg-[#1E2025] border border-[#22252B] rounded-xl p-4 animate-fade-in-up">
+            <div className="flex items-center justify-between mb-3">
+                <span className="text-[#00D4AA] text-xs font-bold uppercase tracking-wide">
+                  Target Account Details
+                </span>
+                <span className="bg-[#00D4AA] text-[#0A0C10] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  OFFICIAL
+                </span>
             </div>
             
-            <div className="space-y-3">
-                <div className="flex justify-between items-end border-b border-indigo-100 dark:border-indigo-900/50 pb-2">
-                    <div>
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Account Holder</span>
-                        <span className="text-sm font-black text-slate-900 dark:text-white uppercase">{activeMethod.accountName}</span>
-                    </div>
-                </div>
-                <div className="flex justify-between items-end">
-                    <div>
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Account / Wallet Number</span>
-                        <span className="text-lg font-black text-slate-900 dark:text-white tabular-nums tracking-tight">{activeMethod.accountNumber}</span>
-                    </div>
+            <p className="text-[#9AA0A6] text-xs mb-1">Account Holder</p>
+            <p className="text-white text-base font-bold mb-3">{activeMethod.accountName}</p>
+
+            <div className="border-t border-[#22252B] pt-3">
+                <p className="text-[#9AA0A6] text-xs mb-1">Account / Wallet Number</p>
+                <div className="flex items-center justify-between gap-2">
+                    <p className="text-white text-sm font-mono font-bold break-all">
+                        {activeMethod.accountNumber}
+                    </p>
                     <button 
                         onClick={() => handleCopy(activeMethod.accountNumber)}
-                        className="p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-500 transition-all group"
+                        className="text-[#9AA0A6] hover:text-[#00D4AA] flex-shrink-0 transition-colors"
                     >
-                        {hasCopied ? <Check size={16} className="text-emerald-500" /> : <Copy size={16} className="text-slate-400 group-hover:text-indigo-500" />}
+                        {hasCopied ? <Check size={16} className="text-[#00D4AA]" /> : <Copy size={16} />}
                     </button>
                 </div>
             </div>
 
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 italic leading-relaxed pt-2 border-t border-indigo-100 dark:border-indigo-900/30">
-                <span className="font-black uppercase text-indigo-600 not-italic mr-1">Steps:</span> {activeMethod.instructions}
+            <p className="text-[#9AA0A6] text-xs mt-3">
+                <span className="text-[#00D4AA] font-bold">STEPS:</span> {activeMethod.instructions}
             </p>
         </div>
         
         <div className="space-y-4 pt-2">
             <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Deposit Amount</label>
-                <div className="relative">
+                <label className="block text-xs font-black text-[#9AA0A6] uppercase tracking-widest mb-2">Deposit Amount</label>
+                <div className="bg-[#1E2025] border border-[#22252B] rounded-xl px-4 py-3 flex items-center justify-between">
                     <input 
                         type="number" 
                         value={amount}
                         onChange={(e) => setAmount(e.target.value)}
-                        className="w-full h-14 px-5 rounded-2xl border-2 border-slate-200 dark:border-slate-800 text-xl font-black focus:outline-none focus:border-indigo-500 bg-white/50 dark:bg-slate-950 transition-all"
+                        className="bg-transparent text-white text-2xl font-bold outline-none flex-1 w-full"
                         placeholder="0"
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-300">NPR</div>
+                    <span className="text-[#00D4AA] text-sm font-bold">NPR</span>
                 </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-2">
+            <div className="flex gap-2 flex-wrap">
                 {presets.map(val => (
                     <button
                         key={val}
                         onClick={() => setAmount(val.toString())}
-                        className="py-2.5 text-[9px] font-black bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-700 dark:text-slate-300 rounded-xl transition-all uppercase tracking-widest border border-transparent active:scale-95"
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                          amount === val.toString()
+                            ? 'bg-[#00D4AA]/10 border-[#00D4AA] text-[#00D4AA]'
+                            : 'bg-[#1E2025] border-[#22252B] text-[#9AA0A6] hover:border-white hover:text-white'
+                        }`}
                     >
                         {formatMoney(val * 100)}
                     </button>
@@ -185,7 +194,7 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
             </div>
 
             <div>
-                <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Payment Proof Screenshot</label>
+                <label className="block text-xs font-black text-[#9AA0A6] uppercase tracking-widest mb-2">Payment Proof Screenshot</label>
                 <input 
                     type="file" 
                     ref={fileInputRef}
@@ -195,57 +204,56 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
                 />
                 
                 {!screenshotPreview ? (
-                    <button
-                        type="button"
+                    <div 
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-full h-12 px-5 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-sm font-bold focus:outline-none focus:border-indigo-500 bg-white/50 dark:bg-slate-950 transition-all flex items-center justify-center gap-2 hover:border-indigo-400"
+                        className="border-2 border-dashed border-[#22252B] rounded-xl py-6 flex flex-col items-center gap-2 hover:border-[#00D4AA] transition-colors cursor-pointer"
                     >
-                        <Upload size={16} />
-                        Upload Screenshot
-                    </button>
+                        <Upload size={24} className="text-[#9AA0A6]" />
+                        <span className="text-white text-sm font-medium">Upload Screenshot</span>
+                    </div>
                 ) : (
                     <div className="relative">
-                        <div className="border-2 border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950">
+                        <div className="border border-[#22252B] rounded-xl overflow-hidden bg-[#1E2025]">
                             <img 
                                 src={screenshotPreview} 
                                 alt="Payment proof" 
                                 className="w-full h-32 object-cover"
                             />
-                            <div className="p-3 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <Image size={16} className="text-slate-500" />
-                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300 truncate">
+                            <div className="p-3 border-t border-[#22252B] flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-[#9AA0A6]">
+                                    <Image size={16} />
+                                    <span className="text-xs font-medium text-white truncate max-w-[200px]">
                                         {screenshot?.name}
                                     </span>
                                 </div>
                                 <button 
                                     type="button"
                                     onClick={removeScreenshot}
-                                    className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                                    className="p-1 rounded-full hover:bg-[#22252B] transition-colors"
                                 >
-                                    <X size={14} className="text-slate-500" />
+                                    <X size={14} className="text-[#9AA0A6] hover:text-white" />
                                 </button>
                             </div>
                         </div>
                     </div>
                 )}
                 
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                <p className="text-[#9AA0A6] text-xs mt-1.5">
                     Please upload a clear screenshot of your payment confirmation screen
                 </p>
             </div>
         </div>
 
         <div className="pt-2">
-            <Button 
-                className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-sm font-black uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 active:scale-[0.98] transition-all" 
+            <button 
+                className="w-full bg-[#00D4AA] text-[#0A0C10] font-bold py-3.5 rounded-xl text-sm uppercase tracking-wide hover:bg-[#00bfa0] transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                 onClick={handleRequest}
                 disabled={!amount || parseFloat(amount) <= 0 || !screenshot || isSubmitting}
             >
-                {isSubmitting ? 'Processing Request...' : 'Submit Deposit with Proof'}
-            </Button>
-            <p className="text-[9px] text-center text-slate-400 font-bold uppercase tracking-[0.1em] mt-4 flex items-center justify-center gap-1.5 opacity-60">
-                <ShieldCheck size={12} /> Secure Play-Money Verification • Est. 15-60 min
+                {isSubmitting ? 'Processing Request...' : 'Submit Deposit With Proof'}
+            </button>
+            <p className="text-[#9AA0A6] text-[10px] text-center mt-2 uppercase tracking-wide flex items-center justify-center gap-1.5">
+                <ShieldCheck size={12} /> Secure deposit verification • Est. 15-60 min
             </p>
         </div>
       </div>
