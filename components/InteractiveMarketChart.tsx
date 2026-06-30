@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -43,31 +43,60 @@ interface CustomDotProps {
   outcome?: Outcome;
   hoveredIndex?: number | null;
   dataLength?: number;
+  animActive?: boolean;
+  showLiveDot?: boolean;
 }
 
-const CustomDot = (props: CustomDotProps) => {
-  const { cx, cy, payload, index, dataKey, outcome, hoveredIndex, dataLength } = props;
+const LiveDot = ({ cx, cy, color }: { cx: number; cy: number; color: string }) => {
+  return (
+    <g>
+      {/* Animated pulse ring */}
+      <circle cx={cx} cy={cy} r={6} fill={color} className="live-dot-glow" />
+      {/* Static soft halo */}
+      <circle cx={cx} cy={cy} r={9} fill={color} opacity={0.15} />
+      {/* Solid center dot */}
+      <circle cx={cx} cy={cy} r={4.5} fill={color} stroke="#15171C" strokeWidth={1.5} />
+    </g>
+  );
+};
 
-  if (index !== hoveredIndex) return null;
+const CustomDot = (props: CustomDotProps) => {
+  const { cx, cy, payload, index, dataKey, outcome, hoveredIndex, dataLength, animActive, showLiveDot } = props;
+
+  if (animActive) return <g style={{ pointerEvents: 'none' }} />;
   if (cx === undefined || cy === undefined || !payload || !dataKey || !outcome) return null;
+
+  const isHovered = index === hoveredIndex;
+  const isLast = index === (dataLength ?? 0) - 1;
+
+  if (!isHovered && (!isLast || !showLiveDot)) return null;
 
   const val = payload[dataKey];
   const isNearRightEdge = index !== undefined && dataLength !== undefined && index > dataLength - 5;
 
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <circle cx={cx} cy={cy} r={4.5} fill={outcome.color} stroke="#15171C" strokeWidth={2} />
-      <text
-        x={isNearRightEdge ? cx - 10 : cx + 10}
-        y={cy + 4}
-        fill={outcome.color}
-        fontWeight="bold"
-        fontSize={12}
-        textAnchor={isNearRightEdge ? 'end' : 'start'}
-        style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.8))' }}
-      >
-        {`${outcome.shortName} ${Number(val).toFixed(1).replace(/\.0$/, '')}%`}
-      </text>
+      {isLast ? (
+        <LiveDot cx={cx} cy={cy} color={outcome.color} />
+      ) : (
+        isHovered && (
+          <circle cx={cx} cy={cy} r={4.5} fill={outcome.color} stroke="#15171C" strokeWidth={2} />
+        )
+      )}
+      
+      {isHovered && (
+        <text
+          x={isNearRightEdge ? cx - 10 : cx + 10}
+          y={cy + 4}
+          fill={outcome.color}
+          fontWeight="bold"
+          fontSize={12}
+          textAnchor={isNearRightEdge ? 'end' : 'start'}
+          style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.8))' }}
+        >
+          {`${outcome.shortName} ${Number(val).toFixed(1).replace(/\.0$/, '')}%`}
+        </text>
+      )}
     </g>
   );
 };
@@ -77,6 +106,20 @@ export function InteractiveMarketChart({ outcomes, data, dateFormat = 'MMM d', t
 
   const activeIndex = hoveredIndex !== null ? hoveredIndex : data.length - 1;
   const activeDataPoint = data[activeIndex];
+
+  const hasAnimated = useRef(false);
+  const [animActive, setAnimActive] = useState(true);
+  const [showLiveDot, setShowLiveDot] = useState(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    const timer = setTimeout(() => {
+      setAnimActive(false);
+      setShowLiveDot(true);
+    }, 1300);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Calculate ticks
   const maxVal = useMemo(() => {
@@ -262,9 +305,12 @@ export function InteractiveMarketChart({ outcomes, data, dateFormat = 'MMM d', t
                   dataKey={outcome.id}
                   stroke={outcome.color}
                   strokeWidth={2.5}
-                  dot={<CustomDot outcome={outcome} hoveredIndex={hoveredIndex} dataLength={data.length} />}
+                  dot={<CustomDot outcome={outcome} hoveredIndex={hoveredIndex} dataLength={data.length} animActive={animActive} showLiveDot={showLiveDot} />}
                   activeDot={false}
-                  isAnimationActive={false}
+                  isAnimationActive={animActive}
+                  animationBegin={0}
+                  animationDuration={1200}
+                  animationEasing="ease-out"
                 />
               ))}
             </ComposedChart>

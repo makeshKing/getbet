@@ -133,22 +133,10 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
         { id: 'o2', name: 'Outcome 2', probability: 50, color: '#ef4444' }
     ]);
 
-    const distributeEvenly = (currentOutcomes: typeof outcomes) => {
-        const count = currentOutcomes.length;
-        const baseProb = Math.floor(100 / count);
-        let remainder = 100 - (baseProb * count);
-        
-        return currentOutcomes.map((o) => {
-            const prob = baseProb + (remainder > 0 ? 1 : 0);
-            remainder--;
-            return { ...o, probability: prob };
-        });
-    };
-
     const addOutcome = () => {
         const id = 'o' + Math.random().toString(36).substr(2, 5);
         const newOutcomes = [...outcomes, { id, name: `Outcome ${outcomes.length + 1}`, probability: 0, color: '#64748b' }];
-        setOutcomes(distributeEvenly(newOutcomes));
+        setOutcomes(newOutcomes);
     };
 
     const removeOutcome = (id: string) => {
@@ -157,7 +145,7 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
             return;
         }
         const newOutcomes = outcomes.filter(o => o.id !== id);
-        setOutcomes(distributeEvenly(newOutcomes));
+        setOutcomes(newOutcomes);
     };
 
     const updateOutcome = (id: string, field: keyof typeof outcomes[0], value: any) => {
@@ -310,11 +298,6 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
             }
             if (outcomes.some(o => !o.name.trim())) {
                 addToast('All outcomes must have a name.', 'error');
-                return;
-            }
-            const totalProb = outcomes.reduce((sum, o) => sum + Number(o.probability), 0);
-            if (totalProb !== 100) {
-                addToast(`Total probability must equal 100%. Currently it is ${totalProb}%.`, 'error');
                 return;
             }
         }
@@ -505,19 +488,6 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
                                         </div>
                                     </div>
                                 ))}
-                            </div>
-
-                            <div className="flex flex-col sm:flex-row items-center justify-between mt-6 px-2 gap-4 sm:gap-0">
-                                <div className="text-sm font-bold text-slate-500 w-full sm:w-auto text-center sm:text-left">
-                                    Total Probability: <span className={outcomes.reduce((s, o) => s + Number(o.probability), 0) === 100 ? 'text-emerald-500' : 'text-red-500'}>{outcomes.reduce((s, o) => s + Number(o.probability), 0)}%</span>
-                                </div>
-                                <button 
-                                    type="button" 
-                                    onClick={() => setOutcomes(distributeEvenly(outcomes))}
-                                    className="w-full sm:w-auto text-[10px] sm:text-xs font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-500 transition-colors bg-indigo-50 dark:bg-indigo-900/30 px-4 py-3 sm:px-3 sm:py-1.5 rounded-xl sm:rounded-lg"
-                                >
-                                    Distribute Evenly
-                                </button>
                             </div>
 
                             <button

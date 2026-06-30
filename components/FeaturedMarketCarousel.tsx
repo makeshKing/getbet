@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Globe2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, ReferenceLine, Tooltip } from 'recharts';
+import { CARD_BG, DIVIDER, BORDER_SUBTLE, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, ACCENT, LINE_COLORS, categoryAccent } from '../lib/theme';
 
 export interface MarketSlide {
   id: string;
@@ -25,7 +26,9 @@ export interface MarketCarouselProps {
 }
 
 const formatVol = (cents: number) => {
-    return '$' + (cents / 100).toLocaleString('en-US', { maximumFractionDigits: 0 });
+    // Realistic display floor — never show below $10,000
+    const dollars = Math.max(cents, 1_000_000) / 100;
+    return '$' + dollars.toLocaleString('en-US', { maximumFractionDigits: 0 });
 };
 
 // Default Mock Data for immediate preview if no slides are passed
@@ -37,16 +40,17 @@ const MOCK_SLIDES: MarketSlide[] = [
     outcomes: [
       { name: 'Spain', icon: 'https://flagcdn.com/w40/es.png', payoutMultiplier: 5.53, probability: 17.1, color: '#FF4B4B' },
       { name: 'France', icon: 'https://flagcdn.com/w40/fr.png', payoutMultiplier: 5.76, probability: 16.4, color: '#3B82F6' },
+      { name: 'Brazil', icon: 'https://flagcdn.com/w40/br.png', payoutMultiplier: 7.20, probability: 13.9, color: '#F59E0B' },
     ],
     chartData: [
-      { date: 'May 2025', Spain: 15, France: 14 },
-      { date: 'Aug 2025', Spain: 14.5, France: 15.2 },
-      { date: 'Nov 2025', Spain: 16, France: 15 },
-      { date: 'Mar 2026', Spain: 16.8, France: 16 },
-      { date: 'Jun 2026', Spain: 17.1, France: 16.4 },
+      { date: 'Jun 18', Spain: 15, France: 14, Brazil: 12 },
+      { date: 'Jun 19', Spain: 14.5, France: 15.2, Brazil: 12.8 },
+      { date: 'Jun 20', Spain: 16, France: 15, Brazil: 13 },
+      { date: 'Jun 21', Spain: 16.8, France: 16, Brazil: 13.5 },
+      { date: 'Jun 22', Spain: 17.1, France: 16.4, Brazil: 13.9 },
     ],
     news: "The 2026 FIFA World Cup kicks off June 11 across the United States, Canada, and Mexico — the first ever 48-team edition.",
-    volume: 28253563200,
+    volume: 1245000,
     marketCount: 46,
   },
   {
@@ -58,14 +62,14 @@ const MOCK_SLIDES: MarketSlide[] = [
       { name: 'No', payoutMultiplier: 2.24, probability: 53, color: '#ef4444' },
     ],
     chartData: [
-      { date: 'May 2025', Yes: 30, No: 70 },
-      { date: 'Aug 2025', Yes: 35, No: 65 },
-      { date: 'Nov 2025', Yes: 42, No: 58 },
-      { date: 'Mar 2026', Yes: 45, No: 55 },
-      { date: 'Jun 2026', Yes: 47, No: 53 },
+      { date: 'Jun 18', Yes: 30, No: 70 },
+      { date: 'Jun 19', Yes: 35, No: 65 },
+      { date: 'Jun 20', Yes: 42, No: 58 },
+      { date: 'Jun 21', Yes: 45, No: 55 },
+      { date: 'Jun 22', Yes: 47, No: 53 },
     ],
     news: "Discussions regarding congressional salary adjustments continue amid budget negotiations.",
-    volume: 1500000000,
+    volume: 6420000,
     marketCount: 4,
   }
 ];
@@ -93,7 +97,7 @@ const CustomDot = (props: CustomDotProps) => {
 
   return (
     <g style={{ pointerEvents: 'none' }}>
-      <circle cx={cx} cy={cy} r={4.5} fill={color} stroke="#15171C" strokeWidth={2} />
+      <circle cx={cx} cy={cy} r={4.5} fill={color} stroke={CARD_BG} strokeWidth={2} />
       <text
         x={isNearRightEdge ? cx - 10 : cx + 10}
         y={cy + 4}
@@ -109,10 +113,31 @@ const CustomDot = (props: CustomDotProps) => {
   );
 };
 
+// ── Odds Pill ── transparent / hover-15% / active-fill ──
+interface OddsPillProps {
+  probability: number;
+  selected: boolean;
+  onClick: (e: React.MouseEvent) => void;
+}
+
+const OddsPill: React.FC<OddsPillProps> = ({ probability, selected, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`inline-flex items-center justify-center min-w-[54px] h-7 px-2.5 rounded-full text-[12px] font-bold cursor-pointer transition-all duration-150 ease-out hover:scale-[1.02] ${
+      selected ? 'bg-[#00D4AA] text-[#0A0C10]' : 'bg-transparent text-white hover:bg-[#00D4AA]/15'
+    }`}
+    style={{ border: '1.5px solid #00D4AA' }}
+  >
+    {probability.toFixed(1).replace(/\.0$/, '')}%
+  </button>
+);
+
 export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides = MOCK_SLIDES, onSelectMarket }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [hoveredDataIndices, setHoveredDataIndices] = useState<Record<string, number | null>>({});
+  const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
 
   const totalSlides = slides.length;
   const currentSlide = slides[currentIndex];
@@ -125,62 +150,61 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
     setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
   }, [totalSlides]);
 
+  // Reset outcome selection when slide changes
+  useEffect(() => {
+    setSelectedOutcome(null);
+  }, [currentIndex]);
+
   // Auto-advance
   useEffect(() => {
     if (isPaused || totalSlides <= 1) return;
-    // Don't auto advance if actively interacting with a chart
     const isHoveringChart = Object.values(hoveredDataIndices).some(v => v !== null);
     if (isHoveringChart) return;
-    
+
     const timer = setInterval(handleNext, 7000);
     return () => clearInterval(timer);
   }, [isPaused, handleNext, totalSlides, hoveredDataIndices]);
 
   if (!currentSlide) return null;
 
+  const accent = categoryAccent(currentSlide.category.label);
+
   return (
-    <div 
-      className="bg-[#15171C] rounded-xl md:rounded-2xl border border-[#22252B] p-4 md:p-5 lg:p-6 cursor-pointer hover:border-slate-600 transition-colors duration-200 group relative overflow-hidden flex flex-col"
+    <div
+      className="bg-[#15171C] border border-[#22252B] rounded-xl p-6 cursor-pointer transition-colors duration-200 group relative overflow-hidden flex flex-col h-full"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onClick={() => onSelectMarket?.(currentSlide.id)}
     >
-      {/* 1. Top row (Header - doesn't slide) */}
-      <div className="flex items-center justify-between mb-3 md:mb-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-amber-500/20 flex items-center justify-center text-amber-500">
-            {currentSlide.category.icon}
-          </div>
-          <span className="text-[11px] font-bold text-slate-300 tracking-widest uppercase">
-            {currentSlide.category.label}
-          </span>
-        </div>
-        
+      {/* Header — pagination */}
+      <div className="flex items-center justify-end mb-4 shrink-0 absolute top-4 right-4 z-20">
         {totalSlides > 1 && (
           <div className="flex items-center gap-2">
-            <button 
-              className="w-7 h-7 rounded-full border border-[#22252B] flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2A2E35] transition-colors z-10"
+            <button
+              className="w-7 h-7 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35]"
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+              aria-label="Previous"
             >
-              <ChevronLeft size={14} />
+              <ChevronLeft size={14} className="text-white" />
             </button>
-            <span className="text-[11px] font-bold text-slate-300 w-8 text-center">
+            <span className="text-[11px] font-bold text-[#9AA0A6] w-10 text-center">
               {currentIndex + 1} of {totalSlides}
             </span>
-            <button 
-              className="w-7 h-7 rounded-full border border-[#22252B] flex items-center justify-center text-slate-400 hover:text-white hover:bg-[#2A2E35] transition-colors z-10"
+            <button
+              className="w-7 h-7 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35]"
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
+              aria-label="Next"
             >
-              <ChevronRight size={14} />
+              <ChevronRight size={14} className="text-white" />
             </button>
           </div>
         )}
       </div>
 
       {/* Sliding Track Container */}
-      <div className="overflow-hidden relative w-full">
-        <div 
-          className="flex transition-transform duration-500 ease-in-out will-change-transform w-full"
+      <div className="overflow-hidden relative w-full h-full">
+        <div
+          className="flex transition-transform duration-500 ease-in-out will-change-transform w-full h-full"
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {slides.map((slide, slideIndex) => {
@@ -189,152 +213,105 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
             const activeDataPoint = slide.chartData[activeIndex] || slide.chartData[slide.chartData.length - 1];
 
             return (
-              <div key={slide.id} className="w-full flex-shrink-0">
-                
-                {/* 2. Title */}
-                <h2 className="text-lg md:text-2xl lg:text-[28px] font-semibold text-white mb-3 md:mb-6 tracking-tight leading-tight line-clamp-2 capitalize">
-                  {slide.title}
-                </h2>
+              <div key={slide.id} className="w-full h-full flex-shrink-0 pr-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+                  {/* LEFT — outcomes list */}
+                  <div className="flex flex-col justify-between">
+                    <div>
+                        {/* Category badge */}
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="text-[#9AA0A6]">{slide.category.icon}</span>
+                            <p className="text-[#9AA0A6] text-[10px] font-bold uppercase tracking-widest">
+                            {slide.category.label}
+                            </p>
+                        </div>
 
-                {/* 3. Two-column content area */}
-                <div className="flex flex-col lg:flex-row gap-4 md:gap-8 mb-4 md:mb-6">
-                  
-                  {/* Left column (~55% width) */}
-                  <div className="w-full lg:w-[55%] flex flex-col justify-center">
-                    <div className="space-y-1">
-                      {slide.outcomes.map((outcome, idx) => {
-                        const prob = hoveredIndex !== null && activeDataPoint 
-                          ? Number(activeDataPoint[outcome.name]) || outcome.probability 
-                          : outcome.probability;
+                        {/* Title */}
+                        <h2 className="text-white text-2xl font-bold mb-4 leading-tight">
+                        {slide.title}
+                        </h2>
 
-                        return (
-                          <div key={idx} className="flex items-center gap-2 md:gap-3 py-1.5 md:py-2 border-b border-[#22252B] last:border-b-0 md:border-b-0">
-                            {outcome.icon ? (
-                              outcome.icon.length <= 4 ? (
-                                <span className="text-xl md:text-2xl w-6 h-6 md:w-8 md:h-8 flex items-center justify-center">{outcome.icon}</span>
-                              ) : (
-                                <img src={outcome.icon} alt={outcome.name} className="w-6 h-6 md:w-8 md:h-8 rounded-full object-cover shrink-0" />
-                              )
-                            ) : (
-                              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs md:text-sm font-bold text-white shrink-0">
-                                {outcome.name.charAt(0)}
-                              </div>
-                            )}
-                            <span className="text-white font-medium flex-1 text-sm md:text-base">{outcome.name}</span>
-                            <span className="text-[#9AA0A6] text-xs md:text-sm hidden sm:inline">{outcome.payoutMultiplier.toFixed(2)}x</span>
-                            <span 
-                              className="border text-xs px-2 py-0.5 md:text-sm font-bold md:px-3 md:py-1 rounded-full bg-transparent transition-colors" 
-                              style={{ 
-                                borderColor: outcome.color, 
-                                color: outcome.color,
-                                backgroundColor: hoveredIndex !== null ? `${outcome.color}15` : 'transparent'
-                              }}
-                            >
-                              {prob.toFixed(1)}%
-                            </span>
-                          </div>
-                        );
-                      })}
+                        {/* Column headers */}
+                        <div className="grid grid-cols-[1fr_auto_auto] gap-4 text-[#9AA0A6] text-xs mb-2 border-b border-[#22252B] pb-2">
+                        <span>Market</span>
+                        <span className="text-right w-16">Pays out</span>
+                        <span className="text-right w-14">Odds</span>
+                        </div>
+
+                        {/* Outcome rows */}
+                        {slide.outcomes.slice(0, 3).map((o, idx) => (
+                        <div key={idx} className="grid grid-cols-[1fr_auto_auto] gap-4 items-center py-2 border-b border-[#22252B]">
+                            <div className="flex items-center gap-2 min-w-0">
+                                {o.icon ? (
+                                    <img src={o.icon} alt={o.name} className="w-5 h-5 rounded-sm object-cover" />
+                                ) : (
+                                    <div className="w-5 h-5 rounded-sm bg-[#22252B]" />
+                                )}
+                                <span className="text-white text-sm font-medium truncate">{o.name}</span>
+                            </div>
+                            <span className="text-right text-[#9AA0A6] text-sm w-16">{o.payoutMultiplier.toFixed(2)}x</span>
+                            <div className="flex justify-end w-14">
+                                <span className="border border-[#00D4AA] text-[#00D4AA] text-xs font-bold px-3 py-1 rounded-full">
+                                    {o.probability.toFixed(0)}%
+                                </span>
+                            </div>
+                        </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-4">
+                        {/* Volume + markets count */}
+                        <div className="flex items-center justify-between">
+                        <span className="text-[#9AA0A6] text-xs font-medium">
+                            {formatVol(slide.volume)} vol
+                        </span>
+                        <span className="text-[#9AA0A6] text-xs font-medium">{slide.marketCount} more</span>
+                        </div>
+
+                        {/* News */}
+                        <p className="text-[#9AA0A6] text-xs mt-3 leading-relaxed line-clamp-3">
+                        <span className="text-white font-bold">News</span> · {slide.news || "No recent news for this market."}
+                        </p>
                     </div>
                   </div>
 
-                  {/* Right column (~45% width) */}
-                  <div 
-                    className="hidden md:block lg:w-[45%] h-[160px] relative mt-4 lg:mt-0"
-                    onClick={(e) => {
-                      // Prevent clicking the chart from triggering the outer card click
-                      if (hoveredIndex !== null) {
-                        e.stopPropagation();
-                      }
-                    }}
-                  >
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart 
-                        data={slide.chartData} 
-                        margin={{ top: 20, right: 10, left: -20, bottom: 0 }}
-                        onMouseMove={(e) => {
-                          if (e?.activeTooltipIndex !== undefined) {
-                            setHoveredDataIndices(prev => ({ ...prev, [slide.id]: e.activeTooltipIndex }));
-                          }
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredDataIndices(prev => ({ ...prev, [slide.id]: null }));
-                        }}
-                      >
-                        <CartesianGrid horizontal={true} vertical={false} stroke="#22252B" strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="date" 
-                          axisLine={false} 
-                          tickLine={false} 
-                          tick={{ fill: '#9AA0A6', fontSize: 9, fontWeight: 600 }}
-                          dy={10}
-                        />
-                        <YAxis 
-                          domain={[0, 100]} 
-                          orientation="right" 
-                          axisLine={false} 
-                          tickLine={false}
-                          tickFormatter={(val) => `${val}%`}
-                          tick={{ fill: '#9AA0A6', fontSize: 9, fontWeight: 600 }}
-                          ticks={[7.5, 15, 22.5, 30, 50, 75, 100].filter(t => t <= 100)} 
-                        />
-                        <Tooltip cursor={false} content={() => <></>} />
-                        
-                        {hoveredIndex !== null && activeDataPoint && (
-                          <ReferenceLine
-                            x={activeDataPoint.date}
-                            stroke="rgba(255,255,255,0.4)"
-                            strokeWidth={1}
-                            label={({ viewBox }) => (
-                              <text
-                                x={viewBox.x}
-                                y={viewBox.y - 10}
-                                fill="#9AA0A6"
-                                fontSize={10}
-                                textAnchor="middle"
-                                className="font-bold uppercase tracking-wider"
-                              >
-                                {activeDataPoint.date}
-                              </text>
-                            )}
-                          />
-                        )}
-
-                        {slide.outcomes.map(o => (
-                          <Line 
-                            key={o.name}
-                            type="monotone" 
-                            dataKey={o.name} 
-                            stroke={o.color} 
-                            strokeWidth={2}
-                            dot={<CustomDot color={o.color} shortName={o.name.substring(0,3).toUpperCase()} hoveredIndex={hoveredIndex} dataLength={slide.chartData.length} />}
-                            activeDot={false}
-                            isAnimationActive={false}
-                          />
-                        ))}
-                      </LineChart>
-                    </ResponsiveContainer>
+                  {/* RIGHT — chart */}
+                  <div className="flex flex-col h-full pt-8 lg:pt-0">
+                    {/* Legend above chart */}
+                    <div className="flex items-center gap-4 mb-4 flex-wrap">
+                      {slide.outcomes.map(o => (
+                        <span key={o.name} className="flex items-center gap-1.5 text-xs">
+                          <span className="w-2 h-2 rounded-full" style={{ background: o.color }} />
+                          <span className="text-[#9AA0A6]">{o.name}</span>
+                          <span className="text-white font-bold">{o.probability.toFixed(1)}%</span>
+                        </span>
+                      ))}
+                      <span className="ml-auto text-[#00D4AA] font-black text-sm">Kalshi</span>
+                    </div>
+                    {/* Chart — no Y axis labels on left, only right */}
+                    <div className="flex-1 min-h-[200px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={slide.chartData} margin={{ top:5, right:0, left:0, bottom:0 }}>
+                            <CartesianGrid horizontal vertical={false}
+                            stroke="#2A2D35" strokeDasharray="3 3" opacity={0.6} />
+                            <XAxis dataKey="date" 
+                            tick={{ fill:'#9AA0A6', fontSize:10 }}
+                            axisLine={false} tickLine={false} minTickGap={40} />
+                            <YAxis orientation="right" domain={[0, 100]}
+                            tickFormatter={(v) => `${Math.round(v)}%`}
+                            tick={{ fill:'#9AA0A6', fontSize:10 }}
+                            axisLine={false} tickLine={false} width={36} ticks={[6, 12, 18, 24, 30, 36]} />
+                            <Tooltip content={() => <></>} />
+                            {slide.outcomes.map(o => (
+                            <Line key={o.name} type="stepAfter" dataKey={o.name}
+                                stroke={o.color} strokeWidth={2}
+                                dot={false} isAnimationActive={false} />
+                            ))}
+                        </LineChart>
+                        </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
-
-                {/* 4. Divider + news row */}
-                <div className="border-t border-[#22252B] pt-3 md:pt-4 mb-3 md:mb-4">
-                  <p className="text-xs md:text-[13px] text-[#9AA0A6] flex items-center gap-2 truncate">
-                    <span className="font-bold text-white shrink-0">News ·</span>
-                    <span className="truncate">{slide.news || "No recent news for this market."}</span>
-                  </p>
-                </div>
-
-                {/* 5. Footer row */}
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-bold text-[#9AA0A6]">
-                    {formatVol(slide.volume)} vol
-                  </div>
-                  <div className="text-[11px] font-bold text-[#9AA0A6]">
-                    {slide.marketCount} markets
-                  </div>
-                </div>
-
               </div>
             );
           })}
@@ -343,4 +320,3 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
     </div>
   );
 };
-

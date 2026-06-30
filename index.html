@@ -80,20 +80,20 @@
 
     :root {
       --app-bg-light: #fafafa;
-      --app-bg-dark: #111926;
+      --app-bg-dark: #0A0C10;
 
       /* Premium Dark Theme Variables */
-      --dark-bg-primary: #111926;
-      --dark-bg-secondary: #172231;
-      --dark-bg-tertiary: #202c3f;
-      --dark-border-primary: #202c3f;
-      --dark-border-secondary: #33455f;
-      --dark-text-primary: #f5f9fc;
-      --dark-text-secondary: #70839e;
-      --dark-text-tertiary: #50688c;
-      --dark-accent-green: #10b981;
+      --dark-bg-primary: #0A0C10;
+      --dark-bg-secondary: #111827;
+      --dark-bg-tertiary: #1F2937;
+      --dark-border-primary: #1F2937;
+      --dark-border-secondary: #374151;
+      --dark-text-primary: #F9FAFB;
+      --dark-text-secondary: #9CA3AF;
+      --dark-text-tertiary: #6B7280;
+      --dark-accent-green: #00D4AA;
       --dark-accent-red: #ef4444;
-      --dark-accent-blue: #2563eb;
+      --dark-accent-blue: #3B82F6;
     }
 
     html {
@@ -179,6 +179,26 @@
 
     .safe-pt {
       padding-top: env(safe-area-inset-top);
+    }
+    /* Live pulsing dot at end of chart lines */
+    @keyframes liveDotPulse {
+      0% {
+        transform: scale(1);
+        opacity: 0.6;
+      }
+      70% {
+        transform: scale(2.2);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 0;
+      }
+    }
+    .live-dot-glow {
+      animation: liveDotPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      transform-origin: center;
+      transform-box: fill-box;
     }
   </style>
   <script type="importmap">

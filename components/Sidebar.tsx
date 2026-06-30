@@ -1,123 +1,135 @@
-import React, { useMemo } from 'react';
-import { ChevronRight, Globe2, Flag, ArrowUp, ArrowDown } from 'lucide-react';
+import React from 'react';
+import { ChevronRight, Trophy, Landmark, Bitcoin, TrendingUp } from 'lucide-react';
 import { Market } from '../types';
 import { PromoBanner } from './PromoBanner';
+import { TEXT_PRIMARY, TEXT_TERTIARY } from '../lib/theme';
 
 interface SidebarProps {
     markets: Market[];
     onMarketClick: (id: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
-    
-    // Derived market lists for the sidebar
-    const trendingMarkets = useMemo(() => {
-        return [...markets].filter(m => m.isTrending && !m.outcome).slice(0, 3);
-    }, [markets]);
-
-    const newestMarkets = useMemo(() => {
-        return [...markets].filter(m => !m.outcome).sort((a, b) => new Date(b.startDate || b.closeDate).getTime() - new Date(a.startDate || a.closeDate).getTime()).slice(0, 3);
-    }, [markets]);
-
-    const topMovers = useMemo(() => {
-        // Mock top movers by randomly selecting from high volume markets
-        return [...markets].filter(m => !m.outcome).sort((a, b) => (b.volume || 0) - (a.volume || 0)).slice(0, 3);
-    }, [markets]);
-
-    const primariesMarkets = useMemo(() => {
-        return [...markets].filter(m => !m.outcome && m.category === 'Politics').slice(0, 3);
-    }, [markets]);
-
-    return (
-        <div className="flex flex-col gap-6">
-            
-            {/* Promo Banner */}
-            <PromoBanner featuredMarket={trendingMarkets[0]} onClick={onMarketClick} />
-
-            {/* Quick Links */}
-            <div className="flex flex-col gap-3">
-                <button className="flex items-center justify-between p-4 rounded-xl border border-blue-500/30 bg-blue-900/10 hover:bg-blue-900/20 transition-colors group">
-                    <div className="flex items-center gap-3 text-blue-400">
-                        <Globe2 size={20} />
-                        <span className="font-black text-white tracking-tight">World Cup</span>
-                    </div>
-                    <ChevronRight size={16} className="text-blue-500 group-hover:translate-x-1 transition-transform" />
-                </button>
-                <button className="flex items-center justify-between p-4 rounded-xl border border-red-500/30 bg-red-900/10 hover:bg-red-900/20 transition-colors group">
-                    <div className="flex items-center gap-3 text-red-500">
-                        <Flag size={20} />
-                        <span className="font-black text-white tracking-tight">2026 Elections</span>
-                    </div>
-                    <ChevronRight size={16} className="text-red-500 group-hover:translate-x-1 transition-transform" />
-                </button>
-            </div>
-
-            {/* Sidebar Lists */}
-            <SidebarList title="Trending" markets={trendingMarkets} onClick={onMarketClick} />
-            <SidebarList title="2026 Primaries" markets={primariesMarkets} onClick={onMarketClick} />
-            <SidebarList title="Top movers" markets={topMovers} onClick={onMarketClick} showChange={true} isRedChange={true} />
-            <SidebarList title="New" markets={newestMarkets} onClick={onMarketClick} />
-
-        </div>
-    );
-};
-
-// ── Internal Component: SidebarList ── //
-
-interface SidebarListProps {
-    title: string;
-    markets: Market[];
-    onClick: (id: string) => void;
-    showChange?: boolean;
-    isRedChange?: boolean;
+interface CategoryRowDef {
+    label: string;
+    icon: React.FC<{ size?: number; className?: string }>;
+    color: string;
 }
 
-const SidebarList: React.FC<SidebarListProps> = ({ title, markets, onClick, showChange = true, isRedChange = false }) => {
-    if (markets.length === 0) return null;
+const CATEGORY_ROWS: CategoryRowDef[] = [
+    { label: 'World Cup', icon: Trophy, color: '#3B82F6' },
+    { label: 'Elections', icon: Landmark, color: '#8B5CF6' },
+    { label: 'Crypto', icon: Bitcoin, color: '#F59E0B' },
+    { label: 'Finance', icon: TrendingUp, color: '#10B981' },
+];
+
+export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
+    const featuredMarket = React.useMemo(() => {
+        return [...markets].filter(m => m.isTrending && !m.outcome)[0];
+    }, [markets]);
+
+    const trending = React.useMemo(() => {
+        return [...markets]
+            .filter(m => !m.outcome)
+            .sort((a, b) => (b.volume || 0) - (a.volume || 0))
+            .slice(0, 5)
+            .map(m => {
+                const yesOutcome = m.outcomes?.find(o => o.name === 'Yes') || m.outcomes?.[0] || { name: 'Yes', probability: m.probability };
+                return {
+                    id: m.id,
+                    title: m.title,
+                    context: yesOutcome.name === 'Yes' ? 'Yes' : yesOutcome.name,
+                    probability: yesOutcome.probability.toFixed(0),
+                    change: Math.floor(Math.random() * 10) - 4 // Mock change for UI
+                };
+            });
+    }, [markets]);
 
     return (
         <div className="flex flex-col">
-            <h3 className="text-[17px] font-black text-white flex items-center gap-1 mb-4 cursor-pointer hover:text-indigo-400 transition-colors">
-                {title} <ChevronRight size={16} className="text-emerald-500" />
-            </h3>
-            <div className="flex flex-col gap-4">
-                {markets.map((market, index) => {
-                    const prob = market.probability || 50; // default for mock
-                    const mockChange = Math.floor(Math.random() * 20) + 1; // 1-20
-                    const changeColor = isRedChange ? 'text-[#FF4D4D]' : 'text-[#00D964]';
-                    const ChangeIcon = isRedChange ? ArrowDown : ArrowUp;
+            {/* Compact featured promo — no big image */}
+            {featuredMarket && (
+                <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 mb-3 cursor-pointer" onClick={() => onMarketClick(featuredMarket.id)}>
+                <p className="text-[#00D4AA] text-xs font-bold uppercase tracking-wide mb-1">
+                    Featured
+                </p>
+                <p className="text-white text-base font-bold mb-1 line-clamp-2">{featuredMarket.title}</p>
+                <p className="text-[#9AA0A6] text-xs mb-3 line-clamp-2">{featuredMarket.description || 'Trade on the latest trending market.'}</p>
+                <button className="w-full bg-[#00D4AA] text-[#0A0C10] font-bold py-2.5 rounded-xl text-sm hover:bg-[#00D4AA]/90 transition-colors">
+                    Trade Now
+                </button>
+                </div>
+            )}
 
-                    // Extrapolate a subtext if not provided
-                    const subtext = market.subcategory || market.category || 'Event';
-                    
-                    return (
-                        <div 
-                            key={market.id} 
-                            className="flex items-start gap-4 group cursor-pointer"
-                            onClick={() => onClick(market.id)}
-                        >
-                            <span className="text-sm font-black text-slate-500 w-3 shrink-0 pt-0.5">{index + 1}</span>
-                            <div className="flex-1 min-w-0 pr-2">
-                                <h4 className="text-[13px] font-bold text-white leading-snug group-hover:text-indigo-300 transition-colors line-clamp-2 capitalize">
-                                    {market.title}
-                                </h4>
-                                <div className="text-[11px] font-bold text-slate-500 mt-0.5">
-                                    {subtext}
-                                </div>
-                            </div>
-                            <div className="flex flex-col items-end shrink-0 pt-0.5">
-                                <span className="text-xs font-black text-white">{prob}%</span>
-                                {showChange && (
-                                    <div className={`flex items-center text-[10px] font-black ${changeColor} mt-0.5`}>
-                                        <ChangeIcon size={10} strokeWidth={3} /> {mockChange}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    );
-                })}
+            {/* Category links with colored borders + volume */}
+            {[
+            { name: 'World Cup', icon: '🏆', color: '#4B8BFF', volume: '$4,442,778,230' },
+            { name: 'Elections', icon: '🏛', color: '#9B59B6', volume: '$357,210,081' },
+            { name: 'Crypto', icon: '₿', color: '#FFA500', volume: '$2,140,500,000' },
+            { name: 'Finance', icon: '📈', color: '#00D4AA', volume: '$890,200,000' },
+            ].map(cat => (
+            <div key={cat.name}
+                className="bg-[#15171C] border border-[#22252B] rounded-xl px-4 py-3 mb-2
+                flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors"
+                style={{ borderLeft: `3px solid ${cat.color}` }}
+            >
+                <span className="text-xl">{cat.icon}</span>
+                <div className="flex-1">
+                <p className="text-white text-sm font-bold">{cat.name}</p>
+                <p className="text-[#9AA0A6] text-xs">{cat.volume} total volume</p>
+                </div>
+                <span className="text-[#9AA0A6] font-bold text-lg">›</span>
             </div>
-            <div className="border-b border-slate-800 mt-6"></div>
+            ))}
+
+            {/* Trending with subtext */}
+            <div className="mt-4 mb-2">
+            <h3 className="text-white text-base font-bold mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
+                Trending <span className="text-[#00D4AA] text-lg font-bold">›</span>
+            </h3>
+            {trending.map((t, i) => (
+                <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>
+                <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
+                <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
+                    <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                    <p className="text-white text-sm font-bold">{t.probability}%</p>
+                    <p className={`text-[10px] font-bold mt-1 ${t.change >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+                    {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change)}
+                    </p>
+                </div>
+                </div>
+            ))}
+            
+            <h3 className="text-white text-base font-bold mt-6 mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
+                2026 Primaries <span className="text-[#00D4AA] text-lg font-bold">›</span>
+            </h3>
+            {/* Mocked Primaries Data to match screenshot */}
+            {[
+                { title: 'Florida Republican Governor nominee?', context: 'Byron Donalds', prob: '94%', change: 0 },
+                { title: 'Colorado Democratic Governor nominee?', context: 'Phil Weiser', prob: '76%', change: 6 },
+                { title: 'CO-01 Democratic nominee?', context: 'Melat Kiros', prob: '76%', change: 1 }
+            ].map((t, i) => (
+                <div key={i} className="flex items-start gap-3 mb-4 cursor-pointer group">
+                <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
+                <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
+                    <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
+                </div>
+                <div className="text-right flex-shrink-0">
+                    <p className="text-white text-sm font-bold">{t.prob}</p>
+                    {t.change !== 0 ? (
+                        <p className={`text-[10px] font-bold mt-1 ${t.change >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+                        {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change)}
+                        </p>
+                    ) : (
+                        <p className="text-[10px] font-bold mt-1 text-[#9AA0A6]">--</p>
+                    )}
+                </div>
+                </div>
+            ))}
+            </div>
         </div>
     );
 };

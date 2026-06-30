@@ -1,0 +1,1133 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  ResponsiveContainer,
+  ReferenceLine,
+} from 'recharts';
+import { ListFilter } from 'lucide-react';
+import { Market, Side } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
+import { useCurrency } from '../context/CurrencyContext';
+import { useToast } from './ui/Toast';
+import { Spinner } from './ui/Spinner';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface OrderBookRow {
+  price: number;     // cents (e.g. 9.9)
+  contracts: number;
+  total: number;
+}
+
+interface OutcomeData {
+  id: string;
+  name: string;
+  probability: number;
+  change?: number;       // positive = up
+  change_24h?: number;   // 24h direction change
+  yesPrice: number;      // cents
+  noPrice: number;       // cents
+  // These are used as fallback; live data is fetched per-outcome
+  asks: OrderBookRow[];
+  bids: OrderBookRow[];
+  priceHistory: { date: string; price: number }[];
+}
+
+type ActiveTab = 'yes' | 'no' | 'graph';
+type TimeFilter = '1D' | '1W' | '1M' | 'ALL';
+
+export interface MarketOutcomeListProps {
+  market: Market;
+  onTradeClick?: (outcomeId: string, side: Side) => void;
+}
+
+function sampleData(data: any[], maxPoints = 150) {
+  if (data.length <= maxPoints) return data;
+  const step = Math.floor(data.length / maxPoints);
+  return data.filter((_, i) => i % step === 0);
+}
+
+// ─── Mock Data (fallback when no Supabase data) ───────────────────────────────
+
+const MOCK_ASKS: OrderBookRow[] = [
+  { price: 9.9,  contracts: 255.57,   total: 250.65 },
+  { price: 9.8,  contracts: 367.42,   total: 225.35 },
+  { price: 9.5,  contracts: 500,      total: 189.34 },
+  { price: 8.0,  contracts: 90,       total: 141.84 },
+  { price: 7.7,  contracts: 500,      total: 134.64 },
+  { price: 6.8,  contracts: 30,       total: 96.14  },
+  { price: 6.7,  contracts: 1404.48,  total: 94.10  },
+];
+
+const MOCK_BIDS: OrderBookRow[] = [
+  { price: 6.6,  contracts: 850.83,   total: 56.15  },
+];
+
+/** Generate realistic price history for an outcome */
+function generatePriceHistory(basePrice: number, days: number): { date: string; price: number }[] {
+  const result: { date: string; price: number }[] = [];
+  const start = new Date('2026-05-28');
+  let price = basePrice - 6;
+  for (let i = 0; i <= days; i++) {
+    const d = new Date(start.getTime() + i * 86_400_000);
+    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const seed = i * 13.7 + basePrice;
+    const delta = (Math.sin(seed) * 0.7 + (Math.random() - 0.46) * 1.0);
+    price = Math.max(basePrice - 8, Math.min(basePrice + 2, price + delta));
+    result.push({ date: label, price: parseFloat(price.toFixed(2)) });
+  }
+  result[result.length - 1].price = basePrice;
+  return result;
+}
+
+// ─── Depth bar max (for normalising bar widths) ───────────────────────────────
+const maxContracts = Math.max(
+  ...MOCK_ASKS.map(r => r.contracts),
+  ...MOCK_BIDS.map(r => r.contracts),
+);
+
+// ─── Order Book Table ─────────────────────────────────────────────────────────
+
+interface OrderBookProps {
+  outcome: OutcomeData;
+  side: 'yes' | 'no';
+}
+
+const OrderBook: React.FC<OrderBookProps> = ({ outcome, side }) => {
+  const [liveAsks, setLiveAsks] = useState<OrderBookRow[] | null>(null);
+  const [liveBids, setLiveBids] = useState<OrderBookRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    async function fetchOrderBook() {
+      try {
+        // Fetch trades for this outcome/side from the trades table.
+        // We group by price to create order book levels.
+        const dbSide = side === 'yes' ? 'YES' : 'NO';
+        const { data, error } = await supabase
+          .from('trades')
+          .select('price, shares, amount, status')
+          .eq('outcome_id', outcome.id)
+          .eq('side', dbSide)
+          .eq('status', 'WAITING') // WAITING = open/unfilled trades
+          .order('price', { ascending: false })
+          .limit(100);
+
+        if (error || !data || data.length === 0) {
+          // Use fallback mock data
+          if (isMounted) {
+            setLiveAsks(null);
+            setLiveBids(null);
+            setLoading(false);
+          }
+          return;
+        }
+
+        // Group by price level
+        const grouped: Record<number, { contracts: number; total: number }> = {};
+        data.forEach((row: any) => {
+          const priceCents = Number(row.price) / 100; // price stored as paisa/100, display as cents
+          if (!grouped[priceCents]) grouped[priceCents] = { contracts: 0, total: 0 };
+          grouped[priceCents].contracts += row.shares ?? 1;
+          grouped[priceCents].total += (row.amount ?? 0) / 100; // paisa → rupee-dollars
+        });
+
+        const priceList = Object.entries(grouped).map(([p, v]) => ({
+          price: Number(p),
+          contracts: v.contracts,
+          total: v.total,
+        }));
+
+        const mid = priceList.length > 0
+          ? priceList.reduce((s, r) => s + r.price, 0) / priceList.length
+          : (side === 'yes' ? outcome.yesPrice : outcome.noPrice);
+
+        const asks = priceList.filter(r => r.price > mid).sort((a, b) => b.price - a.price);
+        const bids = priceList.filter(r => r.price <= mid).sort((a, b) => b.price - a.price);
+
+        if (isMounted) {
+          setLiveAsks(asks.length > 0 ? asks : null);
+          setLiveBids(bids.length > 0 ? bids : null);
+          setLoading(false);
+        }
+      } catch {
+        if (isMounted) {
+          setLiveAsks(null);
+          setLiveBids(null);
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchOrderBook();
+    return () => { isMounted = false; };
+  }, [outcome.id, side]);
+
+  // Use live data if available, fall back to mock data from the outcome object
+  const asks = liveAsks ?? outcome.asks;
+  const bids = liveBids ?? outcome.bids;
+  const lastPrice = side === 'yes' ? outcome.yesPrice : outcome.noPrice;
+
+  const localMax = Math.max(
+    ...asks.map(r => r.contracts),
+    ...bids.map(r => r.contracts),
+    maxContracts,
+  );
+
+  if (loading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#8A9099', fontSize: 12 }}>
+        Loading order book...
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      {/* Column headers */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          padding: '8px 0 4px',
+          color: '#8A9099',
+          fontSize: 11,
+          fontWeight: 500,
+        }}
+      >
+        <span style={{ textAlign: 'center' }}>Price</span>
+        <span style={{ textAlign: 'center' }}>Contracts</span>
+        <span style={{ textAlign: 'right', paddingRight: 12 }}>Total</span>
+      </div>
+
+      {/* Ask rows */}
+      {asks.map((row, i) => {
+        const isLastAsk = i === asks.length - 1;
+        const depthPct = (row.contracts / localMax) * 100;
+        return (
+          <div
+            key={`ask-${i}`}
+            style={{
+              position: 'relative',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              alignItems: 'center',
+              height: 32,
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              fontSize: 12,
+            }}
+          >
+            {/* Depth bar */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: `${depthPct * 0.45}%`,
+                background: 'rgba(255,71,87,0.18)',
+                pointerEvents: 'none',
+              }}
+            />
+            {/* Asks label on last ask row */}
+            {isLastAsk && (
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#FF4757',
+                  zIndex: 10,
+                }}
+              >
+                Asks
+              </span>
+            )}
+            <span style={{ textAlign: 'center', color: '#FF4757', fontWeight: 600, position: 'relative', zIndex: 1 }}>
+              {row.price.toFixed(1)}¢
+            </span>
+            <span style={{ textAlign: 'center', color: '#8A9099', position: 'relative', zIndex: 1 }}>
+              {row.contracts.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </span>
+            <span style={{ textAlign: 'right', paddingRight: 12, color: '#8A9099', position: 'relative', zIndex: 1 }}>
+              ${row.total.toFixed(2)}
+            </span>
+          </div>
+        );
+      })}
+
+      {/* Divider row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          padding: '8px 0',
+          color: '#00D4AA',
+          fontSize: 13,
+          fontWeight: 700,
+          borderTop: '1px solid rgba(0,212,170,0.2)',
+          borderBottom: '1px solid rgba(0,212,170,0.2)',
+          background: 'rgba(0,212,170,0.04)',
+        }}
+      >
+        <span>Trade {side === 'yes' ? 'Yes' : 'No'}</span>
+        <span style={{ color: '#8A9099', fontWeight: 400 }}>
+          Last {lastPrice}¢
+        </span>
+      </div>
+
+      {/* Bid rows */}
+      {bids.map((row, i) => {
+        const isFirstBid = i === 0;
+        const depthPct = (row.contracts / localMax) * 100;
+        return (
+          <div
+            key={`bid-${i}`}
+            style={{
+              position: 'relative',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr 1fr',
+              alignItems: 'center',
+              height: 32,
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              fontSize: 12,
+            }}
+          >
+            {/* Depth bar */}
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                bottom: 0,
+                width: `${depthPct * 0.45}%`,
+                background: 'rgba(0,212,170,0.18)',
+                pointerEvents: 'none',
+              }}
+            />
+            {/* Bids label on first bid row */}
+            {isFirstBid && (
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 8,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#00D4AA',
+                  zIndex: 10,
+                }}
+              >
+                Bids
+              </span>
+            )}
+            <span style={{ textAlign: 'center', color: '#00D4AA', fontWeight: 600, position: 'relative', zIndex: 1 }}>
+              {row.price.toFixed(1)}¢
+            </span>
+            <span style={{ textAlign: 'center', color: '#8A9099', position: 'relative', zIndex: 1 }}>
+              {row.contracts.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+            </span>
+            <span style={{ textAlign: 'right', paddingRight: 12, color: '#8A9099', position: 'relative', zIndex: 1 }}>
+              ${row.total.toFixed(2)}
+            </span>
+          </div>
+        );
+      })}
+
+      {/* Action icons row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          padding: '8px 12px',
+          borderTop: '1px solid rgba(255,255,255,0.04)',
+        }}
+      >
+        <button
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A9099', fontSize: 14, padding: '2px 4px' }}
+          title="Help"
+          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8A9099')}
+        >
+          ❓
+        </button>
+        <button
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A9099', fontSize: 14, padding: '2px 4px' }}
+          title="Settings"
+          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8A9099')}
+        >
+          ⚙
+        </button>
+        <button
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A9099', fontSize: 14, padding: '2px 4px' }}
+          title="Swap"
+          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8A9099')}
+        >
+          ⇅
+        </button>
+        <button
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#8A9099', fontSize: 14, padding: '2px 4px' }}
+          title="Lock"
+          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseLeave={e => (e.currentTarget.style.color = '#8A9099')}
+        >
+          🔒
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Price Graph ──────────────────────────────────────────────────────────────
+
+interface PriceGraphProps {
+  outcome: OutcomeData;
+}
+
+const TIME_SLICES: Record<TimeFilter, number> = {
+  '1D': 1,
+  '1W': 7,
+  '1M': 30,
+  'ALL': 999,
+};
+
+/** Small vertical tick marks representing trade activity */
+const ActivityTicks: React.FC<{ count: number }> = ({ count }) => (
+  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 12, padding: '0 4px' }}>
+    {Array.from({ length: count }).map((_, i) => (
+      <div
+        key={i}
+        style={{
+          width: 1,
+          height: `${40 + Math.sin(i * 2.3) * 40}%`,
+          background: '#8A9099',
+          opacity: 0.5,
+        }}
+      />
+    ))}
+  </div>
+);
+
+// Custom badge label for current price on chart
+const CurrentPriceBadge = (props: any) => {
+  const { viewBox, value } = props;
+  if (!viewBox) return null;
+  const { x, y } = viewBox;
+  return (
+    <g>
+      <rect x={x + 2} y={y - 9} width={26} height={16} rx={3} fill="#00D4AA" />
+      <text
+        x={x + 15}
+        y={y + 4}
+        textAnchor="middle"
+        fill="#0A0C10"
+        fontSize={10}
+        fontWeight={700}
+      >
+        {value}
+      </text>
+    </g>
+  );
+};
+
+interface PriceGraphProps {
+  outcome: OutcomeData;
+  market: Market;
+}
+
+const PriceGraph: React.FC<PriceGraphProps> = ({ outcome, market }) => {
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('ALL');
+  const TIME_FILTERS: TimeFilter[] = ['1D', '1W', '1M', 'ALL'];
+  const [liveHistory, setLiveHistory] = useState<{ date: string; price: number }[] | null>(null);
+  const [histLoading, setHistLoading] = useState(true);
+
+  const hasAnimated = useRef(false);
+  const [animActive, setAnimActive] = useState(true);
+  const [showLiveDot, setShowLiveDot] = useState(false);
+
+  useEffect(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    const timer = setTimeout(() => {
+      setAnimActive(false);
+      setShowLiveDot(true);
+    }, 900); // slightly longer than 800ms animationDuration
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    setHistLoading(true);
+
+    async function fetchHistory() {
+      try {
+        // Try probability_history table first
+        const { data: phData, error: phError } = await supabase
+          .from('probability_history')
+          .select('probability, recorded_at')
+          .eq('market_id', market.id)
+          .eq('outcome_id', outcome.id)
+          .order('recorded_at', { ascending: true })
+          .limit(200);
+
+        if (!phError && phData && phData.length > 0) {
+          const mapped = phData.map((d: any) => ({
+            date: new Date(d.recorded_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            price: Number(d.probability),
+          }));
+          if (isMounted) {
+            setLiveHistory(mapped);
+            setHistLoading(false);
+          }
+          return;
+        }
+
+        // Fallback: derive from trades price history for this outcome
+        const { data: tradeData, error: tradeError } = await supabase
+          .from('trades')
+          .select('price, created_at')
+          .eq('outcome_id', outcome.id)
+          .order('created_at', { ascending: true })
+          .limit(200);
+
+        if (!tradeError && tradeData && tradeData.length > 0) {
+          const mapped = tradeData.map((d: any) => ({
+            date: new Date(d.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            price: Math.round(Number(d.price) / 100), // paisa → 1-99 scale
+          }));
+          if (isMounted) {
+            setLiveHistory(mapped);
+            setHistLoading(false);
+          }
+          return;
+        }
+
+        // Final fallback: generated mock
+        if (isMounted) {
+          setLiveHistory(null);
+          setHistLoading(false);
+        }
+      } catch {
+        if (isMounted) {
+          setLiveHistory(null);
+          setHistLoading(false);
+        }
+      }
+    }
+
+    fetchHistory();
+    return () => { isMounted = false; };
+  }, [outcome.id]);
+
+  const baseHistory = liveHistory ?? outcome.priceHistory;
+
+  const sliceDays = TIME_SLICES[timeFilter];
+  const rawData = baseHistory.slice(-sliceDays);
+  const data = sampleData(rawData, 150);
+  const lastPrice = rawData[rawData.length - 1]?.price ?? outcome.yesPrice;
+
+  // Pick evenly spaced X ticks
+  const step = Math.max(1, Math.floor(data.length / 5));
+  const xTicks = data
+    .filter((_, i) => i % step === 0)
+    .map(d => d.date);
+
+  if (histLoading) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#8A9099', fontSize: 12 }}>
+        Loading chart...
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: '#14161B', width: '100%' }}>
+      {/* Top bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 12px 4px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: '#00D4AA' }}>
+            Yes {lastPrice}¢
+          </span>
+          <span style={{ fontSize: 11, color: '#8A9099' }}>last traded</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#00D4AA' }}>
+            ▲ {outcome.change ?? 4}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {TIME_FILTERS.map(f => (
+            <button
+              key={f}
+              onClick={() => setTimeFilter(f)}
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: 'none',
+                cursor: 'pointer',
+                color: timeFilter === f ? '#ffffff' : '#8A9099',
+                background: timeFilter === f ? 'rgba(255,255,255,0.08)' : 'transparent',
+              }}
+            >
+              {f}
+            </button>
+          ))}
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#8A9099', marginLeft: 8 }}>
+            PredictKit
+          </span>
+        </div>
+      </div>
+
+      {/* Chart */}
+      <div style={{ width: '100%', height: 180 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={data} margin={{ top: 10, right: 52, left: 0, bottom: 0 }}>
+            <XAxis
+              dataKey="date"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#8A9099', fontSize: 10 }}
+              ticks={xTicks}
+              interval="preserveStartEnd"
+              dy={6}
+            />
+            <YAxis
+              orientation="right"
+              domain={['auto', 'auto']}
+              axisLine={false}
+              tickLine={false}
+              tick={{ fill: '#8A9099', fontSize: 10 }}
+              tickFormatter={v => `${v}`}
+              width={40}
+              dx={8}
+            />
+            {/* Current price badge */}
+            <ReferenceLine
+              y={lastPrice}
+              stroke="transparent"
+              label={<CurrentPriceBadge value={lastPrice} />}
+            />
+            <Line
+              key={timeFilter}
+              type="basis"
+              dataKey="price"
+              stroke="#00D4AA"
+              strokeWidth={2}
+              isAnimationActive={animActive}
+              animationDuration={800}
+              animationEasing="ease-out"
+              dot={(props: any) => {
+                if (animActive) return <g key={props.index} />;
+                if (props.index !== data.length - 1 || !showLiveDot) return <g key={props.index} />;
+                const { cx, cy } = props;
+                return (
+                  <g key={props.index}>
+                    <circle cx={cx} cy={cy} r={5} fill="#00D4AA" className="live-dot-glow" />
+                    <circle cx={cx} cy={cy} r={7} fill="#00D4AA" opacity={0.15} />
+                    <circle cx={cx} cy={cy} r={3.5} fill="#00D4AA" stroke="#14161B" strokeWidth={1.5} />
+                  </g>
+                );
+              }}
+              activeDot={false}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Activity tick marks */}
+      <div style={{ padding: '0 8px 8px' }}>
+        <ActivityTicks count={42} />
+      </div>
+    </div>
+  );
+};
+
+// ─── Expanded Content (tabs) ──────────────────────────────────────────────────
+
+interface ExpandedContentProps {
+  outcome: OutcomeData;
+  initialTab: ActiveTab;
+  market: Market;
+  onClose: () => void;
+}
+
+const ExpandedContent: React.FC<ExpandedContentProps> = ({ outcome, initialTab, market, onClose }) => {
+  const [activeTab, setActiveTab] = useState<ActiveTab>(initialTab);
+  const [inlineAmount, setInlineAmount] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const { userProfile } = useAuth();
+  const { buy } = useApp();
+  const { currency, usdToNprRate } = useCurrency();
+  const { addToast } = useToast();
+
+  // Reset amount when switching outcomes or tabs:
+  useEffect(() => {
+    setInlineAmount(0);
+  }, [outcome.id, activeTab]);
+
+  // When parent switches the tab (e.g. Yes vs No button click on a different row),
+  // sync the local tab state.
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
+  const handleInlinePlaceOrder = async (side: 'YES' | 'NO') => {
+    if (inlineAmount <= 0) {
+      addToast('Please enter an amount', 'error');
+      return;
+    }
+    if (!userProfile) {
+      addToast('Sign up to trade', 'error');
+      return;
+    }
+
+    const priceInCents = side === 'YES' ? outcome.yesPrice : outcome.noPrice;
+    const amountInUSD = currency === 'NPR' ? inlineAmount / usdToNprRate : inlineAmount;
+    const numContracts = priceInCents > 0 ? Math.floor((amountInUSD * 100) / priceInCents) : 0;
+
+    if (numContracts <= 0) {
+      addToast('Amount too small for 1 contract', 'error');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      await buy(market.id, side === 'YES' ? Side.YES : Side.NO, priceInCents, numContracts, outcome.id);
+      addToast(`Order placed! ${side} on ${outcome.name}`, 'success');
+      setInlineAmount(0);
+      onClose(); // collapse after order
+    } catch (e: any) {
+      const msg: string = e?.message || '';
+      const m = msg.match(/Insufficient funds: need\s+(\d+)\s+have\s+(\d+)/i);
+      if (m) {
+        addToast(`Not enough balance.`, 'error');
+      } else {
+        addToast(msg || 'Failed to place order', 'error');
+      }
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const tabs: { key: ActiveTab; label: string }[] = [
+    { key: 'yes', label: 'Trade Yes' },
+    { key: 'no',  label: 'Trade No' },
+    { key: 'graph', label: 'Graph' },
+  ];
+
+  return (
+    <div style={{ background: '#1A1C22', width: '100%' }}>
+      {/* Tab bar */}
+      <div
+        style={{
+          display: 'flex',
+          borderBottom: '1px solid #1E2028',
+          padding: '0 8px',
+        }}
+      >
+        {tabs.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            style={{
+              position: 'relative',
+              padding: '10px 14px',
+              fontSize: 13,
+              fontWeight: 600,
+              color: activeTab === tab.key ? '#ffffff' : '#8A9099',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'color 150ms',
+            }}
+          >
+            {tab.label}
+            {activeTab === tab.key && (
+              <span
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  borderRadius: '2px 2px 0 0',
+                  background: '#00D4AA',
+                }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div style={{ paddingBottom: 8 }}>
+        {activeTab === 'yes'   && <OrderBook outcome={outcome} side="yes" />}
+        {activeTab === 'no'    && <OrderBook outcome={outcome} side="no"  />}
+        {activeTab === 'graph' && <PriceGraph outcome={outcome} market={market} />}
+      </div>
+    </div>
+  );
+};
+
+// ─── Animated Expand Wrapper ──────────────────────────────────────────────────
+
+interface AnimatedExpandProps {
+  open: boolean;
+  children: React.ReactNode;
+}
+
+const AnimatedExpand: React.FC<AnimatedExpandProps> = ({ open, children }) => {
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState(0);
+
+  // Measure and set height when open state changes
+  useEffect(() => {
+    if (!innerRef.current) return;
+    setHeight(open ? innerRef.current.scrollHeight : 0);
+  }, [open]);
+
+  // Re-measure when tab content changes (ResizeObserver)
+  useEffect(() => {
+    if (!open || !innerRef.current) return;
+    const ro = new ResizeObserver(() => {
+      if (innerRef.current) setHeight(innerRef.current.scrollHeight);
+    });
+    ro.observe(innerRef.current);
+    return () => ro.disconnect();
+  }, [open]);
+
+  return (
+    <div
+      style={{
+        height,
+        overflow: 'hidden',
+        transition: 'height 280ms cubic-bezier(0.4, 0, 0.2, 1)',
+      }}
+    >
+      <div ref={innerRef}>{children}</div>
+    </div>
+  );
+};
+
+// ─── Single Outcome Row ───────────────────────────────────────────────────────
+
+interface OutcomeRowProps {
+  outcome: OutcomeData;
+  isExpanded: boolean;
+  expandedTab: ActiveTab;
+  onToggle: (id: string, tab?: ActiveTab) => void;
+  isLast: boolean;
+  market: Market;
+  onTradeClick?: (outcomeId: string, side: Side) => void;
+}
+
+const OutcomeRow: React.FC<OutcomeRowProps> = ({
+  outcome,
+  isExpanded,
+  expandedTab,
+  onToggle,
+  isLast,
+  market,
+  onTradeClick,
+}) => {
+  const handleYes = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onTradeClick) onTradeClick(outcome.id, Side.YES);
+  };
+  const handleNo = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onTradeClick) onTradeClick(outcome.id, Side.NO);
+  };
+
+  return (
+    <div
+      style={{
+        borderBottom: isLast && !isExpanded ? 'none' : '1px solid #1E2028',
+      }}
+    >
+      {/* Collapsed header row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          padding: '14px 0',
+          background: 'transparent',
+          transition: 'background 150ms',
+        }}
+      >
+        {/* Left Side — clickable to open/close order book */}
+        <div
+          style={{ flex: 1, minWidth: 0, paddingRight: 12, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          onClick={() => onToggle(outcome.id)}
+        >
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
+            <span style={{ fontSize: 14, fontWeight: 500, color: '#ffffff', display: 'block' }}>
+              {outcome.name}
+            </span>
+          </div>
+
+          <div
+            style={{
+              width: 110,
+              display: 'flex',
+              alignItems: 'baseline',
+              justifyContent: 'center',
+              gap: 6,
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 20, fontWeight: 700, color: '#ffffff' }}>
+              {outcome.probability}%
+            </span>
+            {outcome.change_24h !== undefined && outcome.change_24h !== 0 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: outcome.change_24h > 0 ? '#00D4AA' : '#FF4757',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                {outcome.change_24h > 0 ? '▲' : '▼'}
+              </span>
+            )}
+          </div>
+          
+          <span style={{ color: '#8A9099', fontSize: 12, marginLeft: 4 }}>
+            {isExpanded ? '▲' : '▼'}
+          </span>
+        </div>
+
+        {/* Yes / No buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
+          <button
+            onClick={handleYes}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              border: '1.5px solid #00D4AA',
+              color: '#00D4AA',
+              background: 'transparent',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              minWidth: 82,
+              transition: 'background 150ms',
+            }}
+          >
+            Yes {outcome.yesPrice}¢
+          </button>
+          <button
+            onClick={handleNo}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              border: '1.5px solid #FF4757',
+              color: '#FF4757',
+              background: 'transparent',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              minWidth: 82,
+              transition: 'background 150ms',
+            }}
+          >
+            No {outcome.noPrice}¢
+          </button>
+        </div>
+      </div>
+
+      {/* Smooth animated expand section */}
+      <AnimatedExpand open={isExpanded}>
+        <ExpandedContent 
+          outcome={outcome} 
+          initialTab={expandedTab} 
+          market={market} 
+          onClose={() => onToggle(outcome.id)} 
+        />
+      </AnimatedExpand>
+    </div>
+  );
+};
+
+// ─── MarketOutcomeList (main export) ─────────────────────────────────────────
+
+export const MarketOutcomeList: React.FC<MarketOutcomeListProps> = ({ market, onTradeClick }) => {
+  // Convert real market outcomes into OutcomeData — mock order book/history as
+  // initial state; live data is fetched inside OrderBook/PriceGraph components.
+  const outcomes: OutcomeData[] = React.useMemo(() => {
+    const rawOutcomes = market.outcomes;
+
+    // Multi-choice market with real outcomes
+    if (rawOutcomes && rawOutcomes.length > 0) {
+      return rawOutcomes.map((o, i) => ({
+        id: o.id,
+        name: o.name,
+        probability: Math.round(o.probability),
+        yesPrice: Math.round(o.probability),
+        noPrice: Math.round(100 - o.probability),
+        // Stagger mock data so each outcome looks different before live data loads
+        asks: MOCK_ASKS.map(r => ({
+          ...r,
+          price: parseFloat((r.price + i * 1.2).toFixed(1)),
+        })),
+        bids: MOCK_BIDS.map(r => ({
+          ...r,
+          price: parseFloat((r.price + i * 0.8).toFixed(1)),
+        })),
+        priceHistory: generatePriceHistory(Math.round(o.probability), 27),
+      }));
+    }
+
+    // Binary market — synthesise a single "Yes" outcome row
+    return [
+      {
+        id: 'binary-main',
+        name: market.title,
+        probability: market.probability || 50,
+        yesPrice: market.probability || 50,
+        noPrice: 100 - (market.probability || 50),
+        asks: MOCK_ASKS,
+        bids: MOCK_BIDS,
+        priceHistory: generatePriceHistory(market.probability || 50, 27),
+      },
+    ];
+  }, [market.outcomes, market.probability, market.title, market.id]);
+
+  // Fetch 24h change for each outcome from probability_history
+  const [changes24h, setChanges24h] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetch24hChanges() {
+      const outcomeIds = outcomes.map(o => o.id);
+      if (outcomeIds.length === 0) return;
+
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      try {
+        const { data, error } = await supabase
+          .from('probability_history')
+          .select('outcome_id, probability, recorded_at')
+          .eq('market_id', market.id)
+          .in('outcome_id', outcomeIds)
+          .lte('recorded_at', since)
+          .order('recorded_at', { ascending: false })
+          .limit(outcomeIds.length);
+
+        if (!error && data && data.length > 0 && isMounted) {
+          const changes: Record<string, number> = {};
+          data.forEach((row: any) => {
+            if (changes[row.outcome_id] === undefined) {
+              const currentOutcome = outcomes.find(o => o.id === row.outcome_id);
+              if (currentOutcome) {
+                changes[row.outcome_id] = currentOutcome.probability - Math.round(row.probability);
+              }
+            }
+          });
+          setChanges24h(changes);
+        }
+      } catch {
+        // Silently fail — change indicators just won't show
+      }
+    }
+    fetch24hChanges();
+    return () => { isMounted = false; };
+  }, [market.id, outcomes]);
+
+  // Merge 24h changes into outcomes
+  const outcomesWithChanges = React.useMemo(() =>
+    outcomes.map(o => ({
+      ...o,
+      change_24h: changes24h[o.id] ?? 0,
+    })),
+    [outcomes, changes24h]
+  );
+
+  const [expandedId, setExpandedId]   = useState<string | null>(null);
+  const [expandedTab, setExpandedTab] = useState<ActiveTab>('yes');
+
+  const handleToggle = (id: string, tab?: ActiveTab) => {
+    if (expandedId === id) {
+      if (tab && tab !== expandedTab) {
+        // Same row, different tab → switch without collapsing
+        setExpandedTab(tab);
+      } else {
+        // Same row, same tab → collapse
+        setExpandedId(null);
+      }
+    } else {
+      setExpandedId(id);
+      setExpandedTab(tab ?? 'yes');
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: '#14161B',
+        border: '1px solid #1E2028',
+        borderRadius: 12,
+        overflow: 'hidden',
+        width: '100%',
+      }}
+    >
+      {/* Header row */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          borderBottom: '1px solid #1E2028',
+          padding: '8px 12px',
+        }}
+      >
+        {/* Centred "Chance" label — positioned so it roughly aligns with the probability column */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', paddingRight: 0 }}>
+          <span style={{ fontSize: 12, color: '#8A9099', fontWeight: 500 }}>Chance</span>
+        </div>
+        <ListFilter size={14} style={{ color: '#8A9099', cursor: 'pointer', flexShrink: 0 }} />
+      </div>
+
+      {/* Outcome rows */}
+      <div style={{ padding: '0 12px' }}>
+        {outcomesWithChanges.map((outcome, idx) => (
+          <OutcomeRow
+            key={outcome.id}
+            outcome={outcome}
+            isExpanded={expandedId === outcome.id}
+            expandedTab={expandedId === outcome.id ? expandedTab : 'yes'}
+            onToggle={handleToggle}
+            isLast={idx === outcomesWithChanges.length - 1}
+            market={market}
+            onTradeClick={onTradeClick}
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default MarketOutcomeList;

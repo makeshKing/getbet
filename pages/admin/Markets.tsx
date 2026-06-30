@@ -19,6 +19,7 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
   const [filterTitle, setFilterTitle] = useState('');
   const [filterType, setFilterType] = useState('All'); 
   const [filterCategory, setFilterCategory] = useState('All');
+  const [hideResolved, setHideResolved] = useState(false);
 
   const [editingProbabilityMarket, setEditingProbabilityMarket] = useState<Market | null>(null);
 
@@ -36,7 +37,8 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
   const filteredMarkets = markets.filter(m => {
       const matchTitle = m.title.toLowerCase().includes(filterTitle.toLowerCase());
       const matchCategory = filterCategory === 'All' || m.category === filterCategory;
-      return matchTitle && matchCategory;
+      const matchResolved = hideResolved ? !m.outcome : true;
+      return matchTitle && matchCategory && matchResolved;
   });
 
   const categories = Array.from(new Set(markets.map(m => m.category)));
@@ -85,10 +87,13 @@ export const AdminMarkets: React.FC<AdminMarketsProps> = ({ onNavigate }) => {
                 {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
         </div>
-        <div className="flex items-end">
-            <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-                <Filter size={16} className="mr-2" /> Filter
-            </Button>
+        <div className="flex flex-col justify-end pb-1">
+            <div className="flex items-center gap-2 mb-1">
+                <Switch checked={hideResolved} onChange={() => setHideResolved(!hideResolved)} />
+                <label className="text-xs font-medium text-slate-500 dark:text-slate-400 cursor-pointer" onClick={() => setHideResolved(!hideResolved)}>
+                    Hide Resolved
+                </label>
+            </div>
         </div>
       </div>
 
