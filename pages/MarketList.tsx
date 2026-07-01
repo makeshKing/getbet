@@ -261,10 +261,12 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                         {/* ── Featured Section ── */}
                         {showFeatured && carouselSlides.length > 0 && (
                             <div className="space-y-4">
-                                <FeaturedMarketCarousel 
+                                <div className="w-full max-w-full overflow-hidden px-0">
+                                <FeaturedMarketCarousel
                                     slides={carouselSlides}
                                     onSelectMarket={onMarketClick}
                                 />
+                                </div>
 
                                 {/* Informational Cards */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
