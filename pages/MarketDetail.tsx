@@ -12,6 +12,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getMarketRecentTrades, RecentTrade } from '../services/supabaseService';
 import { format } from 'date-fns';
 import { MarketOutcomeList } from '../components/MarketOutcomeList';
+import { useIsMobile } from '../lib/useIsMobile';
 
 interface MarketDetailProps {
    marketId: string;
@@ -43,6 +44,7 @@ const MarketChart = React.memo(function MarketChart({
   const [hoverData, setHoverData] = useState<any>(null);
   const [drawComplete, setDrawComplete] = useState(false);
   const hasRunOnce = useRef(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const timer = setTimeout(() => setDrawComplete(true), 1300);

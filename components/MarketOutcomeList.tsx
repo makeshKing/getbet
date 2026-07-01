@@ -15,6 +15,7 @@ import { useApp } from '../context/AppContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useToast } from './ui/Toast';
 import { Spinner } from './ui/Spinner';
+import { useIsMobile } from '../lib/useIsMobile';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -851,6 +852,8 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
   market,
   onTradeClick,
 }) => {
+  const isMobile = useIsMobile();
+
   const handleYes = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (onTradeClick) onTradeClick(outcome.id, Side.YES);
@@ -859,6 +862,16 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
     e.stopPropagation();
     if (onTradeClick) onTradeClick(outcome.id, Side.NO);
   };
+
+  // Responsive sizing — the row is built with inline styles (Tailwind breakpoints
+  // can't reach it), so pick widths via the useIsMobile hook instead. On a 375px
+  // screen the fixed-width column + two buttons must shrink or the name overlaps.
+  const probWidth = isMobile ? 64 : 110;
+  const btnMinWidth = isMobile ? 62 : 82;
+  const btnPadding = isMobile ? '5px 9px' : '6px 14px';
+  const btnFontSize = isMobile ? 11 : 12;
+  const btnGap = isMobile ? 6 : 8;
+  const probFont = isMobile ? 17 : 20;
 
   return (
     <div
@@ -878,18 +891,28 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
       >
         {/* Left Side — clickable to open/close order book */}
         <div
-          style={{ flex: 1, minWidth: 0, paddingRight: 12, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
+          style={{ flex: 1, minWidth: 0, paddingRight: isMobile ? 8 : 12, display: 'flex', alignItems: 'center', cursor: 'pointer' }}
           onClick={() => onToggle(outcome.id)}
         >
-          <div style={{ flex: 1, minWidth: 0, paddingRight: 12 }}>
-            <span style={{ fontSize: 14, fontWeight: 500, color: '#ffffff', display: 'block' }}>
+          <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 500,
+                color: '#ffffff',
+                display: 'block',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
               {outcome.name}
             </span>
           </div>
 
           <div
             style={{
-              width: 110,
+              width: probWidth,
               display: 'flex',
               alignItems: 'baseline',
               justifyContent: 'center',
@@ -897,7 +920,7 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#ffffff' }}>
+            <span style={{ fontSize: probFont, fontWeight: 700, color: '#ffffff' }}>
               {outcome.probability}%
             </span>
             {outcome.change_24h !== undefined && outcome.change_24h !== 0 && (
@@ -915,27 +938,28 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
               </span>
             )}
           </div>
-          
+
           <span style={{ color: '#8A9099', fontSize: 12, marginLeft: 4 }}>
             {isExpanded ? '▲' : '▼'}
           </span>
         </div>
 
         {/* Yes / No buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: btnGap, flexShrink: 0, marginLeft: isMobile ? 6 : 8 }}>
           <button
             onClick={handleYes}
             style={{
-              padding: '6px 14px',
+              padding: btnPadding,
               borderRadius: 999,
               border: '1.5px solid #00D4AA',
               color: '#00D4AA',
               background: 'transparent',
-              fontSize: 12,
+              fontSize: btnFontSize,
               fontWeight: 700,
               cursor: 'pointer',
-              minWidth: 82,
+              minWidth: btnMinWidth,
               transition: 'background 150ms',
+              whiteSpace: 'nowrap',
             }}
           >
             Yes {outcome.yesPrice}¢
@@ -943,16 +967,17 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
           <button
             onClick={handleNo}
             style={{
-              padding: '6px 14px',
+              padding: btnPadding,
               borderRadius: 999,
               border: '1.5px solid #FF4757',
               color: '#FF4757',
               background: 'transparent',
-              fontSize: 12,
+              fontSize: btnFontSize,
               fontWeight: 700,
               cursor: 'pointer',
-              minWidth: 82,
+              minWidth: btnMinWidth,
               transition: 'background 150ms',
+              whiteSpace: 'nowrap',
             }}
           >
             No {outcome.noPrice}¢
@@ -1091,7 +1116,9 @@ export const MarketOutcomeList: React.FC<MarketOutcomeListProps> = ({ market, on
         border: '1px solid #1E2028',
         borderRadius: 12,
         overflow: 'hidden',
+        overflowX: 'hidden',
         width: '100%',
+        maxWidth: '100%',
       }}
     >
       {/* Header row */}
