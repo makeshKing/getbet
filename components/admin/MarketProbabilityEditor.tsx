@@ -456,7 +456,7 @@ export const MarketProbabilityEditor: React.FC<Props> = ({ market, onClose }) =>
                   <h3 className="text-xs font-black text-slate-700 dark:text-white uppercase tracking-widest">Probability Range</h3>
                 </div>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">
-                  Probability will be clamped to this range by drift and auto-adjustments.
+                  Probability will be clamped to this range when drift is applied.
                 </p>
                 <div className="space-y-3">
                   <RangeRow

@@ -732,7 +732,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                         </div>
                      </div>
                   </div>
-               </div>
 
                {/* Outcomes List — Kalshi-style inline expandable rows */}
                <div className="px-4 lg:px-0 mt-4">
@@ -1246,5 +1245,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
             )}
 
          </div>
+      </div>
    );
 };

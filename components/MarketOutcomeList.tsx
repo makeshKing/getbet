@@ -53,21 +53,57 @@ function sampleData(data: any[], maxPoints = 150) {
   return data.filter((_, i) => i % step === 0);
 }
 
-// ─── Mock Data (fallback when no Supabase data) ───────────────────────────────
+// ─── Seeded Order-Book Generator ──────────────────────────────────────────────
 
-const MOCK_ASKS: OrderBookRow[] = [
-  { price: 9.9,  contracts: 255.57,   total: 250.65 },
-  { price: 9.8,  contracts: 367.42,   total: 225.35 },
-  { price: 9.5,  contracts: 500,      total: 189.34 },
-  { price: 8.0,  contracts: 90,       total: 141.84 },
-  { price: 7.7,  contracts: 500,      total: 134.64 },
-  { price: 6.8,  contracts: 30,       total: 96.14  },
-  { price: 6.7,  contracts: 1404.48,  total: 94.10  },
-];
+/** Deterministic pseudo-random: same seed+index → same number every time */
+function seededRandom(seed: string, index: number): number {
+  let hash = 0;
+  const str = seed + ':' + index;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0; // force 32-bit
+  }
+  return Math.abs(Math.sin(hash * 9301 + 49297)) % 1;
+}
 
-const MOCK_BIDS: OrderBookRow[] = [
-  { price: 6.6,  contracts: 850.83,   total: 56.15  },
-];
+/**
+ * Generate a realistic order-book centred on `currentPriceCents`.
+ * `seedId` should be unique per outcome+side so every combo gets different data.
+ */
+function generateOrderBook(
+  currentPriceCents: number,
+  seedId: string,
+): { asks: OrderBookRow[]; bids: OrderBookRow[] } {
+  const asks: OrderBookRow[] = [];
+  const bids: OrderBookRow[] = [];
+
+  // ── Asks: 6-7 levels ABOVE current price ──
+  const askCount = 6 + Math.floor(seededRandom(seedId, 999) * 2); // 6 or 7
+  let askPrice = currentPriceCents;
+  for (let i = 0; i < askCount; i++) {
+    const step = 0.3 + seededRandom(seedId, i) * 1.2; // 0.3–1.5¢ increments
+    askPrice = Math.min(99.9, askPrice + step);
+    const contracts = Math.round((20 + seededRandom(seedId, i + 100) * 1200) * 100) / 100;
+    const total = Math.round(contracts * (askPrice / 100) * 100) / 100;
+    asks.push({ price: Math.round(askPrice * 10) / 10, contracts, total });
+  }
+
+  // ── Bids: 3-5 levels BELOW current price ──
+  const bidCount = 3 + Math.floor(seededRandom(seedId, 200) * 3); // 3-5
+  let bidPrice = currentPriceCents;
+  for (let i = 0; i < bidCount; i++) {
+    const step = 0.3 + seededRandom(seedId, i + 300) * 1.5; // 0.3–1.8¢ decrements
+    bidPrice = Math.max(0.1, bidPrice - step);
+    const contracts = Math.round((30 + seededRandom(seedId, i + 400) * 900) * 100) / 100;
+    const total = Math.round(contracts * (bidPrice / 100) * 100) / 100;
+    bids.push({ price: Math.round(bidPrice * 10) / 10, contracts, total });
+  }
+
+  // asks: highest first (farthest from mid at top, closest at bottom)
+  asks.reverse();
+  // bids: highest first (closest to mid at top)
+  return { asks, bids };
+}
 
 /** Generate realistic price history for an outcome */
 function generatePriceHistory(basePrice: number, days: number): { date: string; price: number }[] {
@@ -85,12 +121,6 @@ function generatePriceHistory(basePrice: number, days: number): { date: string; 
   result[result.length - 1].price = basePrice;
   return result;
 }
-
-// ─── Depth bar max (for normalising bar widths) ───────────────────────────────
-const maxContracts = Math.max(
-  ...MOCK_ASKS.map(r => r.contracts),
-  ...MOCK_BIDS.map(r => r.contracts),
-);
 
 // ─── Order Book Table ─────────────────────────────────────────────────────────
 
@@ -172,7 +202,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ outcome, side }) => {
     return () => { isMounted = false; };
   }, [outcome.id, side]);
 
-  // Use live data if available, fall back to mock data from the outcome object
+  // Use live data if available, fall back to generated data from the outcome object
   const asks = liveAsks ?? outcome.asks;
   const bids = liveBids ?? outcome.bids;
   const lastPrice = side === 'yes' ? outcome.yesPrice : outcome.noPrice;
@@ -180,7 +210,7 @@ const OrderBook: React.FC<OrderBookProps> = ({ outcome, side }) => {
   const localMax = Math.max(
     ...asks.map(r => r.contracts),
     ...bids.map(r => r.contracts),
-    maxContracts,
+    1, // avoid 0
   );
 
   if (loading) {
@@ -1008,36 +1038,40 @@ export const MarketOutcomeList: React.FC<MarketOutcomeListProps> = ({ market, on
 
     // Multi-choice market with real outcomes
     if (rawOutcomes && rawOutcomes.length > 0) {
-      return rawOutcomes.map((o, i) => ({
-        id: o.id,
-        name: o.name,
-        probability: Math.round(o.probability),
-        yesPrice: Math.round(o.probability),
-        noPrice: Math.round(100 - o.probability),
-        // Stagger mock data so each outcome looks different before live data loads
-        asks: MOCK_ASKS.map(r => ({
-          ...r,
-          price: parseFloat((r.price + i * 1.2).toFixed(1)),
-        })),
-        bids: MOCK_BIDS.map(r => ({
-          ...r,
-          price: parseFloat((r.price + i * 0.8).toFixed(1)),
-        })),
-        priceHistory: generatePriceHistory(Math.round(o.probability), 27),
-      }));
+      return rawOutcomes.map((o) => {
+        const prob = Math.round(o.probability);
+        const yesP = prob;
+        const noP = 100 - prob;
+        const yesBook = generateOrderBook(yesP, `${o.id}-yes`);
+        const noBook  = generateOrderBook(noP,  `${o.id}-no`);
+        return {
+          id: o.id,
+          name: o.name,
+          probability: prob,
+          yesPrice: yesP,
+          noPrice: noP,
+          // Fallback asks/bids use YES-side book; OrderBook component
+          // regenerates per-side anyway via the live-fetch path.
+          asks: yesBook.asks,
+          bids: yesBook.bids,
+          priceHistory: generatePriceHistory(prob, 27),
+        };
+      });
     }
 
     // Binary market — synthesise a single "Yes" outcome row
+    const bp = market.probability || 50;
+    const binaryYes = generateOrderBook(bp, `${market.id}-binary-yes`);
     return [
       {
         id: 'binary-main',
         name: market.title,
-        probability: market.probability || 50,
-        yesPrice: market.probability || 50,
-        noPrice: 100 - (market.probability || 50),
-        asks: MOCK_ASKS,
-        bids: MOCK_BIDS,
-        priceHistory: generatePriceHistory(market.probability || 50, 27),
+        probability: bp,
+        yesPrice: bp,
+        noPrice: 100 - bp,
+        asks: binaryYes.asks,
+        bids: binaryYes.bids,
+        priceHistory: generatePriceHistory(bp, 27),
       },
     ];
   }, [market.outcomes, market.probability, market.title, market.id]);

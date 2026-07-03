@@ -160,11 +160,25 @@ function App() {
       return 'login';
     } else if (path === '/register') {
       return 'signup';
+    } else if (path === '/portfolio') {
+      return 'portfolio';
+    } else if (path === '/profile') {
+      return 'profile';
+    } else if (path === '/leaderboard') {
+      return 'leaderboard';
+    } else if (path.startsWith('/market/')) {
+      return 'market-detail';
     }
 
     return 'home'; // default
   });
-  const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
+  const [selectedMarketId, setSelectedMarketId] = useState<string | null>(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/market/')) {
+      return path.split('/')[2] || null;
+    }
+    return null;
+  });
   const [adminResolutionMarketId, setAdminResolutionMarketId] = useState<string | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -202,6 +216,15 @@ function App() {
       setCurrentView('login');
     } else if (path === '/register') {
       setCurrentView('signup');
+    } else if (path === '/portfolio') {
+      setCurrentView('portfolio');
+    } else if (path === '/profile') {
+      setCurrentView('profile');
+    } else if (path === '/leaderboard') {
+      setCurrentView('leaderboard');
+    } else if (path.startsWith('/market/')) {
+      setCurrentView('market-detail');
+      setSelectedMarketId(path.split('/')[2] || null);
     }
     // Note: /admin/login is handled separately in RouterWrapper
   }, [location]);
