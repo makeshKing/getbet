@@ -326,7 +326,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                     </div>
 
                     {/* ── Right Column: Sidebar ── */}
-                    <div className="hidden xl:block">
+                    <div className="mt-8 xl:mt-0 xl:block">
                         <div className="sticky top-40">
                             <Sidebar markets={markets} onMarketClick={onMarketClick} />
                         </div>
