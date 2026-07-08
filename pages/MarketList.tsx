@@ -96,12 +96,13 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                 outcomes.push({ name: m.candidateA!.name, icon: m.candidateA!.imageUrl, payoutMultiplier: m.probability > 0 ? 100/m.probability : 0, probability: m.probability, color: m.candidateA!.color || '#ef4444' });
                 outcomes.push({ name: m.candidateB!.name, icon: m.candidateB!.imageUrl, payoutMultiplier: (100 - m.probability) > 0 ? 100/(100-m.probability) : 0, probability: 100 - m.probability, color: m.candidateB!.color || '#3b82f6' });
             } else if (isMultiOutcome) {
-                m.outcomes!.slice(0, 3).forEach(o => {
-                    outcomes.push({ name: o.name, payoutMultiplier: o.probability > 0 ? 100/o.probability : 0, probability: o.probability, color: o.color || '#10b981' });
+                const colors = ['#4B9EFF', '#FF4444', '#C8CCD0', '#9B6FFF', '#00CC88', '#FF8C42'];
+                m.outcomes!.slice(0, 3).forEach((o, i) => {
+                    outcomes.push({ name: o.name, payoutMultiplier: o.probability > 0 ? 100/o.probability : 0, probability: o.probability, color: colors[i % colors.length] });
                 });
             } else {
-                outcomes.push({ name: 'Yes', payoutMultiplier: m.probability > 0 ? 100/m.probability : 0, probability: m.probability, color: '#10b981' });
-                outcomes.push({ name: 'No', payoutMultiplier: (100 - m.probability) > 0 ? 100/(100-m.probability) : 0, probability: 100 - m.probability, color: '#3b82f6' });
+                outcomes.push({ name: 'Yes', payoutMultiplier: m.probability > 0 ? 100/m.probability : 0, probability: m.probability, color: '#00E5CC' });
+                outcomes.push({ name: 'No', payoutMultiplier: (100 - m.probability) > 0 ? 100/(100-m.probability) : 0, probability: 100 - m.probability, color: '#FF4444' });
             }
 
             // Real date labels spanning ~Jun 18 → Jun 25
@@ -269,30 +270,20 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                                 </div>
 
                                 {/* Informational Cards */}
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
-                                        <span className="text-[#00D4AA] text-2xl flex-shrink-0"><Landmark size={24} /></span>
-                                        <div className="flex-1">
-                                            <p className="text-white text-sm font-bold">Markets over Monopolies</p>
-                                            <p className="text-[#9AA0A6] text-xs">Fair markets protect consumers</p>
+                                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-3 flex flex-col gap-1.5 cursor-pointer hover:border-white/20 transition-colors">
+                                        <span className="text-[#00D4AA]"><Landmark size={18} /></span>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-white text-xs font-bold leading-tight">Markets over Monopolies</p>
                                         </div>
-                                        <span className="text-[#00D4AA] font-bold text-lg">›</span>
+                                        <p className="text-[#9AA0A6] text-[10px] leading-snug">Fair markets protect consumers</p>
                                     </div>
-                                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
-                                        <span className="text-[#00D4AA] text-2xl flex-shrink-0"><Shield size={24} /></span>
-                                        <div className="flex-1">
-                                            <p className="text-white text-sm font-bold">Responsible trading</p>
-                                            <p className="text-[#9AA0A6] text-xs">Tools and tips for trading smart</p>
+                                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-3 flex flex-col gap-1.5 cursor-pointer hover:border-white/20 transition-colors">
+                                        <span className="text-[#00D4AA]"><Shield size={18} /></span>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-white text-xs font-bold leading-tight">Responsible trading</p>
                                         </div>
-                                        <span className="text-[#00D4AA] font-bold text-lg">›</span>
-                                    </div>
-                                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors">
-                                        <span className="text-[#00D4AA] text-2xl flex-shrink-0"><Star size={24} /></span>
-                                        <div className="flex-1">
-                                            <p className="text-white text-sm font-bold">Market integrity</p>
-                                            <p className="text-[#9AA0A6] text-xs">Learn how we keep markets fair</p>
-                                        </div>
-                                        <span className="text-[#00D4AA] font-bold text-lg">›</span>
+                                        <p className="text-[#9AA0A6] text-[10px] leading-snug">Tools and tips for trading smart</p>
                                     </div>
                                 </div>
                             </div>

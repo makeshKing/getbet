@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Globe2 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, ReferenceLine, Tooltip } from 'recharts';
 import { CARD_BG, DIVIDER, BORDER_SUBTLE, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, ACCENT, LINE_COLORS, categoryAccent } from '../lib/theme';
@@ -14,7 +14,7 @@ export interface MarketSlide {
     probability: number;
     color: string;
   }[];
-  chartData: { date: string; [outcomeName: string]: number | string }[];
+  chartData: { date: string;[outcomeName: string]: number | string }[];
   news?: string;
   volume: number;
   marketCount: number;
@@ -26,9 +26,9 @@ export interface MarketCarouselProps {
 }
 
 const formatVol = (cents: number) => {
-    // Realistic display floor — never show below $10,000
-    const dollars = Math.max(cents, 1_000_000) / 100;
-    return '$' + dollars.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  // Realistic display floor — never show below $10,000
+  const dollars = Math.max(cents, 1_000_000) / 100;
+  return '$' + dollars.toLocaleString('en-US', { maximumFractionDigits: 0 });
 };
 
 // Default Mock Data for immediate preview if no slides are passed
@@ -124,9 +124,8 @@ const OddsPill: React.FC<OddsPillProps> = ({ probability, selected, onClick }) =
   <button
     type="button"
     onClick={onClick}
-    className={`inline-flex items-center justify-center min-w-[54px] h-7 px-2.5 rounded-full text-[12px] font-bold cursor-pointer transition-all duration-150 ease-out hover:scale-[1.02] ${
-      selected ? 'bg-[#00D4AA] text-[#0A0C10]' : 'bg-transparent text-white hover:bg-[#00D4AA]/15'
-    }`}
+    className={`inline-flex items-center justify-center min-w-[54px] h-7 px-2.5 rounded-full text-[12px] font-bold cursor-pointer transition-all duration-150 ease-out hover:scale-[1.02] ${selected ? 'bg-[#00D4AA] text-[#0A0C10]' : 'bg-transparent text-white hover:bg-[#00D4AA]/15'
+      }`}
     style={{ border: '1.5px solid #00D4AA' }}
   >
     {probability.toFixed(1).replace(/\.0$/, '')}%
@@ -139,8 +138,60 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
   const [hoveredDataIndices, setHoveredDataIndices] = useState<Record<string, number | null>>({});
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
 
+  const [carouselHoverIndex, setCarouselHoverIndex] = useState<number | null>(null);
+  const [carouselHoverData, setCarouselHoverData] = useState<any>(null);
+  const [carouselDrawComplete, setCarouselDrawComplete] = useState(false);
+  const carouselHasRunOnce = useRef(false);
+
   const totalSlides = slides.length;
   const currentSlide = slides[currentIndex];
+
+  useEffect(() => {
+    carouselHasRunOnce.current = false;
+    setCarouselDrawComplete(false);
+    const timer = setTimeout(() => setCarouselDrawComplete(true), 1300);
+    return () => clearTimeout(timer);
+  }, [currentSlide?.id]);
+
+  function renderCarouselDot(props: any, outcome: any, chartData: any[]) {
+    const { cx, cy, index } = props;
+    const isLastPoint = index === chartData.length - 1;
+    const isHoveredPoint = index === carouselHoverIndex;
+    const outcomeKey = outcome.name;
+
+    if (!carouselDrawComplete) return <g key={`cd-${outcomeKey}-${index}`} />;
+
+    if (isHoveredPoint) {
+      const val = carouselHoverData?.[outcomeKey];
+      if (val === undefined) return <g key={`cd-${outcomeKey}-${index}`} />;
+      const flipLeft = cx > 260;
+      const lw = 110;
+      const lx = flipLeft ? cx - lw - 6 : cx + 6;
+      return (
+        <g key={`cd-${outcomeKey}-${index}`}>
+          <circle cx={cx} cy={cy} r={3.5} fill={outcome.color} stroke="#fff" strokeWidth={1.2} />
+          <rect x={lx} y={cy - 11} width={lw} height={22} rx={4}
+            fill="#1E2025" stroke={outcome.color} strokeWidth={1} />
+          <text x={lx + lw/2} y={cy + 3} textAnchor="middle"
+            fill={outcome.color} fontSize={9} fontWeight={600}>
+            {outcome.name} {Number(val).toFixed(1)}%
+          </text>
+        </g>
+      );
+    }
+
+    if (isLastPoint) {
+      return (
+        <g key={`cd-${outcomeKey}-${index}`}>
+          <circle cx={cx} cy={cy} r={6} fill={outcome.color} opacity={0.15} />
+          <circle cx={cx} cy={cy} r={4} fill={outcome.color} className="live-dot-glow" />
+          <circle cx={cx} cy={cy} r={2.5} fill={outcome.color} stroke="#0B0D10" strokeWidth={1.2} />
+        </g>
+      );
+    }
+
+    return <g key={`cd-${outcomeKey}-${index}`} />;
+  }
 
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % totalSlides);
@@ -176,22 +227,22 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
       onMouseLeave={() => setIsPaused(false)}
       onClick={() => onSelectMarket?.(currentSlide.id)}
     >
-      {/* Header — pagination */}
-      <div className="flex items-center justify-end shrink-0 absolute top-3 right-3 md:top-4 md:right-4 z-20">
+      {/* Header — pagination (Mobile Only) */}
+      <div className="flex md:hidden items-center justify-end shrink-0 absolute top-3 right-3 z-20">
         {totalSlides > 1 && (
-          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
-              className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35] flex-shrink-0"
+              className="w-6 h-6 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35] flex-shrink-0"
               onClick={(e) => { e.stopPropagation(); handlePrev(); }}
               aria-label="Previous"
             >
               <ChevronLeft size={14} className="text-white" />
             </button>
-            <span className="text-[10px] md:text-[11px] font-bold text-[#9AA0A6] w-8 md:w-10 text-center whitespace-nowrap flex-shrink-0">
+            <span className="text-[10px] font-bold text-[#9AA0A6] w-8 text-center whitespace-nowrap flex-shrink-0">
               {currentIndex + 1} of {totalSlides}
             </span>
             <button
-              className="w-6 h-6 md:w-7 md:h-7 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35] flex-shrink-0"
+              className="w-6 h-6 rounded-full bg-[#22252B] flex items-center justify-center transition-colors duration-150 z-10 hover:bg-[#2A2D35] flex-shrink-0"
               onClick={(e) => { e.stopPropagation(); handleNext(); }}
               aria-label="Next"
             >
@@ -218,97 +269,154 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                   {/* LEFT — outcomes list */}
                   <div className="flex flex-col justify-between pt-7 md:pt-0">
                     <div>
-                        {/* Category badge */}
-                        <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[#9AA0A6]">{slide.category.icon}</span>
-                            <p className="text-[#9AA0A6] text-[10px] font-bold uppercase tracking-widest">
-                            {slide.category.label}
-                            </p>
-                        </div>
+                      {/* Category badge */}
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-[#9AA0A6]">{slide.category.icon}</span>
+                        <p className="text-[#9AA0A6] text-[10px] font-bold uppercase tracking-widest">
+                          {slide.category.label}
+                        </p>
+                      </div>
 
-                        {/* Title */}
-                        <h2 className="text-white text-lg md:text-2xl font-bold mb-4 leading-tight line-clamp-2 pr-16 md:pr-0">
+                      {/* Title */}
+                      <h2 className="text-white text-lg md:text-2xl font-bold mb-4 leading-tight line-clamp-2 pr-16 md:pr-0">
                         {slide.title}
-                        </h2>
+                      </h2>
 
-                        {/* Column headers */}
-                        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 text-[#9AA0A6] text-xs mb-2 border-b border-[#22252B] pb-2">
+                      {/* Column headers */}
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 text-[#9AA0A6] text-xs mb-2 border-b border-[#22252B] pb-2">
                         <span>Market</span>
                         <span className="text-right w-12 sm:w-16">Pays out</span>
                         <span className="text-right w-11 sm:w-14">Odds</span>
-                        </div>
+                      </div>
 
-                        {/* Outcome rows */}
-                        {slide.outcomes.slice(0, 3).map((o, idx) => (
+                      {/* Outcome rows */}
+                      {slide.outcomes.slice(0, 3).map((o, idx) => (
                         <div key={idx} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 items-center py-2 border-b border-[#22252B]">
-                            <div className="flex items-center gap-2 min-w-0">
-                                {o.icon ? (
-                                    <img src={o.icon} alt={o.name} className="w-5 h-5 rounded-sm object-cover flex-shrink-0" />
-                                ) : (
-                                    <div className="w-5 h-5 rounded-sm bg-[#22252B] flex-shrink-0" />
-                                )}
-                                <span className="text-white text-sm font-medium truncate min-w-0">{o.name}</span>
+                          <div className="flex items-center gap-2 min-w-0">
+                            {o.icon && (
+                              <img src={o.icon} alt={o.name} className="w-5 h-5 rounded-sm object-cover flex-shrink-0"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                  if (e.currentTarget.nextElementSibling) {
+                                    (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                                  }
+                                }}
+                              />
+                            )}
+                            <div className={`w-5 h-5 rounded-sm bg-[#1E2025] border border-[#22252B] items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ${o.icon ? 'hidden' : 'flex'}`}>
+                              {o.name.charAt(0).toUpperCase()}
                             </div>
-                            <span className="text-right text-[#9AA0A6] text-xs sm:text-sm w-12 sm:w-16 flex-shrink-0">{o.payoutMultiplier.toFixed(2)}x</span>
-                            <div className="flex justify-end w-11 sm:w-14 flex-shrink-0">
-                                <span className="border border-[#00D4AA] text-[#00D4AA] text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full whitespace-nowrap">
-                                    {o.probability.toFixed(0)}%
-                                </span>
-                            </div>
+                            <span className="text-white text-sm font-medium truncate min-w-0">{o.name}</span>
+                          </div>
+                          <span className="text-right text-[#9AA0A6] text-xs sm:text-sm w-12 sm:w-16 flex-shrink-0">{o.payoutMultiplier.toFixed(2)}x</span>
+                          <div className="flex justify-end w-11 sm:w-14 flex-shrink-0">
+                            <span className="border border-[#00D4AA] text-[#00D4AA] text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full whitespace-nowrap">
+                              {o.probability.toFixed(0)}%
+                            </span>
+                          </div>
                         </div>
-                        ))}
+                      ))}
                     </div>
 
                     <div className="mt-4">
-                        {/* Volume + markets count */}
-                        <div className="flex items-center justify-between">
+                      {/* Volume + markets count */}
+                      <div className="flex items-center justify-between">
                         <span className="text-[#9AA0A6] text-xs font-medium">
-                            {formatVol(slide.volume)} vol
+                          {formatVol(slide.volume)} vol
                         </span>
                         <span className="text-[#9AA0A6] text-xs font-medium">{slide.marketCount} more</span>
-                        </div>
+                      </div>
 
-                        {/* News */}
-                        <p className="text-[#9AA0A6] text-xs mt-3 leading-relaxed line-clamp-3">
+                      {/* News */}
+                      <p className="text-[#9AA0A6] text-xs mt-3 leading-relaxed line-clamp-3">
                         <span className="text-white font-bold">News</span> · {slide.news || "No recent news for this market."}
-                        </p>
+                      </p>
                     </div>
                   </div>
 
                   {/* RIGHT — chart (hidden on mobile, Kalshi-style compact card) */}
                   <div className="hidden md:flex flex-col h-full md:pt-0">
-                    {/* Legend above chart */}
-                    <div className="flex items-center gap-4 mb-4 flex-wrap">
-                      {slide.outcomes.map(o => (
-                        <span key={o.name} className="flex items-center gap-1.5 text-xs">
-                          <span className="w-2 h-2 rounded-full" style={{ background: o.color }} />
-                          <span className="text-[#9AA0A6]">{o.name}</span>
-                          <span className="text-white font-bold">{o.probability.toFixed(1)}%</span>
+                    {/* Legend above chart & Desktop Pagination */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-4 flex-wrap flex-1 min-w-0 pr-4">
+                        {slide.outcomes.map(o => (
+                          <span key={o.name} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
+                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />
+                            <span className="text-[#9AA0A6]">{o.name}</span>
+                            <span className="text-white font-bold">{o.probability.toFixed(1)}%</span>
+                          </span>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          className="w-7 h-7 rounded-full border border-[#22252B] flex items-center justify-center text-xs text-white hover:border-white/30 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handlePrev(); }}
+                          aria-label="Previous"
+                        >
+                          <ChevronLeft size={14} />
+                        </button>
+                        <span className="text-[11px] font-bold text-[#9AA0A6] w-10 text-center whitespace-nowrap">
+                          {currentIndex + 1} of {totalSlides}
                         </span>
-                      ))}
-                      <span className="ml-auto text-[#00D4AA] font-black text-sm">Kalshi</span>
+                        <button
+                          className="w-7 h-7 rounded-full border border-[#22252B] flex items-center justify-center text-xs text-white hover:border-white/30 transition-colors"
+                          onClick={(e) => { e.stopPropagation(); handleNext(); }}
+                          aria-label="Next"
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
                     </div>
                     {/* Chart — no Y axis labels on left, only right */}
                     <div className="flex-1 min-h-[200px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={slide.chartData} margin={{ top:5, right:0, left:0, bottom:0 }}>
-                            <CartesianGrid horizontal vertical={false}
-                            stroke="#2A2D35" strokeDasharray="3 3" opacity={0.6} />
-                            <XAxis dataKey="date" 
-                            tick={{ fill:'#9AA0A6', fontSize:10 }}
-                            axisLine={false} tickLine={false} minTickGap={40} />
-                            <YAxis orientation="right" domain={[0, 100]}
-                            tickFormatter={(v) => `${Math.round(v)}%`}
-                            tick={{ fill:'#9AA0A6', fontSize:10 }}
-                            axisLine={false} tickLine={false} width={36} ticks={[6, 12, 18, 24, 30, 36]} />
-                            <Tooltip content={() => <></>} />
-                            {slide.outcomes.map(o => (
-                            <Line key={o.name} type="stepAfter" dataKey={o.name}
-                                stroke={o.color} strokeWidth={2}
-                                dot={false} isAnimationActive={false} />
-                            ))}
+                      <ResponsiveContainer width="100%" height={160}>
+                        <LineChart
+                          data={slide.chartData}
+                          margin={{ top: 8, right: 32, left: 0, bottom: 0 }}
+                          onMouseMove={(e: any) => {
+                            if (e?.activeTooltipIndex !== undefined) {
+                              setCarouselHoverIndex(e.activeTooltipIndex);
+                              setCarouselHoverData(slide.chartData[e.activeTooltipIndex] ?? null);
+                            }
+                          }}
+                          onMouseLeave={() => {
+                            setCarouselHoverIndex(null);
+                            setCarouselHoverData(null);
+                          }}
+                        >
+                          <CartesianGrid horizontal vertical={false} stroke="#2A2D35" strokeDasharray="3 3" opacity={0.5} />
+
+                          <YAxis
+                            orientation="right"
+                            domain={['auto', 'auto']}
+                            tickFormatter={(v: number) => `${Math.round(v)}%`}
+                            tick={{ fill: '#9AA0A6', fontSize: 9 }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={32}
+                          />
+
+                          <Tooltip content={() => null} />
+
+                          {slide.outcomes.map((outcome) => {
+                            const outcomeKey = outcome.name;
+                            return (
+                            <Line
+                              key={outcomeKey}
+                              type="basis"
+                              dataKey={outcomeKey}
+                              stroke={outcome.color}
+                              strokeWidth={1.5}
+                              isAnimationActive={!carouselDrawComplete}
+                              animationDuration={1200}
+                              animationEasing="ease-out"
+                              dot={(props: any) => renderCarouselDot(props, outcome, slide.chartData)}
+                              activeDot={false}
+                            />
+                            );
+                          })}
                         </LineChart>
-                        </ResponsiveContainer>
+                      </ResponsiveContainer>
                     </div>
                   </div>
                 </div>
