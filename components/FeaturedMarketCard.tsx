@@ -75,8 +75,8 @@ function CarouselOutcomeChart({
   }
 
   return (
-    <div className="w-full">
-      <ResponsiveContainer width="100%" height={150}>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height={200}>
         <LineChart
           data={chartData}
           margin={{ top: 8, right: 30, left: 0, bottom: 0 }}
@@ -108,7 +108,7 @@ function CarouselOutcomeChart({
               type="basis"
               dataKey={o.id}
               stroke={o.color}
-              strokeWidth={1.5}
+              strokeWidth={2.5}
               isAnimationActive={!drawDone}
               animationDuration={1200}
               animationEasing="ease-out"
@@ -327,18 +327,17 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
         </div>
 
         {/* Right Column: Chart */}
-        <div className="hidden lg:flex flex-col relative h-full min-h-[250px]">
-          {/* Legend embedded in chart area */}
+        <div className="hidden lg:flex flex-col relative h-full min-h-[250px] min-w-0">
           <div className="flex items-center gap-4 mb-2 flex-wrap">
             {displayOutcomes.map(o => (
-              <div key={o.id} className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-slate-300">
-                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: o.color }}></div>
-                {o.name} <span className="text-white">{o.probability.toFixed(1)}%</span>
+              <div key={o.id} className="flex items-center gap-2 text-sm font-bold text-[#9AA0A6]">
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: o.color }}></div>
+                {o.name} <span className="text-white font-black">{o.probability.toFixed(1)}%</span>
               </div>
             ))}
           </div>
 
-          <div className="flex-1 w-full h-full -ml-4">
+          <div className="flex-1 w-full h-full -ml-4 min-w-0">
             <CarouselOutcomeChart
               chartData={chartData}
               outcomes={displayOutcomes}

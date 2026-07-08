@@ -103,14 +103,14 @@ const MarketChart = React.memo(function MarketChart({
   return (
     <div className="w-full">
       {/* Legend row above chart */}
-      <div className="flex items-center gap-4 mb-2 flex-wrap">
+      <div className="flex items-center gap-4 mb-3 flex-wrap">
         {outcomes.map((o) => {
           const liveVal = hoverData ? hoverData[o.id] : o.probability;
           return (
-            <div key={o.id} className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />
-              <span className="text-[#9AA0A6] text-xs">{o.name}</span>
-              <span className="text-white text-xs font-bold">
+            <div key={o.id} className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: o.color }} />
+              <span className="text-[#9AA0A6] text-sm font-bold">{o.name}</span>
+              <span className="text-white text-sm font-black">
                 {Number(liveVal ?? o.probability).toFixed(1)}%
               </span>
             </div>
@@ -119,7 +119,7 @@ const MarketChart = React.memo(function MarketChart({
       </div>
 
       {/* The chart itself */}
-      <ResponsiveContainer width="100%" height={220}>
+      <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={chartData}
           margin={{ top: 10, right: 48, left: 0, bottom: 0 }}
@@ -171,7 +171,7 @@ const MarketChart = React.memo(function MarketChart({
               type="basis"
               dataKey={outcome.id}
               stroke={outcome.color}
-              strokeWidth={2}
+              strokeWidth={3}
               isAnimationActive={!drawComplete}
               animationDuration={1200}
               animationEasing="ease-out"
@@ -669,7 +669,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                   <div className="w-full relative pt-2">
                      {chartLoading ? (
                         /* Skeleton loading state while data fetches */
-                        <div className="w-full h-[220px] flex flex-col justify-end gap-2 pb-4 px-2">
+                        <div className="w-full h-[260px] flex flex-col justify-end gap-2 pb-4 px-2">
                            <div className="w-full h-[2px] bg-gradient-to-r from-[#15171C] via-[#00E5CC]/30 to-[#15171C] rounded animate-pulse" />
                            <div className="flex gap-1 items-end h-32">
                               {Array.from({ length: 40 }).map((_, i) => (
@@ -932,129 +932,133 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                            </div>
                         ) : (
                            <>
-                              {/* Header row: BUY + currency switcher + X */}
-                              <div className="flex items-center justify-between mb-3 flex-shrink-0">
-                                 <div className="flex items-center gap-4">
-                                    <span className="text-white text-sm font-bold border-b-2 border-white pb-0.5">BUY</span>
-                                 </div>
-                                 <div className="flex items-center gap-3">
-                                    <div className="relative">
-                                       <button
-                                          onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                                          className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
-                                       >
-                                          {config.dropdownLabel} ▾
-                                       </button>
-                                       {showCurrencyDropdown && (
-                                          <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#2A2D35] rounded-lg overflow-hidden z-20 min-w-[150px] shadow-xl">
-                                             {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
-                                                <button
-                                                   key={c}
-                                                   onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
-                                                   className={`block w-full text-left px-4 py-2.5 text-sm ${currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
-                                                      }`}
-                                                >
-                                                   {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
-                                                </button>
-                                             ))}
-                                          </div>
-                                       )}
+                              <div className="flex-1 overflow-y-auto min-h-0 no-scrollbar flex flex-col pb-2">
+                                 {/* Header row: BUY + currency switcher + X */}
+                                 <div className="flex items-center justify-between mb-3 shrink-0">
+                                    <div className="flex items-center gap-4">
+                                       <span className="text-white text-sm font-bold border-b-2 border-white pb-0.5">BUY</span>
                                     </div>
-                                    <button
-                                       onClick={() => setIsTradePanelOpen(false)}
-                                       className="text-[#9AA0A6] hover:text-white text-lg leading-none bg-transparent border-none cursor-pointer"
-                                    >✕</button>
+                                    <div className="flex items-center gap-3">
+                                       <div className="relative">
+                                          <button
+                                             onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                                             className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
+                                          >
+                                             {config.dropdownLabel} ▾
+                                          </button>
+                                          {showCurrencyDropdown && (
+                                             <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#2A2D35] rounded-lg overflow-hidden z-20 min-w-[150px] shadow-xl">
+                                                {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
+                                                   <button
+                                                      key={c}
+                                                      onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
+                                                      className={`block w-full text-left px-4 py-2.5 text-sm ${currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
+                                                         }`}
+                                                   >
+                                                      {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
+                                                   </button>
+                                                ))}
+                                             </div>
+                                          )}
+                                       </div>
+                                       <button
+                                          onClick={() => setIsTradePanelOpen(false)}
+                                          className="text-[#9AA0A6] hover:text-white text-lg leading-none bg-transparent border-none cursor-pointer"
+                                       >✕</button>
+                                    </div>
                                  </div>
-                              </div>
 
-                              {/* Market title — 1 line only */}
-                              <p className="text-[#9AA0A6] text-xs mb-1.5 truncate flex-shrink-0">
-                                 {market.title}
-                              </p>
-
-                              {/* Outcome name — 1 line only */}
-                              {activeOutcomeId && (
-                                 <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                                    {selectedOutcome?.icon ? (
-                                       selectedOutcome.icon.length <= 4 ? (
-                                          <div className="text-base flex items-center justify-center flex-shrink-0">{selectedOutcome.icon}</div>
-                                       ) : (
-                                          <img src={selectedOutcome.icon} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
-                                       )
-                                    ) : (
-                                       <div className="w-5 h-5 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold flex-shrink-0">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
-                                    )}
-                                    <span className="text-white text-base font-bold truncate">{selectedOutcome?.name}</span>
-                                 </div>
-                              )}
-
-                              {/* YES / NO buttons + Interest */}
-                              <div className="flex items-center gap-2 mb-3 flex-shrink-0">
-                                 <button onClick={() => setActiveSide(Side.YES)}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold border-2 transition-all ${activeSide === Side.YES
-                                          ? 'bg-[#00D964] border-[#00D964] text-black'
-                                          : 'bg-transparent border-[#00D964] text-[#00D964]'
-                                       }`}>
-                                    YES {yes_price}¢
-                                 </button>
-                                 <button onClick={() => setActiveSide(Side.NO)}
-                                    className={`px-4 py-2 rounded-full text-sm font-bold border-2 transition-all ${activeSide === Side.NO
-                                          ? 'bg-[#9AA0A6] border-[#9AA0A6] text-black'
-                                          : 'bg-transparent border-[#9AA0A6] text-[#9AA0A6]'
-                                       }`}>
-                                    NO {no_price}¢
-                                 </button>
-                                 <span className="ml-auto text-[#9AA0A6] text-xs flex-shrink-0">3.25% Interest</span>
-                              </div>
-
-                              {/* Amount input — symbol & label follow selected currency */}
-                              <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group flex-shrink-0">
-                                 <span className="text-[#9AA0A6] text-sm font-medium">{config.label}</span>
-                                 <div className="flex items-center justify-end flex-1">
-                                    <span className="text-white text-lg font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">{config.symbol}</span>
-                                    <input
-                                       type="number"
-                                       inputMode="numeric"
-                                       value={quantity || ''}
-                                       onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
-                                       placeholder="0"
-                                       className="bg-transparent text-white text-right text-lg font-medium outline-none w-20 placeholder:text-[#333]"
-                                    />
-                                 </div>
-                              </div>
-                              {/* Live conversion hint — shows the equivalent in the other currency */}
-                              {typedAmount > 0 && (
-                                 <p className="text-[#9AA0A6] text-xs mb-2 px-1 flex-shrink-0">
-                                    {currency === 'NPR'
-                                       ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
-                                       : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
+                                 {/* Market title — 1 line only */}
+                                 <p className="text-white text-[15px] font-bold leading-snug mb-2 truncate shrink-0">
+                                    {market.title}
                                  </p>
-                              )}
-                              {showError && (
-                                 <p className="text-[#FF4D4D] text-xs mb-2 text-center font-bold flex-shrink-0">Please enter an amount</p>
-                              )}
 
-                              {/* Odds + Max payout — COMBINED compact row */}
-                              <div className="flex items-center justify-between mb-3 bg-[#1E2025] rounded-lg px-3 py-2.5 flex-shrink-0">
-                                 <div>
-                                    <p className="text-[#9AA0A6] text-xs">Odds</p>
-                                    <p className="text-white text-sm font-medium">
-                                       {activeSide === Side.YES ? yes_price : no_price}% chance
+                                 {/* Outcome name — 1 line only */}
+                                 {activeOutcomeId && (
+                                    <div className="flex items-center gap-2 mb-3 shrink-0">
+                                       {selectedOutcome?.icon ? (
+                                          selectedOutcome.icon.length <= 4 ? (
+                                             <div className="text-base flex items-center justify-center shrink-0">{selectedOutcome.icon}</div>
+                                          ) : (
+                                             <img src={selectedOutcome.icon} className="w-5 h-5 rounded-sm object-cover shrink-0" alt="" />
+                                          )
+                                       ) : (
+                                          <div className="w-5 h-5 rounded-sm bg-gray-700 flex items-center justify-center text-xs text-white font-bold shrink-0">{selectedOutcome?.name?.charAt(0) || 'S'}</div>
+                                       )}
+                                       <span className="text-[#9AA0A6] text-sm font-medium truncate">{selectedOutcome?.name}</span>
+                                    </div>
+                                 )}
+
+                                 {/* YES / NO buttons + Interest */}
+                                 <div className="flex items-center gap-2 mb-3 shrink-0">
+                                    <button onClick={() => setActiveSide(Side.YES)}
+                                       className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
+                                             ? 'bg-[#00D964] border-2 border-[#00D964] text-black'
+                                             : 'bg-transparent border-2 border-[#00D964] text-[#00D964]'
+                                          }`}>
+                                       <span className="text-xs font-bold">YES</span>
+                                       <span className="text-lg font-black">{yes_price}¢</span>
+                                    </button>
+                                    <button onClick={() => setActiveSide(Side.NO)}
+                                       className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
+                                             ? 'bg-[#9AA0A6] border-2 border-[#9AA0A6] text-black'
+                                             : 'bg-transparent border-2 border-[#9AA0A6] text-[#9AA0A6]'
+                                          }`}>
+                                       <span className="text-xs font-bold">NO</span>
+                                       <span className="text-lg font-black">{no_price}¢</span>
+                                    </button>
+                                    <span className="ml-auto text-[#9AA0A6] text-xs shrink-0">3.25% Interest</span>
+                                 </div>
+
+                                 {/* Amount input — symbol & label follow selected currency */}
+                                 <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group shrink-0">
+                                    <span className="text-[#9AA0A6] text-xs font-medium">{config.label}</span>
+                                    <div className="flex items-center justify-end flex-1">
+                                       <span className="text-white text-lg font-medium mr-1 group-focus-within:text-[#00D964] transition-colors">{config.symbol}</span>
+                                       <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          value={quantity || ''}
+                                          onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
+                                          placeholder="0"
+                                          className="bg-transparent text-white text-right text-lg font-bold outline-none w-20 placeholder:text-[#333]"
+                                       />
+                                    </div>
+                                 </div>
+                                 {/* Live conversion hint — shows the equivalent in the other currency */}
+                                 {typedAmount > 0 && (
+                                    <p className="text-[#9AA0A6] text-xs mb-2 px-1 shrink-0">
+                                       {currency === 'NPR'
+                                          ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
+                                          : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
                                     </p>
-                                 </div>
-                                 <div className="w-px h-8 bg-[#2A2D35]" />
-                                 <div className="text-right">
-                                    <p className="text-[#9AA0A6] text-xs">Max payout · {resolutionDate}</p>
-                                    <p className="text-white text-sm font-bold">{config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
-                                 </div>
-                              </div>
+                                 )}
+                                 {showError && (
+                                    <p className="text-[#FF4D4D] text-xs mb-2 text-center font-bold shrink-0">Please enter an amount</p>
+                                 )}
 
-                              {/* Spacer pushes button to bottom */}
-                              <div className="flex-1" />
+                                 {/* Odds + Max payout — COMBINED compact row */}
+                                 <div className="flex items-center justify-between mb-3 bg-[#1E2025] rounded-lg px-3 py-2.5 shrink-0">
+                                    <div>
+                                       <p className="text-[#9AA0A6] text-xs">Odds</p>
+                                       <p className="text-white text-lg font-bold">
+                                          {activeSide === Side.YES ? yes_price : no_price}% chance
+                                       </p>
+                                    </div>
+                                    <div className="w-px h-8 bg-[#2A2D35]" />
+                                    <div className="text-right">
+                                       <p className="text-[#9AA0A6] text-xs">Max payout · {resolutionDate}</p>
+                                       <p className="text-white text-2xl font-black tracking-tight">{config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                    </div>
+                                 </div>
+
+                                 {/* Spacer pushes button to bottom */}
+                                 <div className="flex-1" />
+                              </div>
 
                               {/* Place Order button — always visible at bottom */}
                               <div
-                                 className="flex-shrink-0 pb-4"
+                                 className="shrink-0 pt-2"
                                  style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
                               >
                                  <Button
@@ -1066,7 +1070,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                                  </Button>
                                  <p className="text-center mt-3 text-xs text-[#9AA0A6] font-medium">Positions are held until market resolution.</p>
                               </div>
-
                            </>
                         )}
                      </div>
@@ -1076,10 +1079,10 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
 
             {/* DESKTOP TRADING PANEL */}
             <div className="hidden lg:block w-72 xl:w-80 flex-shrink-0">
-               <div className="sticky top-6 bg-[#15171C] border border-[#22252B] rounded-2xl p-5 w-full">
+               <div className="sticky top-6 bg-[#15171C] border border-[#22252B] rounded-2xl w-full max-h-[calc(100vh-3rem)] flex flex-col">
 
                   {(market.status as string) === 'resolved' ? (
-                     <div className="flex flex-col items-center justify-center py-8 text-center">
+                     <div className="flex flex-col items-center justify-center p-5 py-8 text-center flex-1">
                         <div className="w-16 h-16 rounded-full bg-[#1E2440] flex items-center justify-center mb-4">
                            <span className="text-2xl">🏁</span>
                         </div>
@@ -1090,147 +1093,153 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                      </div>
                   ) : (
                      <>
-                        {/* Header tabs */}
-                        <div className="flex items-center justify-between mb-4">
-                           <div className="flex gap-4">
-                              <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
+                        <div className="p-5 pb-2 flex-1 overflow-y-auto min-h-0 no-scrollbar flex flex-col">
+                           {/* Header tabs */}
+                           <div className="flex items-center justify-between mb-3 shrink-0">
+                              <div className="flex gap-4">
+                                 <span className="text-white text-sm font-bold border-b-2 border-white pb-1">BUY</span>
+                              </div>
+                              <div className="relative">
+                                 <button
+                                    onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                                    className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
+                                 >
+                                    {config.dropdownLabel} ▾
+                                 </button>
+                                 {showCurrencyDropdown && (
+                                    <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#22252B] rounded-lg overflow-hidden z-20 min-w-[160px] shadow-xl">
+                                       {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
+                                          <button
+                                             key={c}
+                                             onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
+                                             className={`block w-full text-left px-4 py-2.5 text-sm ${currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
+                                                }`}
+                                          >
+                                             {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
+                                          </button>
+                                       ))}
+                                    </div>
+                                 )}
+                              </div>
                            </div>
-                           <div className="relative">
-                              <button
-                                 onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                                 className="text-[#9AA0A6] text-sm flex items-center gap-1 hover:text-white"
-                              >
-                                 {config.dropdownLabel} ▾
-                              </button>
-                              {showCurrencyDropdown && (
-                                 <div className="absolute right-0 top-7 bg-[#1E2025] border border-[#22252B] rounded-lg overflow-hidden z-20 min-w-[160px] shadow-xl">
-                                    {(['NPR', 'USD'] as CurrencyType[]).map((c) => (
-                                       <button
-                                          key={c}
-                                          onClick={() => { setCurrency(c); setShowCurrencyDropdown(false); }}
-                                          className={`block w-full text-left px-4 py-2.5 text-sm ${currency === c ? 'text-[#00D964] bg-[#15171C]' : 'text-white hover:bg-[#15171C]'
-                                             }`}
-                                       >
-                                          {c === 'NPR' ? '🇳🇵 NPR — Rupees' : '🇺🇸 USD — Dollars'}
-                                       </button>
-                                    ))}
+
+                           {/* Market title */}
+                           <p className="text-white text-base md:text-[17px] font-bold leading-tight mb-2 capitalize shrink-0">
+                              {market.title}
+                           </p>
+
+                           {/* Selected outcome row (icon + bold name) */}
+                           <div className="flex items-center gap-2 mb-4 shrink-0">
+                              {selectedOutcome?.icon ? (
+                                 selectedOutcome.icon.length <= 4 ? (
+                                    <span className="text-2xl leading-none">{selectedOutcome.icon}</span>
+                                 ) : (
+                                    <img src={selectedOutcome.icon} className="w-7 h-7 rounded-sm object-cover" alt="" />
+                                 )
+                              ) : (
+                                 <div className="w-7 h-7 rounded-sm bg-gray-700 flex items-center justify-center text-xs text-white font-bold shrink-0">
+                                    {selectedOutcome?.name?.charAt(0) || 'S'}
                                  </div>
                               )}
+                              <span className="text-[#9AA0A6] text-sm font-medium">
+                                 {selectedOutcome?.name}
+                              </span>
                            </div>
-                        </div>
 
-                        {/* Market title */}
-                        <p className="text-[#9AA0A6] text-sm mb-1 capitalize">
-                           {market.title}
-                        </p>
+                           {/* YES / NO toggle buttons + Interest link */}
+                           <div className="flex items-center gap-2 mb-4 shrink-0">
+                              {/* YES button */}
+                              <button
+                                 onClick={() => setActiveSide(Side.YES)}
+                                 className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
+                                       ? 'bg-[#00D964] text-black border-2 border-[#00D964]'
+                                       : 'bg-transparent text-[#00D964] border-2 border-[#00D964]'
+                                    }`}
+                              >
+                                 <span className="text-xs font-bold">YES</span>
+                                 <span className="text-lg font-black">{yes_price}¢</span>
+                              </button>
 
-                        {/* Selected outcome row (icon + bold name) */}
-                        <div className="flex items-center gap-2 mb-4">
-                           {selectedOutcome?.icon ? (
-                              selectedOutcome.icon.length <= 4 ? (
-                                 <span className="text-2xl leading-none">{selectedOutcome.icon}</span>
-                              ) : (
-                                 <img src={selectedOutcome.icon} className="w-7 h-7 rounded-sm object-cover" alt="" />
-                              )
-                           ) : (
-                              <div className="w-7 h-7 rounded-sm bg-gray-700 flex items-center justify-center text-xs text-white font-bold shrink-0">
-                                 {selectedOutcome?.name?.charAt(0) || 'S'}
+                              {/* NO button */}
+                              <button
+                                 onClick={() => setActiveSide(Side.NO)}
+                                 className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
+                                       ? 'bg-[#9AA0A6] text-black border-2 border-[#9AA0A6]'
+                                       : 'bg-transparent text-[#9AA0A6] border-2 border-[#9AA0A6]'
+                                    }`}
+                              >
+                                 <span className="text-xs font-bold">NO</span>
+                                 <span className="text-lg font-black">{no_price}¢</span>
+                              </button>
+
+                              {/* Interest link — far right */}
+                              <span className="ml-auto text-[#9AA0A6] text-xs cursor-pointer hover:text-white">
+                                 3.25% Interest
+                              </span>
+                           </div>
+
+                           {/* Amount input — symbol & label follow selected currency */}
+                           <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors shrink-0">
+                              <span className="text-[#9AA0A6] text-xs font-medium">{config.label}</span>
+                              <div className="flex items-center">
+                                 <span className="text-[#00D964] text-base font-medium mr-1">{config.symbol}</span>
+                                 <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={quantity}
+                                    onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
+                                    placeholder="0"
+                                    className="bg-transparent text-white text-right text-lg font-bold outline-none w-24"
+                                 />
                               </div>
+                           </div>
+                           {/* Live conversion hint */}
+                           {typedAmount > 0 ? (
+                              <p className="text-[#9AA0A6] text-xs mb-2 px-1 shrink-0">
+                                 {currency === 'NPR'
+                                    ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
+                                    : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
+                              </p>
+                           ) : (
+                              <div className="mb-2 shrink-0" />
                            )}
-                           <span className="text-white text-xl font-bold">
-                              {selectedOutcome?.name}
-                           </span>
+                           {showError && <p className="text-[#FF4D4D] text-xs mb-2 shrink-0">Please enter an amount</p>}
+
+                           {/* Odds row */}
+                           <div className="flex items-center justify-between mb-2 shrink-0">
+                              <div className="flex items-center gap-1">
+                                 <span className="text-[#9AA0A6] text-xs">Odds</span>
+                                 <span className="text-[#9AA0A6] text-[10px] cursor-help" title="Probability of this outcome">ⓘ</span>
+                              </div>
+                              <span className="text-white text-lg font-bold">
+                                 {activeSide === Side.YES ? yes_price : no_price}% chance
+                              </span>
+                           </div>
+
+                           {/* Max payout row */}
+                           <div className="flex items-center justify-between mb-4 shrink-0">
+                              <div>
+                                 <p className="text-[#9AA0A6] text-xs">Max payout</p>
+                                 <p className="text-[#9AA0A6] text-[10px]">{resolutionDate}</p>
+                              </div>
+                              <span className="text-white text-2xl font-black tracking-tight">
+                                 {config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </span>
+                           </div>
                         </div>
 
-                        {/* YES / NO toggle buttons + Interest link */}
-                        <div className="flex items-center gap-2 mb-4">
-                           {/* YES button */}
+                        <div className="p-5 pt-2 shrink-0 border-t border-[#22252B] bg-[#15171C] rounded-b-2xl mt-auto">
+                           {/* CTA Button — always bright green */}
                            <button
-                              onClick={() => setActiveSide(Side.YES)}
-                              className={`px-4 py-1.5 rounded-xl text-[13px] font-bold transition-all ${activeSide === Side.YES
-                                    ? 'bg-[#00D964] text-black border-2 border-[#00D964]'
-                                    : 'bg-transparent text-[#00D964] border-2 border-[#00D964]'
-                                 }`}
+                              onClick={handleOrder}
+                              disabled={isProcessing}
+                              className="w-full bg-[#00D964] text-black font-bold text-base py-3.5 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all flex items-center justify-center"
                            >
-                              YES {yes_price}¢
+                              {isProcessing ? <Spinner size="sm" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
                            </button>
-
-                           {/* NO button */}
-                           <button
-                              onClick={() => setActiveSide(Side.NO)}
-                              className={`px-4 py-1.5 rounded-xl text-[13px] font-bold transition-all ${activeSide === Side.NO
-                                    ? 'bg-[#9AA0A6] text-black border-2 border-[#9AA0A6]'
-                                    : 'bg-transparent text-[#9AA0A6] border-2 border-[#9AA0A6]'
-                                 }`}
-                           >
-                              NO {no_price}¢
-                           </button>
-
-                           {/* Interest link — far right */}
-                           <span className="ml-auto text-[#9AA0A6] text-xs cursor-pointer hover:text-white">
-                              3.25% Interest
-                           </span>
+                           <p className="text-center mt-3 text-xs text-[#9AA0A6] font-medium">Positions are held until market resolution.</p>
                         </div>
-
-                        {/* Amount input — symbol & label follow selected currency */}
-                        <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-3 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors">
-                           <span className="text-[#9AA0A6] text-sm">{config.label}</span>
-                           <div className="flex items-center">
-                              <span className="text-[#00D964] text-base font-medium mr-1">{config.symbol}</span>
-                              <input
-                                 type="number"
-                                 min="0"
-                                 step="1"
-                                 value={quantity}
-                                 onChange={(e) => { setQuantity(e.target.value); setShowError(false); }}
-                                 placeholder="0"
-                                 className="bg-transparent text-white text-right text-base font-medium outline-none w-24"
-                              />
-                           </div>
-                        </div>
-                        {/* Live conversion hint */}
-                        {typedAmount > 0 ? (
-                           <p className="text-[#9AA0A6] text-xs mb-3 px-1">
-                              {currency === 'NPR'
-                                 ? `≈ $${(typedAmount / usdToNprRate).toFixed(2)} USD`
-                                 : `≈ Rs. ${(typedAmount * usdToNprRate).toFixed(2)} NPR`}
-                           </p>
-                        ) : (
-                           <div className="mb-3" />
-                        )}
-                        {showError && <p className="text-[#FF4D4D] text-xs mb-3">Please enter an amount</p>}
-
-                        {/* Odds row */}
-                        <div className="flex items-center justify-between mb-2">
-                           <div className="flex items-center gap-1">
-                              <span className="text-[#9AA0A6] text-sm">Odds</span>
-                              <span className="text-[#9AA0A6] text-xs cursor-help" title="Probability of this outcome">ⓘ</span>
-                           </div>
-                           <span className="text-white text-sm font-medium">
-                              {activeSide === Side.YES ? yes_price : no_price}% chance
-                           </span>
-                        </div>
-
-                        {/* Max payout row */}
-                        <div className="flex items-center justify-between mb-5">
-                           <div>
-                              <p className="text-[#9AA0A6] text-sm">Max payout</p>
-                              <p className="text-[#9AA0A6] text-xs">{resolutionDate}</p>
-                           </div>
-                           <span className="text-white text-2xl font-bold">
-                              {config.symbol} {maxPayoutDisplay.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                           </span>
-                        </div>
-
-                        {/* CTA Button — always bright green */}
-                        <button
-                           onClick={handleOrder}
-                           disabled={isProcessing}
-                           className="w-full bg-[#00D964] text-black font-bold text-base py-3.5 rounded-xl hover:bg-[#00c255] active:scale-[0.98] transition-all flex items-center justify-center"
-                        >
-                           {isProcessing ? <Spinner size="sm" /> : (userProfile ? 'Place Order' : 'Sign up to trade')}
-                        </button>
-                        <p className="text-center mt-3 text-xs text-[#9AA0A6] font-medium">Positions are held until market resolution.</p>
                      </>
                   )}
                </div>

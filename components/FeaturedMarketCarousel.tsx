@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback, ReactNode, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback, ReactNode } from 'react';
 import { ChevronLeft, ChevronRight, Globe2 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, ReferenceLine, Tooltip } from 'recharts';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis,
+  CartesianGrid, Tooltip
+} from 'recharts';
 import { CARD_BG, DIVIDER, BORDER_SUBTLE, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, ACCENT, LINE_COLORS, categoryAccent } from '../lib/theme';
 
 export interface MarketSlide {
@@ -74,44 +77,125 @@ const MOCK_SLIDES: MarketSlide[] = [
   }
 ];
 
-interface CustomDotProps {
-  cx?: number;
-  cy?: number;
-  payload?: any;
-  index?: number;
-  dataKey?: string;
-  color?: string;
-  shortName?: string;
-  hoveredIndex?: number | null;
-  dataLength?: number;
-}
+// ============================================================
+// CAROUSEL CHART — complete, self-contained, exact copy of the
+// working market detail page chart logic, scaled down for the
+// smaller carousel card. Paste this whole block as-is.
+// (imports merged into the top of this file to avoid duplicates)
+// ============================================================
 
-const CustomDot = (props: CustomDotProps) => {
-  const { cx, cy, payload, index, dataKey, color, shortName, hoveredIndex, dataLength } = props;
+function CarouselOutcomeChart({
+  chartData,
+  outcomes,
+}: {
+  chartData: any[];
+  outcomes: { id: string; name: string; color: string }[];
+}) {
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<any>(null);
+  const [drawDone, setDrawDone] = useState(false);
+  const ranOnce = useRef(false);
 
-  if (index !== hoveredIndex) return null;
-  if (cx === undefined || cy === undefined || !payload || !dataKey || !color) return null;
+  useEffect(() => {
+    ranOnce.current = false;
+    setDrawDone(false);
+    const t = setTimeout(() => {
+      ranOnce.current = true;
+      setDrawDone(true);
+    }, 1300);
+    return () => clearTimeout(t);
+  }, [chartData]);
 
-  const val = payload[dataKey];
-  const isNearRightEdge = index !== undefined && dataLength !== undefined && index > dataLength - 2;
+  function dotFor(outcome: { id: string; color: string }) {
+    return function (props: any) {
+      const { cx, cy, index } = props;
+      const isLast = index === chartData.length - 1;
+      const isHover = index === hoverIdx;
+
+      if (!drawDone) {
+        return <g key={`${outcome.id}-${index}`} />;
+      }
+
+      if (isHover) {
+        const val = hoverPoint?.[outcome.id];
+        if (val === undefined || val === null) {
+          return <g key={`${outcome.id}-${index}`} />;
+        }
+        const flip = cx > 260;
+        const w = 100;
+        const x = flip ? cx - w - 6 : cx + 6;
+        return (
+          <g key={`${outcome.id}-${index}`}>
+            <circle cx={cx} cy={cy} r={3.5} fill={outcome.color} stroke="#fff" strokeWidth={1.2} />
+            <rect x={x} y={cy - 10} width={w} height={20} rx={4} fill="#1E2025" stroke={outcome.color} strokeWidth={1} />
+            <text x={x + w / 2} y={cy + 4} textAnchor="middle" fill={outcome.color} fontSize={9} fontWeight={700}>
+              {Number(val).toFixed(1)}%
+            </text>
+          </g>
+        );
+      }
+
+      if (isLast) {
+        return (
+          <g key={`${outcome.id}-${index}`}>
+            <circle cx={cx} cy={cy} r={6} fill={outcome.color} opacity={0.15} />
+            <circle cx={cx} cy={cy} r={4} fill={outcome.color} className="live-dot-glow" />
+            <circle cx={cx} cy={cy} r={2.5} fill={outcome.color} stroke="#0B0D10" strokeWidth={1.2} />
+          </g>
+        );
+      }
+
+      return <g key={`${outcome.id}-${index}`} />;
+    };
+  }
 
   return (
-    <g style={{ pointerEvents: 'none' }}>
-      <circle cx={cx} cy={cy} r={4.5} fill={color} stroke={CARD_BG} strokeWidth={2} />
-      <text
-        x={isNearRightEdge ? cx - 10 : cx + 10}
-        y={cy + 4}
-        fill={color}
-        fontWeight="bold"
-        fontSize={12}
-        textAnchor={isNearRightEdge ? 'end' : 'start'}
-        style={{ filter: 'drop-shadow(0px 2px 4px rgba(0,0,0,0.8))' }}
-      >
-        {`${shortName || dataKey} ${Number(val).toFixed(1).replace(/\.0$/, '')}%`}
-      </text>
-    </g>
+    <div className="w-full h-full">
+      <ResponsiveContainer width="100%" height={200}>
+        <LineChart
+          data={chartData}
+          margin={{ top: 8, right: 30, left: 0, bottom: 0 }}
+          onMouseMove={(e: any) => {
+            if (e?.activeTooltipIndex !== undefined) {
+              setHoverIdx(e.activeTooltipIndex);
+              setHoverPoint(chartData[e.activeTooltipIndex] ?? null);
+            }
+          }}
+          onMouseLeave={() => {
+            setHoverIdx(null);
+            setHoverPoint(null);
+          }}
+        >
+          <CartesianGrid horizontal vertical={false} stroke="#2A2D35" strokeDasharray="3 3" opacity={0.4} />
+          <YAxis
+            orientation="right"
+            domain={['dataMin - 2', 'dataMax + 2']}
+            tickFormatter={(v: number) => `${Math.round(v)}%`}
+            tick={{ fill: '#9AA0A6', fontSize: 9 }}
+            axisLine={false}
+            tickLine={false}
+            width={30}
+          />
+          <Tooltip content={() => null} />
+          {outcomes.map((o) => (
+            <Line
+              key={o.id}
+              type="basis"
+              dataKey={o.id}
+              stroke={o.color}
+              strokeWidth={2.5}
+              isAnimationActive={!drawDone}
+              animationDuration={1200}
+              animationEasing="ease-out"
+              dot={dotFor(o)}
+              activeDot={false}
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
   );
-};
+}
 
 // ── Odds Pill ── transparent / hover-15% / active-fill ──
 interface OddsPillProps {
@@ -135,63 +219,10 @@ const OddsPill: React.FC<OddsPillProps> = ({ probability, selected, onClick }) =
 export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides = MOCK_SLIDES, onSelectMarket }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [hoveredDataIndices, setHoveredDataIndices] = useState<Record<string, number | null>>({});
   const [selectedOutcome, setSelectedOutcome] = useState<number | null>(null);
-
-  const [carouselHoverIndex, setCarouselHoverIndex] = useState<number | null>(null);
-  const [carouselHoverData, setCarouselHoverData] = useState<any>(null);
-  const [carouselDrawComplete, setCarouselDrawComplete] = useState(false);
-  const carouselHasRunOnce = useRef(false);
 
   const totalSlides = slides.length;
   const currentSlide = slides[currentIndex];
-
-  useEffect(() => {
-    carouselHasRunOnce.current = false;
-    setCarouselDrawComplete(false);
-    const timer = setTimeout(() => setCarouselDrawComplete(true), 1300);
-    return () => clearTimeout(timer);
-  }, [currentSlide?.id]);
-
-  function renderCarouselDot(props: any, outcome: any, chartData: any[]) {
-    const { cx, cy, index } = props;
-    const isLastPoint = index === chartData.length - 1;
-    const isHoveredPoint = index === carouselHoverIndex;
-    const outcomeKey = outcome.name;
-
-    if (!carouselDrawComplete) return <g key={`cd-${outcomeKey}-${index}`} />;
-
-    if (isHoveredPoint) {
-      const val = carouselHoverData?.[outcomeKey];
-      if (val === undefined) return <g key={`cd-${outcomeKey}-${index}`} />;
-      const flipLeft = cx > 260;
-      const lw = 110;
-      const lx = flipLeft ? cx - lw - 6 : cx + 6;
-      return (
-        <g key={`cd-${outcomeKey}-${index}`}>
-          <circle cx={cx} cy={cy} r={3.5} fill={outcome.color} stroke="#fff" strokeWidth={1.2} />
-          <rect x={lx} y={cy - 11} width={lw} height={22} rx={4}
-            fill="#1E2025" stroke={outcome.color} strokeWidth={1} />
-          <text x={lx + lw/2} y={cy + 3} textAnchor="middle"
-            fill={outcome.color} fontSize={9} fontWeight={600}>
-            {outcome.name} {Number(val).toFixed(1)}%
-          </text>
-        </g>
-      );
-    }
-
-    if (isLastPoint) {
-      return (
-        <g key={`cd-${outcomeKey}-${index}`}>
-          <circle cx={cx} cy={cy} r={6} fill={outcome.color} opacity={0.15} />
-          <circle cx={cx} cy={cy} r={4} fill={outcome.color} className="live-dot-glow" />
-          <circle cx={cx} cy={cy} r={2.5} fill={outcome.color} stroke="#0B0D10" strokeWidth={1.2} />
-        </g>
-      );
-    }
-
-    return <g key={`cd-${outcomeKey}-${index}`} />;
-  }
 
   const handleNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % totalSlides);
@@ -209,12 +240,10 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
   // Auto-advance
   useEffect(() => {
     if (isPaused || totalSlides <= 1) return;
-    const isHoveringChart = Object.values(hoveredDataIndices).some(v => v !== null);
-    if (isHoveringChart) return;
 
     const timer = setInterval(handleNext, 7000);
     return () => clearInterval(timer);
-  }, [isPaused, handleNext, totalSlides, hoveredDataIndices]);
+  }, [isPaused, handleNext, totalSlides]);
 
   if (!currentSlide) return null;
 
@@ -259,10 +288,6 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
           style={{ transform: `translateX(-${currentIndex * 100}%)` }}
         >
           {slides.map((slide, slideIndex) => {
-            const hoveredIndex = hoveredDataIndices[slide.id] ?? null;
-            const activeIndex = hoveredIndex !== null ? hoveredIndex : slide.chartData.length - 1;
-            const activeDataPoint = slide.chartData[activeIndex] || slide.chartData[slide.chartData.length - 1];
-
             return (
               <div key={slide.id} className="w-full h-full flex-shrink-0">
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-4 md:gap-6 h-full">
@@ -335,15 +360,15 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                   </div>
 
                   {/* RIGHT — chart (hidden on mobile, Kalshi-style compact card) */}
-                  <div className="hidden md:flex flex-col h-full md:pt-0">
+                  <div className="hidden md:flex flex-col h-full md:pt-0 min-w-0">
                     {/* Legend above chart & Desktop Pagination */}
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-4 flex-wrap flex-1 min-w-0 pr-4">
                         {slide.outcomes.map(o => (
-                          <span key={o.name} className="flex items-center gap-1.5 text-xs whitespace-nowrap">
-                            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />
-                            <span className="text-[#9AA0A6]">{o.name}</span>
-                            <span className="text-white font-bold">{o.probability.toFixed(1)}%</span>
+                          <span key={o.name} className="flex items-center gap-2 text-sm whitespace-nowrap">
+                            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: o.color }} />
+                            <span className="text-[#9AA0A6] font-bold">{o.name}</span>
+                            <span className="text-white font-black">{o.probability.toFixed(1)}%</span>
                           </span>
                         ))}
                       </div>
@@ -367,56 +392,12 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                         </button>
                       </div>
                     </div>
-                    {/* Chart — no Y axis labels on left, only right */}
-                    <div className="flex-1 min-h-[200px]">
-                      <ResponsiveContainer width="100%" height={160}>
-                        <LineChart
-                          data={slide.chartData}
-                          margin={{ top: 8, right: 32, left: 0, bottom: 0 }}
-                          onMouseMove={(e: any) => {
-                            if (e?.activeTooltipIndex !== undefined) {
-                              setCarouselHoverIndex(e.activeTooltipIndex);
-                              setCarouselHoverData(slide.chartData[e.activeTooltipIndex] ?? null);
-                            }
-                          }}
-                          onMouseLeave={() => {
-                            setCarouselHoverIndex(null);
-                            setCarouselHoverData(null);
-                          }}
-                        >
-                          <CartesianGrid horizontal vertical={false} stroke="#2A2D35" strokeDasharray="3 3" opacity={0.5} />
-
-                          <YAxis
-                            orientation="right"
-                            domain={['auto', 'auto']}
-                            tickFormatter={(v: number) => `${Math.round(v)}%`}
-                            tick={{ fill: '#9AA0A6', fontSize: 9 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={32}
-                          />
-
-                          <Tooltip content={() => null} />
-
-                          {slide.outcomes.map((outcome) => {
-                            const outcomeKey = outcome.name;
-                            return (
-                            <Line
-                              key={outcomeKey}
-                              type="basis"
-                              dataKey={outcomeKey}
-                              stroke={outcome.color}
-                              strokeWidth={1.5}
-                              isAnimationActive={!carouselDrawComplete}
-                              animationDuration={1200}
-                              animationEasing="ease-out"
-                              dot={(props: any) => renderCarouselDot(props, outcome, slide.chartData)}
-                              activeDot={false}
-                            />
-                            );
-                          })}
-                        </LineChart>
-                      </ResponsiveContainer>
+                    {/* Chart — carousel outcome chart */}
+                    <div className="flex-1 min-h-[200px] w-full min-w-0">
+                      <CarouselOutcomeChart
+                        chartData={slide.chartData}
+                        outcomes={slide.outcomes.map(o => ({ id: o.name, name: o.name, color: o.color }))}
+                      />
                     </div>
                   </div>
                 </div>
