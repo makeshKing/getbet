@@ -10,7 +10,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ isLoading }) => {
   const [fadeAway, setFadeAway] = useState(false);
 
   const loadingSteps = [
-    'Securing connection to PredictKit...',
+    'Securing connection to Oddara...',
     'Authenticating your session...',
     'Fetching premium market data...',
     'Analyzing order books...',
@@ -72,7 +72,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ isLoading }) => {
 
         {/* Title */}
         <h1 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-emerald-500 dark:from-white dark:to-slate-300 mb-2">
-          PredictKit
+          Oddara
         </h1>
         <p className="text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 font-semibold mb-6">
           Premium Prediction Markets

@@ -52,7 +52,7 @@ export const Signup: React.FC = () => {
                         <User size={24} />
                     </div>
                     <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tight mb-2">Create Account</h1>
-                    <p className="text-slate-500 dark:text-slate-400 font-medium">Join PredictKit and start trading today</p>
+                    <p className="text-slate-500 dark:text-slate-400 font-medium">Join Oddara and start trading today</p>
                 </div>
 
                 <div className="glass-panel p-8 rounded-[2rem] border border-slate-200/50 dark:border-white/5 shadow-2xl backdrop-blur-xl bg-white/50 dark:bg-slate-900/50">

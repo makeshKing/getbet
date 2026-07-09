@@ -252,16 +252,16 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                     </div>
                 </div>
             </div>
-            <div className="max-w-[1300px] mx-auto px-6 pt-3 pb-6">
+            <div className="max-w-[1300px] mx-auto px-6 pt-1 md:pt-3 pb-6">
                 
 
                 <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
                     
                     {/* ── Left Column: Main Content ── */}
-                    <div className="space-y-8 min-w-0">
+                    <div className="space-y-4 md:space-y-8 min-w-0">
                         {/* ── Featured Section ── */}
                         {showFeatured && carouselSlides.length > 0 && (
-                            <div className="space-y-4">
+                            <div className="space-y-2 md:space-y-4">
                                 <div className="w-full max-w-full overflow-hidden px-0">
                                 <FeaturedMarketCarousel
                                     slides={carouselSlides}

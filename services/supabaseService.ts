@@ -1,7 +1,7 @@
 /**
  * supabaseService.ts
  * ------------------
- * Complete backend service layer for PredictKit using Supabase.
+ * Complete backend service layer for Oddara using Supabase.
  * Replaces services/mockStore.ts for all data operations.
  */
 

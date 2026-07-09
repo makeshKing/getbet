@@ -28,6 +28,26 @@ function sampleData(data: any[], maxPoints = 150) {
   return data.filter((_, i) => i % step === 0);
 }
 
+/** Light rolling-average smoothing pass to reduce chart noise */
+function smoothData(data: any[], outcomeIds: string[], window = 3) {
+  if (data.length <= window) return data;
+  return data.map((point, i) => {
+    const smoothed = { ...point };
+    for (const id of outcomeIds) {
+      let sum = 0;
+      let count = 0;
+      for (let j = Math.max(0, i - Math.floor(window / 2)); j <= Math.min(data.length - 1, i + Math.floor(window / 2)); j++) {
+        if (data[j][id] !== undefined && data[j][id] !== null) {
+          sum += data[j][id];
+          count++;
+        }
+      }
+      if (count > 0) smoothed[id] = sum / count;
+    }
+    return smoothed;
+  });
+}
+
 interface MarketChartProps {
    chartData: any[];
    outcomes: any[];
@@ -35,10 +55,16 @@ interface MarketChartProps {
 }
 
 const MarketChart = React.memo(function MarketChart({
-   chartData,
+   chartData: rawChartData,
    outcomes,
    timeFilter,
 }: MarketChartProps) {
+  // Apply rolling-average smoothing
+  const chartData = useMemo(() => {
+    const ids = outcomes.map((o: any) => o.id);
+    return smoothData(rawChartData, ids, 5);
+  }, [rawChartData, outcomes]);
+
   // ============ STATE (put inside your component, near the top) ============
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
   const [hoverData, setHoverData] = useState<any>(null);
@@ -102,15 +128,15 @@ const MarketChart = React.memo(function MarketChart({
   // ============ JSX ============
   return (
     <div className="w-full">
-      {/* Legend row above chart */}
-      <div className="flex items-center gap-4 mb-3 flex-wrap">
+      {/* Legend row above chart — compact horizontal inline */}
+      <div className="flex items-center gap-x-3 gap-y-1 md:gap-4 mb-2 md:mb-3 flex-wrap px-4 lg:px-0">
         {outcomes.map((o) => {
           const liveVal = hoverData ? hoverData[o.id] : o.probability;
           return (
-            <div key={o.id} className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: o.color }} />
-              <span className="text-[#9AA0A6] text-sm font-bold">{o.name}</span>
-              <span className="text-white text-sm font-black">
+            <div key={o.id} className="flex items-center gap-1 md:gap-2 whitespace-nowrap">
+              <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0" style={{ background: o.color }} />
+              <span className="text-[#9AA0A6] text-xs md:text-sm font-bold">{o.name}</span>
+              <span className="text-white text-xs md:text-sm font-black">
                 {Number(liveVal ?? o.probability).toFixed(1)}%
               </span>
             </div>
@@ -141,16 +167,29 @@ const MarketChart = React.memo(function MarketChart({
             scale="time"
             type="number"
             domain={['dataMin', 'dataMax']}
-            tickFormatter={(v: number) => {
-              const d = new Date(v);
-              if (timeFilter === '1D') return d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
-              if (timeFilter === 'ALL') return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-              return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            }}
+            ticks={(() => {
+              if (chartData.length < 2) return chartData.map((d: any) => d.timestamp);
+              const min = chartData[0].timestamp;
+              const max = chartData[chartData.length - 1].timestamp;
+              const count = 5;
+              return Array.from({ length: count }, (_, i) => min + (max - min) * i / (count - 1));
+            })()}
+            tickFormatter={(() => {
+              let lastLabel = '';
+              return (v: number) => {
+                const d = new Date(v);
+                let label: string;
+                if (timeFilter === '1D') label = d.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true });
+                else if (timeFilter === 'ALL') label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                else label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                if (label === lastLabel) return '';
+                lastLabel = label;
+                return label;
+              };
+            })()}
             tick={{ fill: '#9AA0A6', fontSize: 11 }}
             axisLine={false}
             tickLine={false}
-            tickCount={5}
           />
 
           <YAxis
@@ -168,7 +207,7 @@ const MarketChart = React.memo(function MarketChart({
           {outcomes.map((outcome) => (
             <Line
               key={outcome.id}
-              type="basis"
+              type="monotone"
               dataKey={outcome.id}
               stroke={outcome.color}
               strokeWidth={3}
@@ -456,7 +495,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
 
    useEffect(() => {
       if (market) {
-         document.title = market.title.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) + " | PredictKit";
+         document.title = market.title.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) + " | Oddara";
       }
    }, [market?.title]);
 
@@ -639,7 +678,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                <div className="px-4 lg:px-0 mb-6">
                   {/* Breadcrumb */}
                   <div className="text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-1.5">
-                     {market.category || 'SPORTS'} · {market.subcategory || 'SOCCER'} · FIFA WORLD CUP
+                     {market.category || 'Market'}{market.subcategory ? ` · ${market.subcategory}` : ''}
                   </div>
 
                   <div className="flex justify-between items-start mb-1.5">
@@ -662,7 +701,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                {/* Chart Area */}
                <div className="mb-0 relative group w-full">
                   <div className="flex justify-between items-center mb-0 px-4 lg:px-0 flex-wrap gap-y-1">
-                     <div className="text-[11px] md:text-[13px] font-bold text-gray-400 tracking-tight select-none pointer-events-none pr-4 lg:pr-0">PredictKit</div>
+                     <div className="text-[11px] md:text-[13px] font-bold text-gray-400 tracking-tight select-none pointer-events-none pr-4 lg:pr-0">Oddara</div>
                   </div>
 
                   {/* Chart Container */}
@@ -710,21 +749,21 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
 
                   {/* Chart controls rows */}
                   <div className="px-4 lg:px-0">
-                     <div className="flex items-center justify-between mt-2 mb-4 gap-2">
-                        <div className="flex items-center gap-2 md:gap-3 shrink-0">
-                           <span className="px-2 py-0.5 rounded-full border border-[#00E5CC] text-[#00E5CC] text-[10px] font-bold uppercase tracking-wide">
+                     <div className="flex items-center justify-between mt-2 mb-4 gap-1 md:gap-2">
+                        <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+                           <span className="px-1.5 md:px-2 py-0.5 rounded-full border border-[#00E5CC] text-[#00E5CC] text-[9px] md:text-[10px] font-bold uppercase tracking-wide">
                               No fees
                            </span>
-                           <span className="text-xs md:text-[13px] font-medium text-[#9AA0A6]">
+                           <span className="text-[10px] md:text-[13px] font-medium text-[#9AA0A6]">
                               {formatVol(market.volume || 3140658200)} vol
                            </span>
                         </div>
-                        <div className="flex gap-2 md:gap-4 text-xs md:text-[13px] font-bold text-[#9AA0A6] overflow-x-auto no-scrollbar">
+                        <div className="flex gap-0 md:gap-4 text-[11px] md:text-[13px] font-bold text-[#9AA0A6] shrink min-w-0">
                            {TIME_FILTERS.map(tf => (
                               <button
                                  key={tf}
                                  onClick={() => handleTimeFilterChange(tf)}
-                                 className={`px-2 py-1 md:px-3 transition-colors border-none bg-transparent whitespace-nowrap ${activeTimeFilter === tf ? 'text-white' : 'hover:text-gray-300'}`}
+                                 className={`px-1.5 py-1 md:px-3 transition-colors border-none bg-transparent whitespace-nowrap ${activeTimeFilter === tf ? 'text-white' : 'hover:text-gray-300'}`}
                               >
                                  {tf}
                               </button>

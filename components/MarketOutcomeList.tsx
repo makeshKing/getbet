@@ -624,7 +624,7 @@ const PriceGraph: React.FC<PriceGraphProps> = ({ outcome, market }) => {
             </button>
           ))}
           <span style={{ fontSize: 11, fontWeight: 700, color: '#8A9099', marginLeft: 8 }}>
-            PredictKit
+            Oddara
           </span>
         </div>
       </div>

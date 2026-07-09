@@ -251,7 +251,7 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
 
   return (
     <div
-      className="bg-[#15171C] border border-[#22252B] rounded-xl md:rounded-2xl p-4 md:p-6 cursor-pointer transition-colors duration-200 group relative overflow-hidden w-full max-w-full flex flex-col h-full"
+      className="bg-[#15171C] border border-[#22252B] rounded-xl md:rounded-2xl p-3 md:p-6 cursor-pointer transition-colors duration-200 group relative overflow-hidden w-full max-w-full flex flex-col h-full"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onClick={() => onSelectMarket?.(currentSlide.id)}
@@ -303,20 +303,20 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                       </div>
 
                       {/* Title */}
-                      <h2 className="text-white text-lg md:text-2xl font-bold mb-4 leading-tight line-clamp-2 pr-16 md:pr-0">
+                      <h2 className="text-white text-base md:text-2xl font-bold mb-3 md:mb-4 leading-tight truncate md:whitespace-normal md:line-clamp-2 pr-12 md:pr-0">
                         {slide.title}
                       </h2>
 
                       {/* Column headers */}
-                      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 text-[#9AA0A6] text-xs mb-2 border-b border-[#22252B] pb-2">
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 text-[#9AA0A6] text-xs mb-2 border-b border-[#22252B] pb-2">
                         <span>Market</span>
-                        <span className="text-right w-12 sm:w-16">Pays out</span>
+                        <span className="hidden md:block text-right w-12 sm:w-16">Pays out</span>
                         <span className="text-right w-11 sm:w-14">Odds</span>
                       </div>
 
                       {/* Outcome rows */}
                       {slide.outcomes.slice(0, 3).map((o, idx) => (
-                        <div key={idx} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 items-center py-2 border-b border-[#22252B]">
+                        <div key={idx} className={`grid grid-cols-[minmax(0,1fr)_auto] md:grid-cols-[minmax(0,1fr)_auto_auto] gap-2 sm:gap-4 items-center py-2 border-b border-[#22252B] ${idx === 2 ? 'hidden md:grid' : ''}`}>
                           <div className="flex items-center gap-2 min-w-0">
                             {o.icon && (
                               <img src={o.icon} alt={o.name} className="w-5 h-5 rounded-sm object-cover flex-shrink-0"
@@ -333,7 +333,7 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                             </div>
                             <span className="text-white text-sm font-medium truncate min-w-0">{o.name}</span>
                           </div>
-                          <span className="text-right text-[#9AA0A6] text-xs sm:text-sm w-12 sm:w-16 flex-shrink-0">{o.payoutMultiplier.toFixed(2)}x</span>
+                          <span className="hidden md:block text-right text-[#9AA0A6] text-xs sm:text-sm w-12 sm:w-16 flex-shrink-0">{o.payoutMultiplier.toFixed(2)}x</span>
                           <div className="flex justify-end w-11 sm:w-14 flex-shrink-0">
                             <span className="border border-[#00D4AA] text-[#00D4AA] text-[11px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full whitespace-nowrap">
                               {o.probability.toFixed(0)}%
@@ -341,6 +341,11 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                           </div>
                         </div>
                       ))}
+                      {slide.outcomes.length > 2 && (
+                        <div className="md:hidden py-2 text-center border-b border-[#22252B]">
+                          <span className="text-[#00D4AA] text-xs font-bold">+ {slide.outcomes.length - 2} more</span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="mt-4">
@@ -353,7 +358,7 @@ export const FeaturedMarketCarousel: React.FC<MarketCarouselProps> = ({ slides =
                       </div>
 
                       {/* News */}
-                      <p className="text-[#9AA0A6] text-xs mt-3 leading-relaxed line-clamp-3">
+                      <p className="text-[#9AA0A6] text-xs mt-3 leading-relaxed truncate md:whitespace-normal md:line-clamp-3">
                         <span className="text-white font-bold">News</span> · {slide.news || "No recent news for this market."}
                       </p>
                     </div>
