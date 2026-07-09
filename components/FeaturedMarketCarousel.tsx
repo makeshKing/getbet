@@ -154,7 +154,7 @@ function CarouselOutcomeChart({
       <ResponsiveContainer width="100%" height={200}>
         <LineChart
           data={chartData}
-          margin={{ top: 8, right: 30, left: 0, bottom: 0 }}
+          margin={{ top: 8, right: 0, left: 0, bottom: 0 }}
           onMouseMove={(e: any) => {
             if (e?.activeTooltipIndex !== undefined) {
               setHoverIdx(e.activeTooltipIndex);

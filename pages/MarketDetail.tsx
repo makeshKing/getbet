@@ -148,7 +148,7 @@ const MarketChart = React.memo(function MarketChart({
       <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={chartData}
-          margin={{ top: 10, right: 48, left: 0, bottom: 0 }}
+          margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
           onMouseMove={(e: any) => {
             if (e?.activeTooltipIndex !== undefined) {
               setHoverIndex(e.activeTooltipIndex);
