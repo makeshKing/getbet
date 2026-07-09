@@ -165,7 +165,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
 
             {/* ── Sticky Controls Bar ── */}
             <div className="sticky top-14 z-30 border-b border-[#1F2937] bg-[#0A0C10]/90 backdrop-blur-xl">
-                <div className="max-w-[1300px] mx-auto px-6">
+                <div className="max-w-[1300px] mx-auto px-4 md:px-6">
                     <div className="flex items-center gap-2 py-3">
                         <label htmlFor="market-search" className="sr-only">Search markets</label>
                         <div className="relative flex-1 min-w-0 max-w-sm">
@@ -252,7 +252,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                     </div>
                 </div>
             </div>
-            <div className="max-w-[1300px] mx-auto px-6 pt-1 md:pt-3 pb-6">
+            <div className="max-w-[1300px] mx-auto px-0 md:px-6 pt-1 md:pt-3 pb-6">
                 
 
                 <div className="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-6">
@@ -270,7 +270,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                                 </div>
 
                                 {/* Informational Cards */}
-                                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                                <div className="grid grid-cols-2 gap-2 md:gap-3 px-4 md:px-0">
                                     <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-3 flex flex-col gap-1.5 cursor-pointer hover:border-white/20 transition-colors">
                                         <span className="text-[#00D4AA]"><Landmark size={18} /></span>
                                         <div className="flex items-center justify-between">
@@ -291,7 +291,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
 
                         {/* ── Market Grids Grouped by Category ── */}
                         {filteredMarkets.length > 0 ? (
-                            <div className="space-y-10">
+                            <div className="space-y-10 px-4 md:px-0">
                                 {Object.entries(marketsByCategory).map(([category, catMarkets]) => (
                                     <div key={category} className="space-y-4">
                                         <h2 className="text-xl font-bold flex items-center gap-1 cursor-pointer hover:text-[#00D4AA] transition-colors duration-150 w-max tracking-tight" style={{ color: TEXT_PRIMARY }}>
