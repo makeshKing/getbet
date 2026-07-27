@@ -42,7 +42,7 @@ interface AppContextType {
 
   // Finance ops
   requestDeposit: (amountCents: number, reference: string, method: string, screenshotProofUrl?: string) => Promise<void>;
-  requestWithdrawal: (amountCents: number, destination: string) => Promise<void>;
+  requestWithdrawal: (amountCents: number, destination: string, currency?: string) => Promise<void>;
   refreshLedger: () => Promise<void>;
 
   // Admin finance
@@ -245,9 +245,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshLedger();
   };
 
-  const requestWithdrawal = async (amountCents: number, destination: string) => {
+  const requestWithdrawal = async (amountCents: number, destination: string, currency: string = 'NPR') => {
     if (!userId) throw new Error('Not authenticated');
-    await svc.requestWithdrawal(userId, amountCents, destination);
+    await svc.requestWithdrawal(userId, amountCents, destination, currency);
     await Promise.all([refreshLedger(), refreshProfile()]);
   };
 

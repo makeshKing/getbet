@@ -696,38 +696,15 @@ export async function rejectDeposit(ledgerId: string) {
 export async function requestWithdrawal(
   userId: string,
   amountCents: number,
-  destination: string
+  destination: string,
+  currency: string = 'NPR'
 ) {
-  // First check withdrawable balance
-  const { data: profile, error: profileErr } = await supabase
-    .from('profiles')
-    .select('balance, withdrawable_balance, total_withdrawn')
-    .eq('id', userId)
-    .single();
-  if (profileErr) throw new Error(profileErr.message);
-  if (profile.withdrawable_balance < amountCents)
-    throw new Error('Insufficient withdrawable balance');
-
-  // Deduct balance and create pending ledger entry
-  const { error: balErr } = await supabase
-    .from('profiles')
-    .update({
-      balance: profile.balance - amountCents,
-      withdrawable_balance: profile.withdrawable_balance - amountCents,
-      total_withdrawn: profile.total_withdrawn + amountCents,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId);
-  if (balErr) throw new Error(balErr.message);
-
-  const { error } = await supabase.from('ledger').insert({
-    user_id: userId,
-    amount: -amountCents,
-    currency: 'NPR',
-    type: 'WITHDRAWAL',
-    description: `Withdrawal to ${destination}`,
-    status: 'PENDING',
+  const { error } = await supabase.rpc('request_withdrawal', {
+    p_amount: amountCents,
+    p_destination: destination,
+    p_currency: currency
   });
+  
   if (error) throw new Error(error.message);
 }
 

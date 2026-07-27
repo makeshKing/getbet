@@ -77,18 +77,18 @@ export const Profile: React.FC = () => {
               </div>
             )}
             
-            <div className="w-24 h-24 mx-auto bg-slate-100 dark:bg-slate-700 rounded-full mb-4 flex items-center justify-center overflow-hidden border-2 border-slate-100 dark:border-slate-600 relative group">
+            <div className="w-20 h-20 md:w-24 md:h-24 mx-auto bg-slate-100 dark:bg-slate-700 rounded-full mb-3 flex items-center justify-center overflow-hidden border-2 border-slate-100 dark:border-slate-600 relative group">
               {user.avatarUrl ? (
                 <img src={user.avatarUrl} alt="Avatar" className={`w-full h-full object-cover ${isUploading ? 'opacity-50' : ''}`} />
               ) : (
-                <UserIcon size={40} className={`text-slate-400 ${isUploading ? 'opacity-50' : ''}`} />
+                <UserIcon size={32} className={`md:w-10 md:h-10 text-slate-400 ${isUploading ? 'opacity-50' : ''}`} />
               )}
               {isEditing && (
                 <div 
                   className="absolute inset-0 bg-black/50 flex items-center justify-center cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => fileInputRef.current?.click()}
                 >
-                  <Camera size={24} className="text-white" />
+                  <Camera size={20} className="md:w-6 md:h-6 text-white" />
                 </div>
               )}
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleAvatarChange} />
@@ -108,14 +108,14 @@ export const Profile: React.FC = () => {
               </div>
             ) : (
               <>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-[#f5f9fc]">{user.name}</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mb-1 truncate">{user.email}</p>
-                {user.phone && <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">{user.phone}</p>}
-                {!user.phone && <p className="text-sm text-slate-400 dark:text-slate-500 mb-4 italic">No phone added</p>}
+                <h2 className="text-lg md:text-xl font-bold text-slate-900 dark:text-[#f5f9fc] leading-tight mb-0.5">{user.name}</h2>
+                <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mb-0.5 truncate">{user.email}</p>
+                {user.phone && <p className="text-xs md:text-sm text-slate-500 dark:text-slate-400 mb-2">{user.phone}</p>}
+                {!user.phone && <p className="text-xs md:text-sm text-slate-400 dark:text-slate-500 mb-2 italic">No phone added</p>}
               </>
             )}
 
-            <div className="mt-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
+            <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] md:text-xs font-medium bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-400">
               <ShieldCheck size={12} className="mr-1" /> Verified Level 1
             </div>
           </div>
@@ -126,34 +126,37 @@ export const Profile: React.FC = () => {
 
           {/* Balance Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-[#1a1d26] dark:bg-[#1a1d26] text-[#f5f9fc] rounded-lg p-6 shadow-lg relative overflow-hidden border border-slate-700 dark:border-[#2d3342]">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
+            <div className="bg-[#1a1d26] dark:bg-[#1a1d26] text-[#f5f9fc] rounded-lg p-5 md:p-6 shadow-lg relative overflow-hidden border border-slate-700 dark:border-[#2d3342]">
+              <div className="absolute top-0 right-0 p-4 opacity-10 hidden md:block">
                 <Wallet size={100} />
               </div>
-              <h3 className="text-slate-300 dark:text-slate-400 text-sm font-medium mb-1">Total Balance</h3>
-              <div className="text-3xl font-bold mb-6">{formatMoney(user.balance)}</div>
-              <div className="flex space-x-3">
-                <Button variant="secondary" size="sm" className="w-full" onClick={() => setIsDepositOpen(true)}>
+              <div className="absolute top-0 right-0 p-3 opacity-10 md:hidden">
+                <Wallet size={64} />
+              </div>
+              <h3 className="text-slate-300 dark:text-slate-400 text-xs md:text-sm font-medium mb-1">Total Balance</h3>
+              <div className="text-2xl md:text-3xl font-bold mb-4 md:mb-6">{formatMoney(user.balance)}</div>
+              <div className="flex space-x-2 md:space-x-3">
+                <Button variant="secondary" className="w-full h-11 min-h-[44px] text-sm py-2 px-3 md:py-2" onClick={() => setIsDepositOpen(true)}>
                   <ArrowDownCircle size={16} className="mr-1" /> Deposit
                 </Button>
-                <Button variant="outline" size="sm" className="w-full border-slate-600 hover:bg-slate-800 dark:hover:bg-slate-700 text-white" onClick={() => setIsWithdrawOpen(true)}>
+                <Button variant="outline" className="w-full h-11 min-h-[44px] text-sm py-2 px-3 md:py-2 border-slate-600 hover:bg-slate-800 dark:hover:bg-slate-700 text-white" onClick={() => setIsWithdrawOpen(true)}>
                   <ArrowUpCircle size={16} className="mr-1" /> Withdraw
                 </Button>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center space-y-4 transition-colors">
+            <div className="bg-white dark:bg-slate-800 rounded-lg p-5 md:p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col justify-center space-y-3 md:space-y-4 transition-colors">
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
-                <span className="text-slate-500 dark:text-slate-400 text-sm">Withdrawable</span>
-                <span className="font-semibold text-slate-900 dark:text-white">{formatMoney(user.withdrawableBalance)}</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">Withdrawable</span>
+                <span className="font-semibold text-sm md:text-base text-slate-900 dark:text-white">{formatMoney(user.withdrawableBalance)}</span>
               </div>
               <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-2">
-                <span className="text-slate-500 dark:text-slate-400 text-sm">Total Deposited</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{formatMoney(user.totalDeposited)}</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">Total Deposited</span>
+                <span className="font-medium text-sm md:text-base text-slate-700 dark:text-slate-300">{formatMoney(user.totalDeposited)}</span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-slate-500 dark:text-slate-400 text-sm">Total Withdrawn</span>
-                <span className="font-medium text-slate-700 dark:text-slate-300">{formatMoney(user.totalWithdrawn)}</span>
+                <span className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">Total Withdrawn</span>
+                <span className="font-medium text-sm md:text-base text-slate-700 dark:text-slate-300">{formatMoney(user.totalWithdrawn)}</span>
               </div>
             </div>
           </div>

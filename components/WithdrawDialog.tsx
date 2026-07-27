@@ -20,7 +20,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
   const [error, setError] = useState<string>('');
 
   const { requestWithdrawal } = useApp();
-  const { formatMoney } = useCurrency();
+  const { formatMoney, currency } = useCurrency();
   const handleWithdraw = async () => {
     setError('');
     const val = parseFloat(amount);
@@ -38,7 +38,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
     }
 
     try {
-      await requestWithdrawal(cents, `${method.toUpperCase()}: ${destination} (${accountName})`);
+      await requestWithdrawal(cents, `${method.toUpperCase()}: ${destination} (${accountName})`, currency);
       setAmount('');
       setDestination('');
       setAccountName('');
