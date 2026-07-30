@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Market, Side } from '../types';
 import { ChevronLeft, ChevronRight, Globe2 } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { OddsPill } from './ui/OddsPill';
 
 // ============================================================
 // CAROUSEL CHART — complete, self-contained, exact copy of the
@@ -297,10 +298,12 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
                   <div className="text-right text-[10px] md:text-xs font-bold text-slate-400 w-12 md:w-14">
                     {payout}x
                   </div>
-                  <div className="text-right w-12 md:w-14">
-                    <div className="inline-flex items-center justify-center w-full py-0.5 md:py-1 rounded-full border text-[10px] md:text-[11px] font-black" style={{ borderColor: `${outcome.color}80`, color: outcome.color, backgroundColor: `${outcome.color}15` }}>
-                      {outcome.probability}%
-                    </div>
+                  <div className="text-right flex justify-end">
+                    <OddsPill 
+                        probability={outcome.probability}
+                        color={outcome.color}
+                        className="!w-14"
+                    />
                   </div>
                 </div>
               );

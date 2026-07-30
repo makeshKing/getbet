@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import { Market, Side } from '../types';
 import { TrendingUp, Award, Zap, Radio, Check, Globe2 } from 'lucide-react';
 import { ACCENT, TEXT_PRIMARY, TEXT_SECONDARY, TEXT_TERTIARY, categoryAccent } from '../lib/theme';
+import { OddsPill } from './ui/OddsPill';
 
 interface MarketCardProps {
     market: Market;
@@ -143,8 +144,7 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
                     const oddsColor = isWinning ? '#00D4AA' : (isNo ? '#FF4757' : '#00D4AA');
 
                     return (
-                        <div key={outcome.id}
-                            className={`flex items-center justify-between py-1.5 ${idx < arr.length - 1 ? 'border-b border-[#22252B]' : ''}`}>
+                        <div key={outcome.id} className="relative flex items-center justify-between py-1 mb-1.5">
                             
                             <span className="text-white text-sm flex-1 truncate pr-2">{outcome.name}</span>
                             
@@ -152,13 +152,22 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
                                 <span className="text-[#9AA0A6] text-xs mx-3">{payout}x</span>
                             )}
                             
-                            <span 
-                                className={`border text-xs font-bold px-2 py-0.5 rounded-full transition-all duration-150
-                                    ${isWinning ? 'bg-[#00D4AA] text-[#0A0C10] border-[#00D4AA]' : ''}`}
-                                style={!isWinning ? { color: oddsColor, borderColor: oddsColor } : {}}
-                            >
-                                {isWinning ? <Check size={12} /> : `${Math.round(outcome.probability)}%`}
-                            </span>
+                            <OddsPill 
+                                probability={outcome.probability}
+                                color={oddsColor}
+                                isWinning={isWinning}
+                                className="z-10"
+                            />
+
+                            {/* Progress bar underline */}
+                            <div 
+                                className="absolute bottom-0 left-0 h-[2px] rounded-full transition-all duration-300"
+                                style={{ 
+                                    width: `${Math.max(2, Math.round(outcome.probability))}%`, 
+                                    backgroundColor: oddsColor,
+                                    opacity: isResolved && !isWinning ? 0.3 : 1
+                                }}
+                            />
                         </div>
                     );
                 })}
@@ -166,7 +175,11 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
 
             {/* Footer */}
             <div className="flex items-center justify-between mt-3 pt-3">
-                <span className="text-[#9AA0A6] text-xs">{fmt(market.volume)} vol</span>
+                {market.volume > 0 ? (
+                    <span className="text-[#9AA0A6] text-xs">{fmt(market.volume)} vol</span>
+                ) : (
+                    <span className="text-[#00D4AA] font-bold uppercase tracking-widest border border-[#00D4AA]/30 bg-[#00D4AA]/10 px-1.5 py-0.5 rounded text-[9px]">New</span>
+                )}
                 <span className="text-[#9AA0A6] text-xs">{market.outcomes && market.outcomes.length > 0 ? `${market.outcomes.length} markets` : `2 markets`}</span>
             </div>
         </div>

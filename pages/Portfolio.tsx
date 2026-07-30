@@ -42,22 +42,25 @@ export const Portfolio: React.FC = () => {
     const [showWinCard, setShowWinCard] = useState(false);
     const [selectedWin, setSelectedWin] = useState<Trade | null>(null);
 
-    // Won trades
-    const wonTrades = useMemo(() => trades.filter(t => t.status === 'WON'), [trades]);
+    // Won trades — only the 5 most recent wins, sorted newest first
+    const allWonTrades = useMemo(() =>
+        trades
+            .filter(t => t.status === 'WON')
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+        [trades]
+    );
+    const wonTrades = useMemo(() => allWonTrades.slice(0, 5), [allWonTrades]);
 
     function handleShareWin(trade: any) {
         // Safety check — only proceed if this is a winning position
-        if (trade.status !== 'WON' && (trade.pnl || 0) <= 0) {
+        if (trade.status !== 'WON') {
             console.warn('Not a winning position');
             return;
         }
 
-        const priceInDecimal = (trade.price || 50) / 100;
-        const calculatedPayout = trade.amount / priceInDecimal;
-
         setSelectedWin({
             ...trade,
-            potentialWin: trade.payout || trade.paid_out || calculatedPayout
+            potentialWin: trade.payout ?? trade.paid_out ?? 0
         });
         setShowWinCard(true);
     }
@@ -90,17 +93,10 @@ export const Portfolio: React.FC = () => {
     // --- Improved Financial Logic ---
     const totalInvested = positions.reduce((acc, p) => acc + (p.avgPrice * p.quantity), 0);
 
-    const totalCurrentValue = useMemo(() => {
-        return positions.reduce((acc, p) => {
-            const price = getMarketCurrentPrice(p.marketId, p.side, p.outcomeId);
-            return acc + (price * p.quantity);
-        }, 0);
-    }, [positions, markets]);
-
-    const unrealizedPL = totalCurrentValue - totalInvested;
+    const potentialPayout = positions.reduce((acc, p) => acc + (p.quantity * 100), 0);
 
     if (!user) return null;
-    const netWorth = (user?.balance || 0) + totalCurrentValue;
+    const netWorth = (user?.balance || 0);
     const totalDeposited = user?.totalDeposited || 0;
     const totalWithdrawn = user?.totalWithdrawn || 0;
     const investedCapital = totalDeposited - totalWithdrawn;
@@ -233,30 +229,7 @@ export const Portfolio: React.FC = () => {
                 }
             }
 
-            // Calculate position value at this event's timestamp
-            let positionsValueAtTs = 0;
-            const t_now = Date.now();
-
-            positionInventory.forEach((pos, key) => {
-                const [mId, oId, sideStr] = key.split('_');
-                const side = sideStr as Side;
-                const currentMarketPrice = getMarketCurrentPrice(mId, side, oId || undefined);
-                
-                // Interpolate price from avgPrice to currentMarketPrice based on elapsed time since purchase
-                const elapsed = ev.ts - pos.firstBuyTs;
-                const totalDuration = Math.max(1, t_now - pos.firstBuyTs);
-                const progress = Math.min(1, Math.max(0, elapsed / totalDuration));
-                
-                // Add realistic market price fluctuations over time for organic charts
-                const fluctuation = Math.sin(ev.ts / (2 * 60 * 60 * 1000)) * 250; // smooth subtle variations
-                
-                const interpolatedPrice = pos.avgPrice + (currentMarketPrice - pos.avgPrice) * progress + fluctuation;
-                const finalPrice = Math.min(10000, Math.max(0, interpolatedPrice));
-
-                positionsValueAtTs += finalPrice * pos.qty;
-            });
-
-            const equityAtTs = (runningCash + positionsValueAtTs) / 100;
+            const equityAtTs = runningCash / 100;
             const investedAtTs = runningInvested / 100;
             const pnlAtTs = equityAtTs - investedAtTs;
 
@@ -439,11 +412,16 @@ export const Portfolio: React.FC = () => {
                         <p className={`text-2xl font-bold ${lifetimePnl >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
                             {lifetimePnl >= 0 ? '+' : ''}{formatMoney(Math.abs(lifetimePnl))}
                         </p>
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#22252B]">
-                            <span className="text-[#9AA0A6] text-xs">Unrealized Gain</span>
-                            <span className={unrealizedPL >= 0 ? 'text-[#00D4AA] text-sm font-medium' : 'text-[#FF4757] text-sm font-medium'}>
-                                {unrealizedPL >= 0 ? '+' : ''}{formatMoney(unrealizedPL)}
-                            </span>
+                        <div className="mt-3 pt-3 border-t border-[#22252B]">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[#9AA0A6] text-xs">Potential Payout</span>
+                                <span className="text-[#00D4AA] text-sm font-medium">
+                                    {formatMoney(potentialPayout)}
+                                </span>
+                            </div>
+                            <p className="text-[#9AA0A6] text-[10px] mt-0.5">
+                                If all open positions win
+                            </p>
                         </div>
                     </div>
 
@@ -616,17 +594,26 @@ export const Portfolio: React.FC = () => {
             </div>
 
             {/* Won Trades Section */}
-            {wonTrades.length > 0 && (
                 <div className="space-y-4">
                     <div className="flex items-center justify-between px-2 mb-3">
                         <h3 className="text-white text-sm font-bold uppercase tracking-wide flex items-center gap-2">
                             🏆 Won Trades
                         </h3>
-                        <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold px-2 py-0.5 rounded-full">
-                            {wonTrades.length} won
-                        </span>
+                        {allWonTrades.length > 0 && (
+                            <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold px-2 py-0.5 rounded-full">
+                                {allWonTrades.length} won
+                            </span>
+                        )}
                     </div>
 
+                    {wonTrades.length === 0 && (
+                        <p className="text-[#9AA0A6] text-sm text-center py-6">
+                            No wins yet — your winning trades will appear here.
+                        </p>
+                    )}
+
+                    {wonTrades.length > 0 && (
+                    <>
                     {/* Mobile View */}
                     <div className="md:hidden grid grid-cols-1 gap-3">
                         {wonTrades.map((trade) => {
@@ -716,8 +703,9 @@ export const Portfolio: React.FC = () => {
                             </table>
                         </div>
                     </div>
+                    </>
+                    )}
                 </div>
-            )}
 
             {/* Purchase History Section */}
             < div className="space-y-4" >

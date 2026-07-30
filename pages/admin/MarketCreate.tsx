@@ -10,7 +10,7 @@ import {
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../components/ui/Toast';
 import { useAuth } from '../../context/AuthContext';
-
+import { ImagePicker } from '../../components/ui/ImagePicker';
 interface AdminMarketCreateProps {
     onBack: () => void;
 }
@@ -608,26 +608,8 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
                         </div>
                     )}
 
-                    <FormRow label="Market Banner" helper="Main thumbnail for the market card">
-                        <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                            <div className="w-full h-[220px] border-2 border-dashed border-slate-300 dark:border-slate-600 rounded-3xl bg-slate-50 dark:bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden transition-all hover:bg-slate-100 dark:hover:bg-slate-800 group">
-                                {imageUrl ? (
-                                    <>
-                                        <img src={imageUrl} alt="Preview" className="w-full h-full object-cover" />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                            <div className="bg-white text-slate-900 px-6 py-2 rounded-xl text-sm font-bold">Change Image</div>
-                                        </div>
-                                        <button onClick={(e) => { e.stopPropagation(); setImageUrl(''); }} className="absolute top-4 right-4 p-2 bg-red-500 text-white rounded-full shadow-lg hover:bg-red-600"><X size={16} /></button>
-                                    </>
-                                ) : (
-                                    <div className="flex flex-col items-center">
-                                        <CloudUpload size={40} className="text-slate-400 mb-3" />
-                                        <p className="text-sm font-bold text-slate-900 dark:text-white">Click to upload or drag & drop</p>
-                                    </div>
-                                )}
-                                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
-                            </div>
-                        </div>
+                    <FormRow label="Market Banner" helper="Select from library or upload a new thumbnail for the market card">
+                        <ImagePicker selectedUrl={imageUrl} onSelect={(url) => setImageUrl(url)} />
                     </FormRow>
 
                     <FormRow label="Category" helper="The main grouping for this bet">

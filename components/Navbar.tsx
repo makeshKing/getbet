@@ -54,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
               className="flex-shrink-0 flex items-center cursor-pointer group"
               onClick={() => onNavigate('home')}
             >
-              <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white hidden sm:block">Oddara</span>
+              <span className="font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">Oddara</span>
             </div>
 
             <div className="hidden md:flex space-x-1">

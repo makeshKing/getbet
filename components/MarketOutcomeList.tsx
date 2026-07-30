@@ -16,6 +16,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useToast } from './ui/Toast';
 import { Spinner } from './ui/Spinner';
 import { useIsMobile } from '../lib/useIsMobile';
+import { OddsPill } from './ui/OddsPill';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -944,15 +945,18 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
             style={{
               width: probWidth,
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               justifyContent: 'center',
               gap: 6,
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: probFont, fontWeight: 700, color: '#ffffff' }}>
-              {outcome.probability}%
-            </span>
+            <OddsPill 
+                probability={outcome.probability}
+                color={outcome.change_24h !== undefined && outcome.change_24h < 0 ? '#FF4757' : '#00D4AA'}
+                variant="plain"
+                className="!px-0" // plain text doesn't need horizontal padding
+            />
             {outcome.change_24h !== undefined && outcome.change_24h !== 0 && (
               <span
                 style={{

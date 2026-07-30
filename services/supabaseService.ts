@@ -1160,3 +1160,77 @@ export async function adminDeleteCategory(id: string) {
   const { error } = await supabase.from('categories').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+
+// ─────────────────────────────────────────────────────────────
+// IMAGE LIBRARY
+// ─────────────────────────────────────────────────────────────
+
+export interface ImageLibraryItem {
+  id: string;
+  url: string;
+  storage_path: string;
+  name?: string;
+  uploaded_by: string;
+  created_at: string;
+}
+
+export async function uploadImageToLibrary(file: File, name?: string): Promise<ImageLibraryItem> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const ext = file.name.split('.').pop() || 'png';
+  const path = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('market-images')
+    .upload(path, file, { contentType: file.type });
+    
+  if (uploadError) throw new Error(uploadError.message);
+
+  const { data: publicUrlData } = supabase.storage
+    .from('market-images')
+    .getPublicUrl(path);
+
+  const { data, error } = await supabase
+    .from('image_library')
+    .insert({
+      url: publicUrlData.publicUrl,
+      storage_path: path,
+      name: name || file.name,
+      uploaded_by: user.id
+    })
+    .select()
+    .single();
+
+  if (error) {
+    await supabase.storage.from('market-images').remove([path]);
+    throw new Error(error.message);
+  }
+
+  return data;
+}
+
+export async function getImageLibrary(): Promise<ImageLibraryItem[]> {
+  const { data, error } = await supabase
+    .from('image_library')
+    .select('*')
+    .order('created_at', { ascending: false });
+    
+  if (error) throw new Error(error.message);
+  return data as ImageLibraryItem[];
+}
+
+export async function deleteImageFromLibrary(id: string, storagePath: string) {
+  const { error: storageError } = await supabase.storage
+    .from('market-images')
+    .remove([storagePath]);
+    
+  if (storageError) throw new Error(storageError.message);
+
+  const { error: dbError } = await supabase
+    .from('image_library')
+    .delete()
+    .eq('id', id);
+    
+  if (dbError) throw new Error(dbError.message);
+}

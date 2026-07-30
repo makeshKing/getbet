@@ -23,7 +23,7 @@ export function WinCard({
 }: WinCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const profit = won - invested;
+  const profit = Math.max(0, won - invested);
 
   async function handleDownload() {
     if (!cardRef.current || isDownloading) return;
