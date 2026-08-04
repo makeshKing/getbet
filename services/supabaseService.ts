@@ -432,35 +432,42 @@ export async function getMarketResolutionPreview(
   });
   if (error) {
     console.warn("RPC failed, using client-side calculation:", error.message);
-    const { data: positions, error: posErr } = await supabase
-      .from('positions')
-      .select('*')
-      .eq('market_id', marketId);
-      
-    if (posErr) throw new Error(posErr.message);
-    
-    let yes_bettors = 0, no_bettors = 0;
+    // Source from `trades` (per-order original price) rather than `positions`
+    // (averaged price), so the cost basis reflects what users actually paid.
+    const { data: trades, error: trErr } = await supabase
+      .from('trades')
+      .select('side, price, shares, amount, type')
+      .eq('market_id', marketId)
+      .eq('type', 'BUY');
+
+    if (trErr) throw new Error(trErr.message);
+
+    // Take unique bettors per side via a small map while iterating.
     let yes_shares = 0, no_shares = 0;
     let yes_invested = 0, no_invested = 0;
-    
-    for (const p of positions || []) {
-      if (p.side === 'YES') {
-        yes_bettors++;
-        yes_shares += p.quantity;
-        yes_invested += p.quantity * p.avg_price;
-      } else if (p.side === 'NO') {
-        no_bettors++;
-        no_shares += p.quantity;
-        no_invested += p.quantity * p.avg_price;
+    let yes_bettors = 0, no_bettors = 0;
+
+    // Note: this preview summary doesn't have the winning outcome yet, so it
+    // reports raw invested/shares per side. The "Projected Winners" table
+    // (getMarketUserProfits) is where per-order WON/LOST rules get applied.
+    for (const t of (trades || []) as any[]) {
+      const stake = (t.amount ?? t.shares * t.price) ?? 0; // cents
+      if (String(t.side).toUpperCase() === 'YES') {
+        yes_shares += t.shares;
+        yes_invested += stake;
+      } else if (String(t.side).toUpperCase() === 'NO') {
+        no_shares += t.shares;
+        no_invested += stake;
       }
     }
-    
+
     const total_invested = yes_invested + no_invested;
-    const yes_payout = yes_shares * 100;
+    const yes_payout = yes_shares * 100;   // each winning share = $1 = 100 cents
     const no_payout = no_shares * 100;
-    
+
     return {
-      yes_bettors, no_bettors, yes_shares, no_shares,
+      yes_bettors, no_bettors,
+      yes_shares, no_shares,
       yes_invested, no_invested, total_invested,
       yes_payout, no_payout,
       house_if_yes: total_invested - yes_payout,
@@ -482,44 +489,87 @@ export interface UserProfitPreview {
 }
 
 export async function getMarketUserProfits(
-  marketId: string
+  marketId: string,
+  winningOutcomeId: string | null
 ): Promise<UserProfitPreview[]> {
+  // No winning outcome selected (or CANCEL) → no projected winners.
+  if (!winningOutcomeId) return [];
+
   const { data, error } = await supabase.rpc('get_market_user_profits', {
     p_market_id: marketId,
+    p_winning_outcome_id: winningOutcomeId,
   });
   if (error) {
     console.warn("RPC get_market_user_profits failed, using fallback:", error.message);
-    const { data: positions, error: posErr } = await supabase
-      .from('positions')
-      .select('*, profiles(name, email, avatar_url)')
-      .eq('market_id', marketId);
-      
-    if (posErr) throw new Error(posErr.message);
-    
+    // Use the per-order `trades` table so we read each order's ORIGINAL price
+    // (trades.price, cents per share) rather than the averaged positions table,
+    // which would silently merge orders placed at different prices and break
+    // the "use the order's original price" rule.
+    const { data: trades, error: trErr } = await supabase
+      .from('trades')
+      .select('user_id, outcome_id, side, price, shares, amount, type, profiles(name, email, avatar_url)')
+      .eq('market_id', marketId)
+      .eq('type', 'BUY');
+
+    if (trErr) throw new Error(trErr.message);
+
     const profitsMap = new Map<string, UserProfitPreview>();
-    
-    for (const p of positions || []) {
-      const key = `${p.user_id}_${p.side}`;
-      if (!profitsMap.has(key)) {
-        profitsMap.set(key, {
-          user_id: p.user_id,
-          user_name: (p.profiles as any)?.name || 'Unknown',
-          user_email: (p.profiles as any)?.email || '',
-          avatar_url: (p.profiles as any)?.avatar_url || null,
-          side: p.side,
-          invested: 0,
-          payout: 0,
-          profit: 0
-        });
+
+    for (const t of trades || []) {
+      // Settlement per order:
+      //   shares     = amount_dollars / (price_cents/100)  — but trades stores
+      //                `shares` directly and `amount` (cents) = shares * price,
+      //                so we use the stored shares count and dollars = amount/100.
+      const shares       = t.shares;                       // integer shares bought
+      const amountCents = t.amount ?? shares * t.price;    // original stake, cents
+      const amountDollars = amountCents / 100;
+
+      // Determine WON / LOST for THIS order.
+      // Two market shapes:
+      //   • Binary (VS) markets: trades.outcome_id is null/empty; the winner
+      //     is 'YES' or 'NO'. The order's `side` decides whether it won.
+      //   • Multi-outcome markets: trades.outcome_id is an outcome id; a YES
+      //     order on the winning outcome WON, a NO order on any OTHER outcome
+      //     WON (only one outcome is true), and the opposite cases LOST.
+      const isBinaryWinner = winningOutcomeId === 'YES' || winningOutcomeId === 'NO';
+      const isYes = String(t.side).toUpperCase() === 'YES';
+
+      let won: boolean;
+      if (isBinaryWinner) {
+        won = String(t.side).toUpperCase() === winningOutcomeId;
+      } else {
+        const sameOutcome = String(t.outcome_id ?? '') === String(winningOutcomeId);
+        won = isYes ? sameOutcome : !sameOutcome;
       }
-      
-      const userProf = profitsMap.get(key)!;
-      userProf.invested += p.quantity * p.avg_price;
-      userProf.payout += p.quantity * 100;
-      userProf.profit = userProf.payout - userProf.invested;
+
+      if (!won) continue; // only winning orders appear in "Projected Winners"
+
+      // Each winning share pays exactly $1 (100 cents).
+      const payoutDollars  = shares;                     // dollars
+      const profitDollars  = payoutDollars - amountDollars; // dollars
+
+      // Aggregate per USER (not per user+side / user+outcome).
+      const key = t.user_id;
+      let userProf = profitsMap.get(key);
+      if (!userProf) {
+        userProf = {
+          user_id: t.user_id,
+          user_name: (t.profiles as any)?.name || 'Unknown',
+          user_email: (t.profiles as any)?.email || '',
+          avatar_url: (t.profiles as any)?.avatar_url || null,
+          side: 'WIN',                                   // aggregated; not side-specific
+          invested: 0,                                    // dollars
+          payout: 0,                                      // dollars
+          profit: 0                                        // dollars
+        };
+        profitsMap.set(key, userProf);
+      }
+      userProf.invested += amountDollars;
+      userProf.payout   += payoutDollars;
+      userProf.profit   += profitDollars;
     }
-    
-    return Array.from(profitsMap.values()).filter(p => p.profit > 0);
+
+    return Array.from(profitsMap.values());
   }
   return data as UserProfitPreview[];
 }

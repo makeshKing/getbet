@@ -27,19 +27,33 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
     const [loadingPreview, setLoadingPreview] = useState(true);
     const [isResolving, setIsResolving] = useState(false);
 
+    // Load the market summary preview once. The per-order "Projected Winners"
+    // breakdown depends on the selected winning outcome, so it is re-fetched
+    // whenever selectedOutcome changes (see effect below).
     useEffect(() => {
         if (!marketId) return;
         setLoadingPreview(true);
-        Promise.all([
-            getMarketResolutionPreview(marketId).then(setPreview),
-            getMarketUserProfits(marketId).then(setUserProfits),
-        ])
+        getMarketResolutionPreview(marketId)
+            .then(setPreview)
             .catch(e => {
                 console.error('Failed to load preview stats', e);
                 addToast('Failed to load market statistics', 'error');
             })
             .finally(() => setLoadingPreview(false));
     }, [marketId]);
+
+    // Re-compute projected winners whenever the admin picks a different
+    // winning outcome (or switches to CANCEL, which means "no winners").
+    useEffect(() => {
+        if (!marketId) return;
+        const winner = selectedOutcome && selectedOutcome !== 'CANCEL' ? selectedOutcome : null;
+        getMarketUserProfits(marketId, winner)
+            .then(setUserProfits)
+            .catch(e => {
+                console.error('Failed to load user profits', e);
+                setUserProfits([]);
+            });
+    }, [marketId, selectedOutcome]);
 
     if (!market) {
         return (
@@ -408,48 +422,38 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                             </tr>
                                         </thead>
                                         <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
-                                            {userProfits.filter(p =>
-                                                isMultiOutcome
-                                                    ? true  // show all for multi-outcome (can't easily filter without positions breakdown)
-                                                    : String(p.side).toUpperCase() === String(selectedOutcome).toUpperCase()
-                                            ).length === 0 ? (
+                                            {userProfits.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={3} className="px-4 py-6 text-center text-sm font-bold text-slate-500">
                                                         No profitable users for this outcome.
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                userProfits
-                                                    .filter(p =>
-                                                        isMultiOutcome
-                                                            ? true
-                                                            : String(p.side).toUpperCase() === String(selectedOutcome).toUpperCase()
-                                                    )
-                                                    .map(p => (
-                                                        <tr key={`${p.user_id}-${p.side}`} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-                                                            <td className="px-4 py-3 whitespace-nowrap">
-                                                                <div className="flex items-center">
-                                                                    {p.avatar_url ? (
-                                                                        <img src={p.avatar_url} className="h-8 w-8 rounded-full mr-3 object-cover border border-slate-200 dark:border-slate-700" alt={p.user_name} />
-                                                                    ) : (
-                                                                        <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 text-xs font-black">
-                                                                            {(p.user_name || '?').charAt(0).toUpperCase()}
-                                                                        </div>
-                                                                    )}
-                                                                    <div>
-                                                                        <div className="text-sm font-black text-slate-900 dark:text-white">{p.user_name || 'Unknown User'}</div>
-                                                                        <div className="text-[10px] text-slate-500 font-bold">{p.user_email || ''}</div>
+                                                userProfits.map(p => (
+                                                    <tr key={p.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                                                        <td className="px-4 py-3 whitespace-nowrap">
+                                                            <div className="flex items-center">
+                                                                {p.avatar_url ? (
+                                                                    <img src={p.avatar_url} className="h-8 w-8 rounded-full mr-3 object-cover border border-slate-200 dark:border-slate-700" alt={p.user_name} />
+                                                                ) : (
+                                                                    <div className="h-8 w-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mr-3 text-xs font-black">
+                                                                        {(p.user_name || '?').charAt(0).toUpperCase()}
                                                                     </div>
+                                                                )}
+                                                                <div>
+                                                                    <div className="text-sm font-black text-slate-900 dark:text-white">{p.user_name || 'Unknown User'}</div>
+                                                                    <div className="text-[10px] text-slate-500 font-bold">{p.user_email || ''}</div>
                                                                 </div>
-                                                            </td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-slate-600 dark:text-slate-400">
-                                                                {formatMoney(p.invested || 0)}
-                                                            </td>
-                                                            <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-emerald-500">
-                                                                +{formatMoney(p.profit || 0)}
-                                                            </td>
-                                                        </tr>
-                                                    ))
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-bold text-slate-600 dark:text-slate-400">
+                                                            {formatMoney(Math.round((p.invested || 0) * 100))}
+                                                        </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-black text-emerald-500">
+                                                            +{formatMoney(Math.round((p.profit || 0) * 100))}
+                                                        </td>
+                                                    </tr>
+                                                ))
                                             )}
                                         </tbody>
                                     </table>
