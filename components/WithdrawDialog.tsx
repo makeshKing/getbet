@@ -101,7 +101,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               placeholder="Name on account"
-              className="w-full bg-[#1E2025] border border-[#22252B] rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#00D4AA] placeholder-[#9AA0A6]"
+              className="w-full bg-[#1E2025] border border-[#22252B] rounded-xl px-4 py-3 text-white text-base outline-none focus:border-[#00D4AA] placeholder-[#9AA0A6]"
             />
           </div>
 
@@ -114,7 +114,7 @@ export const WithdrawDialog: React.FC<WithdrawDialogProps> = ({ isOpen, onClose,
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder={method === 'bank' ? '0000000000000 (Nabil Bank)' : '9800000000'}
-              className="w-full bg-[#1E2025] border border-[#22252B] rounded-xl px-4 py-3 text-white text-sm outline-none focus:border-[#00D4AA] placeholder-[#9AA0A6]"
+              className="w-full bg-[#1E2025] border border-[#22252B] rounded-xl px-4 py-3 text-white text-base outline-none focus:border-[#00D4AA] placeholder-[#9AA0A6]"
             />
           </div>
         </div>

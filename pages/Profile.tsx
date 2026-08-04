@@ -98,11 +98,11 @@ export const Profile: React.FC = () => {
               <div className="space-y-3 mt-4 text-left">
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">Name</label>
-                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-2 py-1 text-sm border rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
+                  <input type="text" value={editName} onChange={e => setEditName(e.target.value)} className="w-full px-2 py-1 text-base border rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-500 mb-1">Phone</label>
-                  <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Enter phone number" className="w-full px-2 py-1 text-sm border rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
+                  <input type="tel" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Enter phone number" className="w-full px-2 py-1 text-base border rounded dark:bg-slate-800 dark:border-slate-600 dark:text-white" />
                 </div>
                 <div className="text-sm text-slate-500 dark:text-slate-400 mb-4 truncate">{user.email}</div>
               </div>

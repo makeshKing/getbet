@@ -8,19 +8,20 @@ import { MarketDetail } from './pages/MarketDetail';
 import { Portfolio } from './pages/Portfolio';
 import { Profile } from './pages/Profile';
 import { AdminLayout } from './components/admin/AdminLayout';
-import { AdminDashboard } from './pages/admin/Dashboard';
-import { AdminHome } from './pages/admin/Home';
-import { AdminUsers } from './pages/admin/Users';
-import { AdminMarkets } from './pages/admin/Markets';
-import { AdminMarketCreate } from './pages/admin/MarketCreate';
-import { AdminSettings } from './pages/admin/Settings';
-import { AdminWithdrawalQueue } from './components/AdminWithdrawalQueue';
-import { AdminDepositQueue } from './components/AdminDepositQueue';
-import { AdminDeclaredMarkets } from './pages/admin/DeclaredMarkets';
-import { AdminMarketResolution } from './pages/admin/MarketResolution';
-import { AdminFinancialReports } from './pages/admin/FinancialReports';
-import { AdminCategories } from './pages/admin/Categories';
-import { AdminLogin } from './pages/admin/Login';
+
+const AdminDashboard = React.lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminHome = React.lazy(() => import('./pages/admin/Home').then(m => ({ default: m.AdminHome })));
+const AdminUsers = React.lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })));
+const AdminMarkets = React.lazy(() => import('./pages/admin/Markets').then(m => ({ default: m.AdminMarkets })));
+const AdminMarketCreate = React.lazy(() => import('./pages/admin/MarketCreate').then(m => ({ default: m.AdminMarketCreate })));
+const AdminSettings = React.lazy(() => import('./pages/admin/Settings').then(m => ({ default: m.AdminSettings })));
+const AdminWithdrawalQueue = React.lazy(() => import('./components/AdminWithdrawalQueue').then(m => ({ default: m.AdminWithdrawalQueue })));
+const AdminDepositQueue = React.lazy(() => import('./components/AdminDepositQueue').then(m => ({ default: m.AdminDepositQueue })));
+const AdminDeclaredMarkets = React.lazy(() => import('./pages/admin/DeclaredMarkets').then(m => ({ default: m.AdminDeclaredMarkets })));
+const AdminMarketResolution = React.lazy(() => import('./pages/admin/MarketResolution').then(m => ({ default: m.AdminMarketResolution })));
+const AdminFinancialReports = React.lazy(() => import('./pages/admin/FinancialReports').then(m => ({ default: m.AdminFinancialReports })));
+const AdminCategories = React.lazy(() => import('./pages/admin/Categories').then(m => ({ default: m.AdminCategories })));
+const AdminLogin = React.lazy(() => import('./pages/admin/Login').then(m => ({ default: m.AdminLogin })));
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { useAuth } from './context/AuthContext';
@@ -180,7 +181,6 @@ function App() {
     return null;
   });
   const [adminResolutionMarketId, setAdminResolutionMarketId] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Sync currentView state with URL location
   useEffect(() => {
@@ -229,15 +229,7 @@ function App() {
     // Note: /admin/login is handled separately in RouterWrapper
   }, [location]);
 
-  useEffect(() => {
-    if (localStorage.theme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
+
 
   // Test deposit with screenshot on app load
   useEffect(() => {
@@ -250,17 +242,6 @@ function App() {
     // testDeposit and store mocks removed
   }, []);
 
-  const toggleTheme = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
-      setIsDarkMode(true);
-    }
-  };
 
   const navigate = (page: string) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -331,11 +312,13 @@ function App() {
   const openMarket = (id: string) => {
     setSelectedMarketId(id);
     setCurrentView('market-detail');
+    navigateRouter(`/market/${id}`);
   };
 
   const openAdminResolution = (id: string) => {
     setAdminResolutionMarketId(id);
     setCurrentView('admin-resolve-market');
+    navigateRouter('/admin/resolve-market');
   };
 
   const isAdminView = currentView.startsWith('admin-');
@@ -344,59 +327,65 @@ function App() {
     <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-500">
       <LoadingScreen isLoading={isInitializing} />
       {!['login', 'signup'].includes(currentView) && (
-        <Navbar onNavigate={navigate} activePage={currentView} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+        <Navbar onNavigate={navigate} activePage={currentView} />
       )}
 
       <main key={currentView} className={`animate-fade-in-up pb-20 md:pb-0 ${isAdminView || ['login', 'signup'].includes(currentView) ? '' : 'max-w-7xl mx-auto'}`}>
-        {currentView === 'home' && <MarketList onMarketClick={openMarket} />}
-        {currentView === 'market-detail' && selectedMarketId && <ProtectedRoute requiredRole="USER"><MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} onMarketClick={openMarket} /></ProtectedRoute>}
-        {currentView === 'portfolio' && <ProtectedRoute requiredRole="USER"><Portfolio /></ProtectedRoute>}
-        {currentView === 'profile' && <ProtectedRoute requiredRole="USER"><Profile /></ProtectedRoute>}
-        {currentView === 'login' && <Login />}
-        {currentView === 'signup' && <Signup />}
-        {currentView === 'leaderboard' && (
-          <div className="flex flex-col items-center justify-center pt-20 px-4 text-center">
-            <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 max-w-md transition-all">
-              <h2 className="text-2xl font-bold mb-4">Coming Soon</h2>
-              <p className="text-slate-500 dark:text-slate-400 mb-6">The Leaderboard feature is part of our upcoming roadmap.</p>
-              <button onClick={() => navigate('home')} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition-all hover:translate-x-1">Return Home &rarr;</button>
-            </div>
+        <React.Suspense fallback={
+          <div className="min-h-[60vh] flex flex-col items-center justify-center bg-transparent">
+            <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           </div>
-        )}
+        }>
+          {currentView === 'home' && <MarketList onMarketClick={openMarket} />}
+          {currentView === 'market-detail' && selectedMarketId && <ProtectedRoute requiredRole="USER"><MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} onMarketClick={openMarket} /></ProtectedRoute>}
+          {currentView === 'portfolio' && <ProtectedRoute requiredRole="USER"><Portfolio /></ProtectedRoute>}
+          {currentView === 'profile' && <ProtectedRoute requiredRole="USER"><Profile /></ProtectedRoute>}
+          {currentView === 'login' && <Login />}
+          {currentView === 'signup' && <Signup />}
+          {currentView === 'leaderboard' && (
+            <div className="flex flex-col items-center justify-center pt-20 px-4 text-center">
+              <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 max-w-md transition-all">
+                <h2 className="text-2xl font-bold mb-4">Coming Soon</h2>
+                <p className="text-slate-500 dark:text-slate-400 mb-6">The Leaderboard feature is part of our upcoming roadmap.</p>
+                <button onClick={() => navigate('home')} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition-all hover:translate-x-1">Return Home &rarr;</button>
+              </div>
+            </div>
+          )}
 
-        {currentView.startsWith('admin-') && (
-          <ProtectedRoute requiredRole="ADMIN">
-            <AdminLayout activeView={currentView} onNavigate={navigate}>
-              {currentView === 'admin-home' && <AdminHome onNavigate={navigate} />}
-              {currentView === 'admin-dashboard' && <AdminDashboard onNavigate={navigate} />}
-              {currentView === 'admin-users' && <AdminUsers />}
-              {currentView === 'admin-markets' && <AdminMarkets onNavigate={navigate} />}
-              {currentView === 'admin-market-create' && <AdminMarketCreate onBack={() => navigate('admin-markets')} />}
-              {currentView === 'admin-categories' && <AdminCategories />}
-              {currentView === 'admin-deposits' && (
-                <div className="space-y-4">
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Deposit Requests</h1>
-                  <AdminDepositQueue />
-                </div>
-              )}
-              {currentView === 'admin-withdrawals' && (
-                <div className="space-y-4">
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Withdrawal Requests</h1>
-                  <AdminWithdrawalQueue />
-                </div>
-              )}
-              {currentView === 'admin-settings' && <AdminSettings />}
-              {currentView === 'admin-declared-markets' && <AdminDeclaredMarkets onResolveClick={openAdminResolution} />}
-              {currentView === 'admin-resolve-market' && adminResolutionMarketId && (
-                <AdminMarketResolution
-                  marketId={adminResolutionMarketId}
-                  onBack={() => navigate('admin-declared-markets')}
-                />
-              )}
-              {currentView === 'admin-financials' && <AdminFinancialReports onNavigate={navigate} />}
-            </AdminLayout>
-          </ProtectedRoute>
-        )}
+          {currentView.startsWith('admin-') && (
+            <ProtectedRoute requiredRole="ADMIN">
+              <AdminLayout activeView={currentView} onNavigate={navigate}>
+                {currentView === 'admin-home' && <AdminHome onNavigate={navigate} />}
+                {currentView === 'admin-dashboard' && <AdminDashboard onNavigate={navigate} />}
+                {currentView === 'admin-users' && <AdminUsers />}
+                {currentView === 'admin-markets' && <AdminMarkets onNavigate={navigate} />}
+                {currentView === 'admin-market-create' && <AdminMarketCreate onBack={() => navigate('admin-markets')} />}
+                {currentView === 'admin-categories' && <AdminCategories />}
+                {currentView === 'admin-deposits' && (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Deposit Requests</h1>
+                    <AdminDepositQueue />
+                  </div>
+                )}
+                {currentView === 'admin-withdrawals' && (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Withdrawal Requests</h1>
+                    <AdminWithdrawalQueue />
+                  </div>
+                )}
+                {currentView === 'admin-settings' && <AdminSettings />}
+                {currentView === 'admin-declared-markets' && <AdminDeclaredMarkets onResolveClick={openAdminResolution} />}
+                {currentView === 'admin-resolve-market' && adminResolutionMarketId && (
+                  <AdminMarketResolution
+                    marketId={adminResolutionMarketId}
+                    onBack={() => navigate('admin-declared-markets')}
+                  />
+                )}
+                {currentView === 'admin-financials' && <AdminFinancialReports onNavigate={navigate} />}
+              </AdminLayout>
+            </ProtectedRoute>
+          )}
+        </React.Suspense>
       </main>
 
       {!isAdminView && !['login', 'signup'].includes(currentView) && <MobileBottomNav onNavigate={navigate} activePage={currentView} />}

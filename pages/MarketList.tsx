@@ -174,7 +174,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                                 id="market-search"
                                 type="text"
                                 placeholder="Search markets..."
-                                className="w-full pl-9 pr-4 py-2 bg-[#111827] border border-transparent focus:border-indigo-500/50 rounded-xl text-sm focus:outline-none text-white placeholder-slate-500 font-bold transition-all"
+                                className="w-full pl-9 pr-4 py-2 bg-[#111827] border border-transparent focus:border-indigo-500/50 rounded-xl text-base focus:outline-none text-white placeholder-slate-500 font-bold transition-all"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                             />
@@ -238,7 +238,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                                 <button
                                     key={cat.id}
                                     onClick={() => setCategoryFilter(cat.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border shrink-0 ${
+                                    className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider whitespace-nowrap transition-colors duration-150 border shrink-0 ${
                                         active
                                             ? 'bg-[#00D4AA] text-[#0A0C10] border-[#00D4AA]'
                                             : 'bg-transparent text-[#9CA3AF] border-[#1F2937] hover:text-[#F9FAFB]'

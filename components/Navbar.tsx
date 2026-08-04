@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, LayoutDashboard, ShieldCheck, UserCircle, LogOut, Sun, Moon, ChevronDown, Banknote, Menu, X } from 'lucide-react';
+import { User, LayoutDashboard, ShieldCheck, UserCircle, LogOut, ChevronDown, Banknote, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { Role } from '../types';
@@ -8,11 +8,9 @@ import { Role } from '../types';
 interface NavbarProps {
   onNavigate: (page: string) => void;
   activePage: string;
-  isDarkMode: boolean;
-  toggleTheme: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMode, toggleTheme }) => {
+export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
   const { userProfile: user, signOut } = useAuth();
   const { currency, setCurrency, formatMoney } = useCurrency();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -85,13 +83,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage, isDarkMo
               {currency}
             </button>
 
-            <button
-              onClick={toggleTheme}
-              className="p-2.5 text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"
-              title="Toggle Theme"
-            >
-              {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-            </button>
 
             {user ? (
               <>

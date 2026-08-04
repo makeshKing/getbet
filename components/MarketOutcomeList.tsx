@@ -481,6 +481,7 @@ interface PriceGraphProps {
 }
 
 const PriceGraph: React.FC<PriceGraphProps> = ({ outcome, market }) => {
+  const isMobile = useIsMobile();
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('ALL');
   const TIME_FILTERS: TimeFilter[] = ['1D', '1W', '1M', 'ALL'];
   const [liveHistory, setLiveHistory] = useState<{ date: string; price: number }[] | null>(null);
@@ -613,7 +614,7 @@ const PriceGraph: React.FC<PriceGraphProps> = ({ outcome, market }) => {
               style={{
                 fontSize: 11,
                 fontWeight: 700,
-                padding: '2px 8px',
+                padding: isMobile ? '6px 10px' : '2px 8px',
                 borderRadius: 4,
                 border: 'none',
                 cursor: 'pointer',
@@ -899,7 +900,7 @@ const OutcomeRow: React.FC<OutcomeRowProps> = ({
   // screen the fixed-width column + two buttons must shrink or the name overlaps.
   const probWidth = isMobile ? 64 : 110;
   const btnMinWidth = isMobile ? 62 : 82;
-  const btnPadding = isMobile ? '5px 9px' : '6px 14px';
+  const btnPadding = isMobile ? '8px 12px' : '6px 14px';
   const btnFontSize = isMobile ? 11 : 12;
   const btnGap = isMobile ? 6 : 8;
   const probFont = isMobile ? 17 : 20;

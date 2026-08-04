@@ -30,30 +30,9 @@ function App() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [selectedMarketId, setSelectedMarketId] = useState<string | null>(null);
   const [adminResolutionMarketId, setAdminResolutionMarketId] = useState<string | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
 
-  useEffect(() => {
-    // Check local storage
-    if (localStorage.theme === 'dark') {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    } else {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    }
-  }, []);
 
-  const toggleTheme = () => {
-    if (isDarkMode) {
-      document.documentElement.classList.remove('dark');
-      localStorage.theme = 'light';
-      setIsDarkMode(false);
-    } else {
-      document.documentElement.classList.add('dark');
-      localStorage.theme = 'dark';
-      setIsDarkMode(true);
-    }
-  };
+
 
   const navigate = (page: string) => {
     // Basic Routing Map
@@ -81,7 +60,7 @@ function App() {
     <ErrorBoundary>
       <ToastProvider>
         <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-200">
-          <Navbar onNavigate={navigate} activePage={currentView} isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+          <Navbar onNavigate={navigate} activePage={currentView} />
           
           <main>
             {currentView === 'home' && <MarketList onMarketClick={openMarket} />}

@@ -459,6 +459,87 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
       return () => { isMounted = false; };
    }, [marketId, activeTimeFilter, market]);
 
+   // These hooks MUST be above all early returns to satisfy React's rules of hooks.
+   // They already guard internally (checking market / localOutcomes), so they're
+   // safe to call when market is null.
+   useEffect(() => {
+      if (market) {
+         document.title = market.title.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) + " | Oddara";
+      }
+   }, [market?.title]);
+
+   useEffect(() => {
+      if (!activeOutcomeId && localOutcomes.length > 0) {
+         setActiveOutcomeId(localOutcomes[0].id);
+      }
+   }, [localOutcomes, activeOutcomeId]);
+
+   const displayData = sampleData(chartHistory, 150);
+
+   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+      if (!chartContainerRef.current || displayData.length === 0) return;
+
+      const rect = chartContainerRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const chartWidth = rect.width - 48; // subtract right margin
+
+      // Map x to index
+      const index = Math.round((x / chartWidth) * (displayData.length - 1));
+      const clampedIndex = Math.max(0, Math.min(index, displayData.length - 1));
+      const point = displayData[clampedIndex];
+
+      if (!point) return;
+
+      // Update legend values directly
+      localOutcomes.forEach((o: any) => {
+         const el = document.getElementById(`legend-val-${o.id}`);
+         if (el && point[o.id] !== undefined) {
+            el.textContent = `${Number(point[o.id]).toFixed(1)}%`;
+         }
+      });
+
+      // Update binary single outcome legend if present
+      if (localOutcomes.length === 1) {
+         const mainEl = document.getElementById(`legend-val-main`);
+         if (mainEl && point[localOutcomes[0].id] !== undefined) {
+            mainEl.textContent = `${Number(point[localOutcomes[0].id]).toFixed(0)}% chance`;
+         }
+      }
+
+      // Update custom cursor
+      const cursorEl = document.getElementById('chart-cursor');
+      if (cursorEl) {
+         const pct = (clampedIndex / (displayData.length - 1)) * 100;
+         // Adjust pct slightly to account for the margin
+         const adjustedPct = (x / rect.width) * 100;
+         cursorEl.style.left = `${Math.min(100, Math.max(0, adjustedPct))}%`;
+         cursorEl.style.display = 'block';
+
+         // Update timestamp label on cursor
+         const timeEl = document.getElementById('chart-cursor-time');
+         if (timeEl) {
+            const date = new Date(point.timestamp);
+            timeEl.textContent = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase() + ', ' + date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }).toUpperCase();
+         }
+      }
+   }, [displayData, localOutcomes]);
+
+   const handleMouseLeave = useCallback(() => {
+      // Reset legend to original
+      localOutcomes.forEach((o: any) => {
+         const el = document.getElementById(`legend-val-${o.id}`);
+         if (el) el.textContent = `${Number(o.probability).toFixed(1)}%`;
+      });
+
+      if (localOutcomes.length === 1) {
+         const mainEl = document.getElementById(`legend-val-main`);
+         if (mainEl) mainEl.textContent = `${Number(localOutcomes[0].probability).toFixed(0)}% chance`;
+      }
+
+      const cursorEl = document.getElementById('chart-cursor');
+      if (cursorEl) cursorEl.style.display = 'none';
+   }, [localOutcomes]);
+
    if (!market) {
       return (
          <div className="min-h-screen flex flex-col items-center justify-center p-8 text-center bg-[#000]">
@@ -492,18 +573,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
          </div>
       );
    }
-
-   useEffect(() => {
-      if (market) {
-         document.title = market.title.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase()) + " | Oddara";
-      }
-   }, [market?.title]);
-
-   useEffect(() => {
-      if (!activeOutcomeId && localOutcomes.length > 0) {
-         setActiveOutcomeId(localOutcomes[0].id);
-      }
-   }, [localOutcomes, activeOutcomeId]);
 
    const getProbability = () => {
       if (activeOutcomeId && localOutcomes.length > 0) {
@@ -597,72 +666,6 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
          tradePanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
    };
-
-   const displayData = sampleData(chartHistory, 150);
-
-   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-      if (!chartContainerRef.current || displayData.length === 0) return;
-      
-      const rect = chartContainerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const chartWidth = rect.width - 48; // subtract right margin
-      
-      // Map x to index
-      const index = Math.round((x / chartWidth) * (displayData.length - 1));
-      const clampedIndex = Math.max(0, Math.min(index, displayData.length - 1));
-      const point = displayData[clampedIndex];
-      
-      if (!point) return;
-
-      // Update legend values directly
-      localOutcomes.forEach((o: any) => {
-         const el = document.getElementById(`legend-val-${o.id}`);
-         if (el && point[o.id] !== undefined) {
-            el.textContent = `${Number(point[o.id]).toFixed(1)}%`;
-         }
-      });
-
-      // Update binary single outcome legend if present
-      if (localOutcomes.length === 1) {
-         const mainEl = document.getElementById(`legend-val-main`);
-         if (mainEl && point[localOutcomes[0].id] !== undefined) {
-            mainEl.textContent = `${Number(point[localOutcomes[0].id]).toFixed(0)}% chance`;
-         }
-      }
-
-      // Update custom cursor
-      const cursorEl = document.getElementById('chart-cursor');
-      if (cursorEl) {
-         const pct = (clampedIndex / (displayData.length - 1)) * 100;
-         // Adjust pct slightly to account for the margin
-         const adjustedPct = (x / rect.width) * 100;
-         cursorEl.style.left = `${Math.min(100, Math.max(0, adjustedPct))}%`;
-         cursorEl.style.display = 'block';
-         
-         // Update timestamp label on cursor
-         const timeEl = document.getElementById('chart-cursor-time');
-         if (timeEl) {
-            const date = new Date(point.timestamp);
-            timeEl.textContent = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' }).toUpperCase() + ', ' + date.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }).toUpperCase();
-         }
-      }
-   }, [displayData, localOutcomes]);
-
-   const handleMouseLeave = useCallback(() => {
-      // Reset legend to original
-      localOutcomes.forEach((o: any) => {
-         const el = document.getElementById(`legend-val-${o.id}`);
-         if (el) el.textContent = `${Number(o.probability).toFixed(1)}%`;
-      });
-      
-      if (localOutcomes.length === 1) {
-         const mainEl = document.getElementById(`legend-val-main`);
-         if (mainEl) mainEl.textContent = `${Number(localOutcomes[0].probability).toFixed(0)}% chance`;
-      }
-
-      const cursorEl = document.getElementById('chart-cursor');
-      if (cursorEl) cursorEl.style.display = 'none';
-   }, [localOutcomes]);
 
    return (
       <div className="min-h-screen bg-[#080808] lg:pb-24 text-white flex flex-col font-sans selection:bg-[#00D964]/30 relative">

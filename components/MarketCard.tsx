@@ -109,6 +109,7 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
                     <img
                         src={market.imageUrl}
                         alt={market.category}
+                        loading="lazy"
                         className="w-4 h-4 rounded object-cover"
                     />
                 ) : null}

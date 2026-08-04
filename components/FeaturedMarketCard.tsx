@@ -91,6 +91,16 @@ function CarouselOutcomeChart({
             setHoverIdx(null);
             setHoverPoint(null);
           }}
+          onTouchMove={(e: any) => {
+            if (e?.activeTooltipIndex !== undefined) {
+              setHoverIdx(e.activeTooltipIndex);
+              setHoverPoint(chartData[e.activeTooltipIndex] ?? null);
+            }
+          }}
+          onTouchEnd={() => {
+            setHoverIdx(null);
+            setHoverPoint(null);
+          }}
         >
           <CartesianGrid horizontal vertical={false} stroke="#2A2D35" strokeDasharray="3 3" opacity={0.4} />
           <YAxis
@@ -283,7 +293,7 @@ export const FeaturedMarketCard: React.FC<FeaturedMarketCardProps> = ({
                 <div key={outcome.id} className="grid grid-cols-[1fr_auto_auto] gap-2 md:gap-4 items-center px-1 md:px-2">
                   <div className="flex items-center gap-2 md:gap-3">
                     {outcome.imageUrl && (
-                      <img src={outcome.imageUrl} alt={outcome.name} className="w-4 h-4 md:w-5 md:h-5 rounded-sm object-cover" />
+                      <img src={outcome.imageUrl} alt={outcome.name} loading="lazy" className="w-4 h-4 md:w-5 md:h-5 rounded-sm object-cover" />
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="text-xs md:text-sm font-bold text-white mb-0.5 md:mb-1 truncate">{outcome.name}</div>
