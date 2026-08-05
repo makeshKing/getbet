@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency, CurrencyType } from '../context/CurrencyContext';
-import { Side } from '../types';
+import { Side, Market } from '../types';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
@@ -21,6 +21,56 @@ interface MarketDetailProps {
 }
 
 const TIME_FILTERS = ['6H', '1D', '1W', '1M', 'ALL'];
+
+function MarketRulesContent({ market }: { market: Market }) {
+  const resolutionDateFormatted = market.closeDate
+    ? format(new Date(market.closeDate), 'MMMM d, yyyy')
+    : 'the specified resolution date';
+
+  return (
+    <div className="text-[#9AA0A6] text-sm leading-relaxed space-y-3">
+      <p>
+        This market resolves based on whether the outcome described
+        in the question — <span className="text-white font-medium">
+        "{market.title}"</span> — occurs on or before{' '}
+        <span className="text-white font-medium">{resolutionDateFormatted}</span>.
+      </p>
+
+      <p>
+        <span className="text-white font-medium">Resolution Source:</span>{' '}
+        Outcomes are determined using publicly available, verifiable
+        data from reputable sources relevant to this market's category.
+        This may include official results, government data, major news
+        outlets, exchange data, or league/tournament records, depending
+        on the subject of the market.
+      </p>
+
+      <p>
+        <span className="text-white font-medium">Settlement:</span>{' '}
+        Once a market resolves, winning positions are settled
+        automatically and the payout is credited to your balance.
+        Positions cannot be sold or exited early — once purchased, a
+        position is held until the market resolves.
+      </p>
+
+      <p>
+        <span className="text-white font-medium">Ambiguity:</span>{' '}
+        In the rare case where the outcome is unclear, delayed, or
+        disputed, Oddara will review the best available evidence and
+        determine the resolution in good faith, prioritizing the most
+        authoritative and verifiable source available at the time.
+      </p>
+
+      <p>
+        <span className="text-white font-medium">Market Changes:</span>{' '}
+        Oddara reserves the right to correct clear errors in a
+        market's question or resolution criteria, or to void and
+        refund a market entirely if it becomes fundamentally
+        unresolvable due to unforeseen circumstances.
+      </p>
+    </div>
+  );
+}
 
 function sampleData(data: any[], maxPoints = 150) {
   if (data.length <= maxPoints) return data;
@@ -240,6 +290,31 @@ const MarketChart = React.memo(function MarketChart({
   );
 });
 
+async function fetchRelatedMarkets(currentMarketId: string, categoryId: string) {
+  // Try same category first
+  const { data: sameCategory } = await supabase
+    .from('markets')
+    .select('id, title, icon_url, category_id, categories(name, icon)')
+    .eq('category_id', categoryId)
+    .eq('status', 'active')
+    .neq('id', currentMarketId)
+    .limit(3);
+
+  if (sameCategory && sameCategory.length >= 3) {
+    return sameCategory;
+  }
+
+  // Fallback: fill remaining slots with any other active markets
+  const { data: fallback } = await supabase
+    .from('markets')
+    .select('id, title, icon_url, category_id, categories(name, icon)')
+    .eq('status', 'active')
+    .neq('id', currentMarketId)
+    .limit(3);
+
+  return fallback ?? [];
+}
+
 export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, onMarketClick }) => {
    const { addToast } = useToast();
    const { markets, buy } = useApp();
@@ -361,30 +436,10 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
 
    // Fetch related markets for "People are also trading"
    useEffect(() => {
-      if (!market) return;
-      let isMounted = true;
-      async function fetchRelated() {
-         const { data } = await supabase
-            .from('markets')
-            .select('id, title, category, icon_url')
-            .neq('id', market.id)
-            .eq('category', market.category)
-            .limit(3);
-
-         if (!data || data.length < 3) {
-            const { data: fallback } = await supabase
-               .from('markets')
-               .select('id, title, category, icon_url')
-               .neq('id', market.id)
-               .limit(3);
-            if (isMounted) setRelatedMarkets(fallback ?? []);
-         } else {
-            if (isMounted) setRelatedMarkets(data);
-         }
+      if (market?.id && market?.category_id) {
+         fetchRelatedMarkets(market.id, market.category_id).then(setRelatedMarkets);
       }
-      fetchRelated();
-      return () => { isMounted = false; };
-   }, [market?.id, market?.category]);
+   }, [market?.id, market?.category_id]);
 
    useEffect(() => {
       if (!marketId || !market) return;
@@ -793,25 +848,13 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                   {isRulesOpen && (
                      <div className="pt-4 space-y-4">
                         <div className="flex justify-between items-center">
-                           <button className="flex items-center gap-1.5 text-[#00D964] text-[13px] font-bold">
-                              Spain <ChevronDown size={14} />
-                           </button>
+                           <span className="text-[#9AA0A6] text-sm">
+                              {market.category || 'Market'}
+                              {market.subcategory ? ` · ${market.subcategory}` : ''}
+                           </span>
                            <Info size={16} className="text-gray-400" />
                         </div>
-                        <p className="text-[13px] text-gray-300 leading-relaxed">
-                           If Spain wins the 2026 Men's World Cup, then the market resolves to <span className="text-[#00D964]">Yes</span>.
-                           Sources from <strong>Fox Sports, ESPN</strong>, and <strong>The Wall Street Journal</strong>.
-                        </p>
-                        <p className="text-[13px] text-gray-300 leading-relaxed">
-                           This market and these products have not been endorsed by FIFA. Any references to "FIFA", the "FIFA World Cup", or any other associated marks are descriptive only, and do not indicate an endorsement of this product or any affiliation between FIFA and Kalshi.
-                        </p>
-                        <p className="text-[13px] text-gray-400 italic">
-                           Note: this event is mutually exclusive.
-                        </p>
-                        <div className="flex gap-4 pt-4 border-t border-[#1E2440]">
-                           <button className="px-4 py-2 border border-[#333] rounded-lg text-[13px] font-bold text-gray-300">View full rules</button>
-                           <button className="px-4 py-2 border border-[#333] rounded-lg text-[13px] font-bold text-gray-300">Help center</button>
-                        </div>
+                        <MarketRulesContent market={market} />
                      </div>
                   )}
 
@@ -893,12 +936,12 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
 
                {/* People Are Also Trading Section */}
                {relatedMarkets.length > 0 && (
-                  <div className="px-4 lg:px-0 mt-8 mb-8">
+                  <div className="mt-8 mb-6 px-4 md:px-0">
                      <h3 className="text-white text-lg font-bold mb-4">
                         People are also trading
                      </h3>
 
-                     <div className="space-y-0">
+                     <div className="bg-[#15171C] rounded-xl border border-[#22252B] overflow-hidden">
                         {relatedMarkets.map((related: any, index: number) => (
                            <div key={related.id}>
                               <button
@@ -908,29 +951,36 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                                     }
                                     window.scrollTo({ top: 0, behavior: 'smooth' });
                                  }}
-                                 className="w-full flex items-center gap-3 py-4 hover:bg-[#15171C] rounded-lg px-2 -mx-2 transition-colors text-left bg-transparent border-none cursor-pointer"
+                                 className="w-full flex items-center gap-3 py-4 px-4 hover:bg-[#1E2025] transition-colors text-left bg-transparent border-none cursor-pointer"
                               >
                                  {related.icon_url ? (
                                     <img
                                        src={related.icon_url}
-                                       alt={related.title}
+                                       alt=""
                                        className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                                     />
                                  ) : (
-                                    <div className="w-10 h-10 rounded-lg bg-[#22252B] flex items-center justify-center flex-shrink-0">
-                                       <span className="text-[#9AA0A6] text-sm font-bold">
-                                          {related.title.charAt(0).toUpperCase()}
-                                       </span>
+                                    <div className="w-10 h-10 rounded-lg bg-[#1E2025] border border-[#22252B] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+                                       {related.title.charAt(0).toUpperCase()}
                                     </div>
                                  )}
 
-                                 <span className="text-white text-sm font-medium leading-snug flex-1 line-clamp-2 text-left">
-                                    {related.title}
-                                 </span>
+                                 <div className="flex-1 min-w-0">
+                                    <p className="text-white text-sm font-medium leading-snug line-clamp-2 m-0 text-left">
+                                       {related.title}
+                                    </p>
+                                    {related.categories?.name && (
+                                       <p className="text-[#9AA0A6] text-xs mt-0.5 m-0 text-left">
+                                          {related.categories.name}
+                                       </p>
+                                    )}
+                                 </div>
+
+                                 <span className="text-[#9AA0A6] flex-shrink-0">›</span>
                               </button>
 
                               {index < relatedMarkets.length - 1 && (
-                                 <div className="h-px bg-[#22252B] mx-0" />
+                                 <div className="h-px bg-[#22252B]" />
                               )}
                            </div>
                         ))}

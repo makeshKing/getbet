@@ -106,6 +106,7 @@ export interface Market {
   title: string;
   description: string;
   category: string;
+  category_id?: string;
   subcategory?: string;
   slug?: string;
   closeDate: string;
