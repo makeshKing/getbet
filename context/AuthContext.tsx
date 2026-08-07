@@ -3,8 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { getProfile } from '../services/supabaseService';
 import { User, Role } from '../types';
 
-// Hardcoded admin — always treated as ADMIN regardless of DB role
-const HARDCODED_ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL as string;
+// Hardcoded admin logic removed for security
 
 interface AuthContextType {
   session: any | null;
@@ -90,12 +89,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setLoading(false);
   };
 
-  // Admin if DB role is ADMIN  OR  if they logged in with the hardcoded admin email
-  const sessionEmail: string = session?.user?.email ?? '';
-  const isAdmin =
-    userProfile?.role === Role.ADMIN ||
-    (HARDCODED_ADMIN_EMAIL &&
-      sessionEmail.toLowerCase() === HARDCODED_ADMIN_EMAIL.toLowerCase());
+  const isAdmin = userProfile?.role === Role.ADMIN;
 
   const updateProfile = async (updates: { name?: string, phone?: string, avatarUrl?: string }) => {
     if (!session?.user?.id) throw new Error('Not authenticated');

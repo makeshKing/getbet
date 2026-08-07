@@ -58,10 +58,7 @@ export const Portfolio: React.FC = () => {
             return;
         }
 
-        setSelectedWin({
-            ...trade,
-            potentialWin: trade.payout ?? trade.paid_out ?? 0
-        });
+        setSelectedWin(trade);
         setShowWinCard(true);
     }
 

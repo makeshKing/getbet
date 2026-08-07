@@ -38,8 +38,50 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
                     id: m.id,
                     title: m.title,
                     context: yesOutcome.name === 'Yes' ? 'Yes' : yesOutcome.name,
-                    probability: yesOutcome.probability.toFixed(0),
-                    change: Math.floor(Math.random() * 10) - 4 // Mock change for UI
+                    probability: yesOutcome.probability.toFixed(0)
+                };
+            });
+    }, [markets]);
+
+    const categoryStats = React.useMemo(() => {
+        const stats: Record<string, number> = {};
+        markets.forEach(m => {
+            if (!m.category) return;
+            stats[m.category] = (stats[m.category] || 0) + (m.volume || 0);
+        });
+        
+        const formatVol = (cents: number) => {
+            const dollars = cents / 100;
+            if (dollars >= 1_000_000_000) return '$' + (dollars / 1_000_000_000).toFixed(1) + 'B';
+            if (dollars >= 1_000_000) return '$' + (dollars / 1_000_000).toFixed(1) + 'M';
+            if (dollars >= 1_000) return '$' + (dollars / 1_000).toFixed(1) + 'K';
+            return '$' + dollars.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        };
+
+        return [
+            { name: 'World Cup', icon: '🏆', color: '#4B8BFF' },
+            { name: 'Elections', icon: '🏛', color: '#9B59B6' },
+            { name: 'Crypto', icon: '₿', color: '#FFA500' },
+            { name: 'Finance', icon: '📈', color: '#00D4AA' },
+        ].map(cat => ({
+            ...cat,
+            volume: stats[cat.name] || 0,
+            volumeFormatted: formatVol(stats[cat.name] || 0)
+        })).filter(cat => cat.volume > 0);
+    }, [markets]);
+
+    const electionsMarkets = React.useMemo(() => {
+        return [...markets]
+            .filter(m => !m.outcome && m.category === 'Elections')
+            .sort((a, b) => (b.volume || 0) - (a.volume || 0))
+            .slice(0, 3)
+            .map(m => {
+                const yesOutcome = m.outcomes?.find(o => o.name === 'Yes') || m.outcomes?.[0] || { name: 'Yes', probability: m.probability };
+                return {
+                    id: m.id,
+                    title: m.title,
+                    context: yesOutcome.name === 'Yes' ? 'Yes' : yesOutcome.name,
+                    probability: yesOutcome.probability.toFixed(0)
                 };
             });
     }, [markets]);
@@ -61,12 +103,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
             )}
 
             {/* Category links with colored borders + volume */}
-            {[
-            { name: 'World Cup', icon: '🏆', color: '#4B8BFF', volume: '$4,442,778,230' },
-            { name: 'Elections', icon: '🏛', color: '#9B59B6', volume: '$357,210,081' },
-            { name: 'Crypto', icon: '₿', color: '#FFA500', volume: '$2,140,500,000' },
-            { name: 'Finance', icon: '📈', color: '#00D4AA', volume: '$890,200,000' },
-            ].map(cat => (
+            {categoryStats.map(cat => (
             <div key={cat.name}
                 className="bg-[#15171C] border border-[#22252B] rounded-xl px-4 py-3 mb-2
                 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors"
@@ -75,60 +112,53 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
                 <span className="text-xl">{cat.icon}</span>
                 <div className="flex-1">
                 <p className="text-white text-sm font-bold">{cat.name}</p>
-                <p className="text-[#9AA0A6] text-xs">{cat.volume} total volume</p>
+                <p className="text-[#9AA0A6] text-xs">{cat.volumeFormatted} total volume</p>
                 </div>
                 <span className="text-[#9AA0A6] font-bold text-lg">›</span>
             </div>
             ))}
 
-            {/* Trending with subtext */}
             <div className="mt-4 mb-2">
-            <h3 className="text-white text-base font-bold mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
-                Trending <span className="text-[#00D4AA] text-lg font-bold">›</span>
-            </h3>
-            {trending.map((t, i) => (
-                <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>
-                <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
-                <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
-                    <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                    <p className="text-white text-sm font-bold">{t.probability}%</p>
-                    <p className={`text-[10px] font-bold mt-1 ${t.change >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
-                    {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change)}
-                    </p>
-                </div>
-                </div>
-            ))}
+            {/* Trending with subtext */}
+            {trending.length > 0 && (
+                <>
+                <h3 className="text-white text-base font-bold mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
+                    Trending <span className="text-[#00D4AA] text-lg font-bold">›</span>
+                </h3>
+                {trending.map((t, i) => (
+                    <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>
+                    <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
+                        <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                        <p className="text-white text-sm font-bold">{t.probability}%</p>
+                    </div>
+                    </div>
+                ))}
+                </>
+            )}
             
-            <h3 className="text-white text-base font-bold mt-6 mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
-                2026 Primaries <span className="text-[#00D4AA] text-lg font-bold">›</span>
-            </h3>
-            {/* Mocked Primaries Data to match screenshot */}
-            {[
-                { title: 'Florida Republican Governor nominee?', context: 'Byron Donalds', prob: '94%', change: 0 },
-                { title: 'Colorado Democratic Governor nominee?', context: 'Phil Weiser', prob: '76%', change: 6 },
-                { title: 'CO-01 Democratic nominee?', context: 'Melat Kiros', prob: '76%', change: 1 }
-            ].map((t, i) => (
-                <div key={i} className="flex items-start gap-3 mb-4 cursor-pointer group">
-                <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
-                <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
-                    <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                    <p className="text-white text-sm font-bold">{t.prob}</p>
-                    {t.change !== 0 ? (
-                        <p className={`text-[10px] font-bold mt-1 ${t.change >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
-                        {t.change >= 0 ? '▲' : '▼'} {Math.abs(t.change)}
-                        </p>
-                    ) : (
-                        <p className="text-[10px] font-bold mt-1 text-[#9AA0A6]">--</p>
-                    )}
-                </div>
-                </div>
-            ))}
+            {electionsMarkets.length > 0 && (
+                <>
+                <h3 className="text-white text-base font-bold mt-6 mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
+                    Politics <span className="text-[#00D4AA] text-lg font-bold">›</span>
+                </h3>
+                {electionsMarkets.map((t, i) => (
+                    <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>
+                    <span className="text-[#9AA0A6] text-sm font-bold w-4 flex-shrink-0 pt-0.5">{i+1}</span>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm leading-snug font-medium group-hover:underline">{t.title}</p>
+                        <p className="text-[#9AA0A6] text-xs mt-1 truncate">{t.context}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                        <p className="text-white text-sm font-bold">{t.probability}%</p>
+                    </div>
+                    </div>
+                ))}
+                </>
+            )}
             </div>
         </div>
     );

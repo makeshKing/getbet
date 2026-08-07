@@ -105,22 +105,10 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                 outcomes.push({ name: 'No', payoutMultiplier: (100 - m.probability) > 0 ? 100/(100-m.probability) : 0, probability: 100 - m.probability, color: '#FF4444' });
             }
 
-            // Real date labels spanning ~Jun 18 → Jun 25
-            const chartData = [];
-            const baseDate = new Date(2026, 5, 18, 0, 0, 0, 0);
-            for (let i = 0; i <= 30; i++) {
-                const point: any = { date: format(new Date(baseDate.getTime() + i * 6 * 3600 * 1000), 'MMM d') };
-                const progress = i / 30;
-                outcomes.forEach(o => {
-                    const target = o.probability;
-                    const noise = (Math.random() - 0.5) * 20 * (1 - progress);
-                    const startPoint = Math.max(0, Math.min(100, target + (Math.random() - 0.5) * 40));
-                    let val = startPoint + (target - startPoint) * progress + noise;
-                    if (i === 30) val = target;
-                    point[o.name] = Math.max(0, Math.min(100, val));
-                });
-                chartData.push(point);
-            }
+            // We only show real price history if available. 
+            // Currently, no real historical chart data is available on the market model,
+            // so we set it to empty. Slides without chart data will be filtered out.
+            const chartData: any[] = [];
 
             const catIcon = resolveIcon(CATEGORIES.find(c => c.id === m.category)?.icon as any);
             const IconComponent = catIcon as any;
@@ -135,7 +123,7 @@ export const MarketList: React.FC<MarketListProps> = ({ onMarketClick }) => {
                 volume: m.volume || 0,
                 marketCount: m.outcomes ? m.outcomes.length : 2
             };
-        });
+        }).filter(slide => slide.chartData && slide.chartData.length > 0);
     }, [featuredMarkets, CATEGORIES]);
 
     const currentSort = SORT_OPTIONS.find(o => o.id === sortBy);
