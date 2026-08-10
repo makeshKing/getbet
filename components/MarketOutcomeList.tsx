@@ -54,18 +54,7 @@ function sampleData(data: any[], maxPoints = 150) {
   return data.filter((_, i) => i % step === 0);
 }
 
-// ─── Seeded Order-Book Generator ──────────────────────────────────────────────
-
-/** Deterministic pseudo-random: same seed+index → same number every time */
-function seededRandom(seed: string, index: number): number {
-  let hash = 0;
-  const str = seed + ':' + index;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-    hash |= 0; // force 32-bit
-  }
-  return Math.abs(Math.sin(hash * 9301 + 49297)) % 1;
-}
+import { createSeededRandom, generateSimulatedPath } from '../lib/chartUtils';
 
 /**
  * Generate a realistic order-book centred on `currentPriceCents`.
@@ -75,27 +64,28 @@ function generateOrderBook(
   currentPriceCents: number,
   seedId: string,
 ): { asks: OrderBookRow[]; bids: OrderBookRow[] } {
+  const prng = createSeededRandom(seedId);
   const asks: OrderBookRow[] = [];
   const bids: OrderBookRow[] = [];
 
   // ── Asks: 6-7 levels ABOVE current price ──
-  const askCount = 6 + Math.floor(seededRandom(seedId, 999) * 2); // 6 or 7
+  const askCount = 6 + Math.floor(prng() * 2); // 6 or 7
   let askPrice = currentPriceCents;
   for (let i = 0; i < askCount; i++) {
-    const step = 0.3 + seededRandom(seedId, i) * 1.2; // 0.3–1.5¢ increments
+    const step = 0.3 + prng() * 1.2; // 0.3–1.5¢ increments
     askPrice = Math.min(99.9, askPrice + step);
-    const contracts = Math.round((20 + seededRandom(seedId, i + 100) * 1200) * 100) / 100;
+    const contracts = Math.round((20 + prng() * 1200) * 100) / 100;
     const total = Math.round(contracts * (askPrice / 100) * 100) / 100;
     asks.push({ price: Math.round(askPrice * 10) / 10, contracts, total });
   }
 
   // ── Bids: 3-5 levels BELOW current price ──
-  const bidCount = 3 + Math.floor(seededRandom(seedId, 200) * 3); // 3-5
+  const bidCount = 3 + Math.floor(prng() * 3); // 3-5
   let bidPrice = currentPriceCents;
   for (let i = 0; i < bidCount; i++) {
-    const step = 0.3 + seededRandom(seedId, i + 300) * 1.5; // 0.3–1.8¢ decrements
+    const step = 0.3 + prng() * 1.5; // 0.3–1.8¢ decrements
     bidPrice = Math.max(0.1, bidPrice - step);
-    const contracts = Math.round((30 + seededRandom(seedId, i + 400) * 900) * 100) / 100;
+    const contracts = Math.round((30 + prng() * 900) * 100) / 100;
     const total = Math.round(contracts * (bidPrice / 100) * 100) / 100;
     bids.push({ price: Math.round(bidPrice * 10) / 10, contracts, total });
   }
@@ -106,21 +96,20 @@ function generateOrderBook(
   return { asks, bids };
 }
 
-/** Generate realistic price history for an outcome */
-function generatePriceHistory(basePrice: number, days: number): { date: string; price: number }[] {
-  const result: { date: string; price: number }[] = [];
+/** Generate deterministic realistic price history for an outcome */
+function getFormattedPriceHistory(basePrice: number, marketId: string, outcomeId: string): { date: string; price: number }[] {
+  const days = 27;
+  // Use the shared simulator generating 28 points (including current point)
+  const path = generateSimulatedPath(`${marketId}-${outcomeId}-1M`, basePrice, days + 1);
   const start = new Date('2026-05-28');
-  let price = basePrice - 6;
-  for (let i = 0; i <= days; i++) {
+  
+  return path.map((price, i) => {
     const d = new Date(start.getTime() + i * 86_400_000);
-    const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const seed = i * 13.7 + basePrice;
-    const delta = (Math.sin(seed) * 0.7 + (Math.random() - 0.46) * 1.0);
-    price = Math.max(basePrice - 8, Math.min(basePrice + 2, price + delta));
-    result.push({ date: label, price: parseFloat(price.toFixed(2)) });
-  }
-  result[result.length - 1].price = basePrice;
-  return result;
+    return {
+      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      price
+    };
+  });
 }
 
 // ─── Order Book Table ─────────────────────────────────────────────────────────
@@ -1059,7 +1048,7 @@ export const MarketOutcomeList: React.FC<MarketOutcomeListProps> = ({ market, on
           // regenerates per-side anyway via the live-fetch path.
           asks: yesBook.asks,
           bids: yesBook.bids,
-          priceHistory: generatePriceHistory(prob, 27),
+          priceHistory: getFormattedPriceHistory(prob, market.id, o.id),
         };
       });
     }
@@ -1076,7 +1065,7 @@ export const MarketOutcomeList: React.FC<MarketOutcomeListProps> = ({ market, on
         noPrice: 100 - bp,
         asks: binaryYes.asks,
         bids: binaryYes.bids,
-        priceHistory: generatePriceHistory(bp, 27),
+        priceHistory: getFormattedPriceHistory(bp, market.id, 'binary-main'),
       },
     ];
   }, [market.outcomes, market.probability, market.title, market.id]);

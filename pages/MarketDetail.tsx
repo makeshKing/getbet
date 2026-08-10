@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
 import { Calendar, MessageCircle, Share2, Download, ListFilter, ChevronDown, ChevronUp, Search, Info, Activity, Clock, ArrowLeft, Heart, MoreHorizontal } from 'lucide-react';
+import { generateSimulatedPath } from '../lib/chartUtils';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 import { supabase } from '../lib/supabaseClient';
 import { getMarketRecentTrades, RecentTrade } from '../services/supabaseService';
@@ -467,8 +468,8 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
             const numPoints = 150;
             const points: any[] = [];
             let currentProbs = (market.outcomes && market.outcomes.length > 0)
-               ? market.outcomes.map(o => ({ id: o.id, val: o.probability, trend: (Math.random() - 0.5) * 0.5 }))
-               : [{ id: 'main', val: market.probability || 50, trend: (Math.random() - 0.5) * 0.5 }];
+               ? market.outcomes.map(o => ({ id: o.id, val: o.probability }))
+               : [{ id: 'main', val: market.probability || 50 }];
 
             let timeStep = 86400000;
             if (activeTimeFilter === '6H') timeStep = (6 * 60 * 60 * 1000) / numPoints;
@@ -477,25 +478,20 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
             else if (activeTimeFilter === '1M') timeStep = (30 * 24 * 60 * 60 * 1000) / numPoints;
             else timeStep = (60 * 24 * 60 * 60 * 1000) / numPoints; // ALL
 
+            // Generate deterministic paths for all outcomes
+            const paths = currentProbs.map(p => ({
+               id: p.id,
+               path: generateSimulatedPath(`${market.id}-${p.id}-${activeTimeFilter}`, p.val, numPoints)
+            }));
+
+            // Assemble into Recharts expected format
             for (let i = 0; i < numPoints; i++) {
-               const time = new Date(now.getTime() - i * timeStep);
+               const time = new Date(now.getTime() - (numPoints - 1 - i) * timeStep);
                const point: any = { timestamp: time.getTime() };
-               currentProbs.forEach((p) => {
-                  point[p.id] = Math.round(p.val * 10) / 10;
-                  
-                  // Walk backwards logic
-                  if (Math.random() < 0.05) p.trend = (Math.random() - 0.5) * 0.8;
-                  const volatility = 1.0 + Math.random() * 2.5;
-                  const jumpChance = Math.random();
-                  
-                  let delta = 0;
-                  if (jumpChance > 0.98) delta = (Math.random() * 15 + 5); 
-                  else if (jumpChance < 0.02) delta = -(Math.random() * 15 + 5); 
-                  else delta = -p.trend + (Math.random() - 0.5) * volatility;
-                  
-                  p.val = Math.max(2, Math.min(97, p.val + delta));
+               paths.forEach((p) => {
+                  point[p.id] = p.path[i];
                });
-               points.unshift(point);
+               points.push(point);
             }
             if (isMounted) setChartHistory(points);
          } else {
@@ -774,7 +770,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                                     key={i}
                                     className="flex-1 bg-[#1E2025] rounded-sm animate-pulse"
                                     style={{
-                                       height: `${30 + Math.sin(i * 0.4) * 20 + Math.random() * 15}%`,
+                                       height: `${30 + Math.sin(i * 0.4) * 20 + Math.abs(Math.sin(i * 0.7)) * 15}%`,
                                        animationDelay: `${i * 20}ms`
                                     }}
                                  />

@@ -69,6 +69,10 @@ function mapPosition(row: any): Position {
     side: row.side as Side,
     quantity: row.quantity,
     avgPrice: row.avg_price,
+    payout: row.payout,
+    pnl: row.pnl,
+    status: row.status,
+    faceValueCents: row.face_value_cents
   };
 }
 
@@ -88,6 +92,7 @@ function mapTrade(row: any): Trade {
     status: row.status as 'WAITING' | 'WON' | 'LOST',
     type: row.type as 'BUY' | 'SELL',
     createdAt: row.created_at,
+    faceValueCents: row.face_value_cents,
   };
 }
 

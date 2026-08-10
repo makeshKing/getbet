@@ -70,6 +70,7 @@ export interface User {
   withdrawableBalance: number;
   kycStatus: KycStatus;
   role: Role;
+  contractFaceValue?: number; // in cents
   isBanned?: boolean;
   savedAddresses?: SavedAddress[];
   password?: string;
@@ -150,6 +151,7 @@ export interface Position {
   status?: 'open' | 'won' | 'lost' | 'cancelled';
   payout?: number;
   pnl?: number;
+  faceValueCents?: number;
 }
 
 export interface Comment {

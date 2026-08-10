@@ -17,7 +17,6 @@ import {
     ArrowUpRight,
     ArrowDownRight,
     Briefcase,
-    Wallet,
     History,
     Activity,
     Flame,
@@ -69,28 +68,28 @@ export const Portfolio: React.FC = () => {
         if (!m) return 0;
         if (m.outcome) {
             // If market is resolved
-            if (m.outcome === 'CANCEL') return 10000;
+            if (m.outcome === 'CANCEL') return 100;
             // For multi-outcome, we'd need to know which outcome won.
             // Simplified: if market resolved to YES/NO, it usually implies binary logic.
             // For multi-choice, m.outcome might be the ID of the winning outcome?
             // Let's assume binary resolution for now or extend types later if strict multi-outcome resolution needed.
-            if (m.outcome === 'YES') return side === Side.YES ? 10000 : 0;
-            if (m.outcome === 'NO') return side === Side.NO ? 10000 : 0;
+            if (m.outcome === 'YES') return side === Side.YES ? 100 : 0;
+            if (m.outcome === 'NO') return side === Side.NO ? 100 : 0;
         }
 
         if (outcomeId && m.outcomes) {
             const outcome = m.outcomes.find(o => o.id === outcomeId);
             if (outcome) {
-                return side === Side.YES ? outcome.probability * 100 : (100 - outcome.probability) * 100;
+                return side === Side.YES ? outcome.probability : (100 - outcome.probability);
             }
         }
-        return side === Side.YES ? m.probability * 100 : (100 - m.probability) * 100;
+        return side === Side.YES ? m.probability : (100 - m.probability);
     };
 
     // --- Improved Financial Logic ---
     const totalInvested = positions.reduce((acc, p) => acc + (p.avgPrice * p.quantity), 0);
 
-    const potentialPayout = positions.reduce((acc, p) => acc + (p.quantity * 100), 0);
+    const potentialPayout = positions.reduce((acc, p) => acc + (p.quantity * (p.faceValueCents || 100)), 0);
 
     if (!user) return null;
     const netWorth = (user?.balance || 0);
@@ -431,159 +430,150 @@ export const Portfolio: React.FC = () => {
                 </div>
             </div >
 
-            {/* Positions Section */}
-            < div className="space-y-4" >
-                {/* Section header (desktop only — mobile header lives inside the card container) */}
-                <div className="hidden md:flex items-center justify-between px-2">
-                    <h3 className="text-white text-sm font-bold uppercase tracking-wide">
-                        Active Positions
-                    </h3>
-                    <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                        {positions.length}
-                    </span>
+            {/* ══════════════════════════════════════════════════════
+                 POSITIONS SECTION — Redesigned card layout
+                 ══════════════════════════════════════════════════════ */}
+            <div className="space-y-0">
+                {/* ── Section Header ───────────────────────────────── */}
+                <div className="border-b border-[#22252B] px-4 py-3">
+                    <h2 className="text-white text-sm font-bold tracking-wide">
+                        Positions ({positions.length})
+                    </h2>
                 </div>
 
-                {/* Mobile View: Clean minimal cards */}
-                <div className="md:hidden bg-[#15171C] rounded-2xl border border-[#22252B] overflow-hidden">
-                    {/* Section header */}
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#22252B]">
-                        <h3 className="text-white text-sm font-bold uppercase tracking-wide">
-                            Active Positions
-                        </h3>
-                        <span className="bg-[#00D4AA] text-[#0A0C10] text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                            {positions.length}
-                        </span>
-                    </div>
+                {/* ── Filter Row ──────────────────────────────────── */}
+                <div className="flex items-center gap-2 px-3 py-2.5">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                        <input
+                            type="checkbox"
+                            className="w-3.5 h-3.5 rounded border-[#3A3D45] bg-[#14161B] accent-[#00D4AA] cursor-pointer"
+                        />
+                        <span className="text-[#9AA0A6] text-xs">Hide Other Markets</span>
+                    </label>
+                </div>
 
-                    {/* Cards */}
-                    <div className="px-4">
-                        {positions.map((pos) => {
-                            const market = getMarket(pos.marketId);
-                            const isOpen = !pos.status || pos.status === 'open';
-                            // Potential max payout IF this position wins.
-                            // Settlement pays 1 NPR (=100 cents) per share (migration 017: v_payout := quantity * 100).
-                            const potentialPayoutCents = pos.quantity * 100;
-                            return (
-                                <div key={`${pos.marketId}-${pos.side}-${pos.outcomeId ?? 'main'}`} className="flex items-center gap-3 py-3.5 border-b border-[#22252B] last:border-0">
+                {/* ── Position Cards ──────────────────────────────── */}
+                <div className="space-y-2 px-1">
+                    {positions.map((pos) => {
+                        const market = getMarket(pos.marketId);
+                        const currentPriceCents = getMarketCurrentPrice(pos.marketId, pos.side, pos.outcomeId);
+                        const avgCostCents = pos.avgPrice;
+                        const shares = pos.quantity;
 
-                                    {/* Market icon */}
+                        // Value = current price × shares (in cents)
+                        const valueCents = currentPriceCents * shares;
+                        // Amount invested = avg price × shares (in cents)
+                        const investedCents = avgCostCents * shares;
+                        // PNL
+                        const pnlCents = valueCents - investedCents;
+                        const pnlPercent = investedCents > 0 ? (pnlCents / investedCents) * 100 : 0;
+                        // Payout if won = shares × face value (locked in on position)
+                        const payoutCents = shares * (pos.faceValueCents || 100);
+
+                        // Resolve outcome label for multi-choice or binary
+                        let outcomeLabel: string = pos.side; // default: YES/NO
+                        let outcomeIsPositive = pos.side === Side.YES;
+                        if (pos.outcomeId && market?.outcomes) {
+                            const matchedOutcome = market.outcomes.find(o => o.id === pos.outcomeId);
+                            if (matchedOutcome) {
+                                outcomeLabel = matchedOutcome.name;
+                                // Determine color: treat "Down"/"No" as red, everything else as green
+                                const lowerName = matchedOutcome.name.toLowerCase();
+                                outcomeIsPositive = !(lowerName === 'down' || lowerName === 'no');
+                            }
+                        }
+
+                        // Get the market/outcome icon
+                        let iconUrl = market?.imageUrl;
+                        if (pos.outcomeId && market?.outcomes) {
+                            const oc = market.outcomes.find(o => o.id === pos.outcomeId);
+                            if (oc?.icon) iconUrl = oc.icon;
+                        }
+
+                        return (
+                            <div
+                                key={`${pos.marketId}-${pos.side}-${pos.outcomeId ?? 'main'}`}
+                                className="bg-[#14161B] rounded-xl p-3 border border-[#1E2025] hover:border-[#2A2D35] transition-colors"
+                            >
+                                {/* Row 1: Icon + Title + Share icon */}
+                                <div className="flex items-start gap-2.5 mb-2">
                                     <img
-                                        src={market?.imageUrl}
-                                        className="w-10 h-10 rounded-xl object-cover flex-shrink-0"
+                                        src={iconUrl}
+                                        className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5 ring-1 ring-[#2A2D35]"
                                         alt=""
                                     />
-
-                                    {/* Center — market name + side + shares */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-white text-sm font-medium truncate">
-                                            {market?.title || 'Unknown Asset'}
+                                        <p className="text-white text-[13px] font-semibold truncate leading-tight">
+                                            {market?.title || 'Unknown Market'}
                                         </p>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                                pos.side === Side.YES
-                                                    ? 'bg-[#00D4AA]/15 text-[#00D4AA]'
-                                                    : 'bg-[#FF4757]/15 text-[#FF4757]'
-                                            }`}>
-                                                {pos.side}
-                                            </span>
-                                            <span className="text-[#9AA0A6] text-xs">
-                                                {pos.quantity} shares
-                                            </span>
-                                        </div>
+                                        <span className={`inline-block text-[11px] font-bold mt-0.5 ${
+                                            outcomeIsPositive ? 'text-[#00D4AA]' : 'text-[#FF4757]'
+                                        }`}>
+                                            {outcomeLabel}
+                                        </span>
                                     </div>
-
-                                    {/* Right — potential payout + LIVE badge */}
-                                    <div className="text-right flex-shrink-0">
-                                        {isOpen ? (
-                                            <p className="text-[#00D4AA] text-sm font-bold">
-                                                {formatMoney(potentialPayoutCents)}
-                                            </p>
-                                        ) : (
-                                            <p className="text-[#9AA0A6] text-sm font-bold">
-                                                {formatMoney(potentialPayoutCents)}
-                                            </p>
-                                        )}
-                                        {pos.status === 'won' && <span className="inline-block text-[10px] font-bold text-[#00D4AA] border border-[#00D4AA]/40 px-1.5 py-0.5 rounded-full">Won</span>}
-                                        {pos.status === 'lost' && <span className="inline-block text-[10px] font-bold text-[#FF4757] border border-[#FF4757]/40 px-1.5 py-0.5 rounded-full">Lost</span>}
-                                        {pos.status === 'cancelled' && <span className="inline-block text-[10px] font-bold text-[#9AA0A6] border border-[#9AA0A6]/40 px-1.5 py-0.5 rounded-full">Cancelled</span>}
-                                        {isOpen && (
-                                            <span className="inline-flex items-center gap-1.5 mt-1 text-[#00D4AA] text-[10px] font-bold border border-[#00D4AA]/40 px-2 py-0.5 rounded-full bg-[#00D4AA]/10">
-                                                <span className="relative flex h-1.5 w-1.5">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00D4AA] opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#00D4AA]"></span>
-                                                </span>
-                                                LIVE
-                                            </span>
-                                        )}
-                                    </div>
-
+                                    <button className="flex-shrink-0 text-[#9AA0A6] hover:text-white transition-colors p-0.5">
+                                        <ExternalLink size={14} />
+                                    </button>
                                 </div>
-                            );
-                        })}
-                    </div>
+
+                                {/* Divider */}
+                                <div className="border-t border-[#1E2025] my-2" />
+
+                                {/* Row 2: Cur. Price / Avg. Cost  |  Shares */}
+                                <div className="flex items-start justify-between mb-2.5">
+                                    <div>
+                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Cur. Price / Avg. Cost</p>
+                                        <p className="text-white text-[13px] font-semibold tabular-nums">
+                                            {formatMoney(currentPriceCents)}{' '}
+                                            <span className="text-[#6B7280]">/</span>{' '}
+                                            {formatMoney(avgCostCents)}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Shares</p>
+                                        <p className="text-white text-[13px] font-semibold tabular-nums">{shares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
+                                    </div>
+                                </div>
+
+                                {/* Row 3: Value  |  PNL  |  Payout if Won */}
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Value</p>
+                                        <p className="text-white text-[13px] font-semibold tabular-nums">
+                                            {formatMoney(valueCents)}
+                                        </p>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">PNL</p>
+                                        <p className={`text-[13px] font-semibold tabular-nums ${pnlCents >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+                                            {pnlCents >= 0 ? '+' : '-'}{formatMoney(Math.abs(pnlCents))}{' '}
+                                            <span className="text-[11px]">
+                                                ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)
+                                            </span>
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Payout if Won</p>
+                                        <p className="text-[#00D4AA] text-[13px] font-semibold tabular-nums">
+                                            {formatMoney(payoutCents)}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
 
-                {/* Desktop View: Pro Table */}
-                <div className="hidden md:block bg-[#15171C] border border-[#22252B] rounded-xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead>
-                                <tr className="border-b border-[#22252B]">
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Asset</th>
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Side</th>
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Qty</th>
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Avg Cost</th>
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">P/L</th>
-                                    <th className="text-left text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {positions.map((pos, idx) => {
-                                    const market = getMarket(pos.marketId);
-                                    const currentPrice = getMarketCurrentPrice(pos.marketId, pos.side, pos.outcomeId);
-                                    const pl = (currentPrice * pos.quantity) - (pos.avgPrice * pos.quantity);
-                                    const plPercent = (pl / (pos.avgPrice * pos.quantity)) * 100;
-                                    return (
-                                        <tr key={idx} className="border-b border-[#22252B] last:border-0 hover:bg-[#1E2025]">
-                                            <td className="px-4 py-3 text-white text-sm">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-6 h-6 rounded-full bg-[#1E2025] flex items-center justify-center text-xs overflow-hidden">
-                                                        <img className="h-full w-full object-cover" src={market?.imageUrl} alt="" />
-                                                    </span>
-                                                    <span className="truncate max-w-[200px]">{market?.title || 'Unknown'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className={`text-xs font-bold ${pos.side === Side.YES ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>{pos.side}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-white text-sm">{pos.quantity.toLocaleString()}</td>
-                                            <td className="px-4 py-3 text-white text-sm">{formatMoney(pos.avgPrice)}</td>
-                                            <td className="px-4 py-3">
-                                                <span className={`text-sm font-bold tabular-nums ${pl >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>{pl >= 0 ? '+' : ''}{formatMoney(Math.abs(pl))}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-left">
-                                                {pos.status === 'won' && <span className="text-[#00D4AA] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#00D4AA]/30">Won</span>}
-                                                {pos.status === 'lost' && <span className="text-[#FF4757] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#FF4757]/30">Lost</span>}
-                                                {pos.status === 'cancelled' && <span className="text-[#9AA0A6] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#9AA0A6]/30">Cancelled</span>}
-                                                {(!pos.status || pos.status === 'open') && <span className="text-[#FFA500] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border border-[#FFA500]/30">Pending</span>}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                {/* ── Empty state ─────────────────────────────────── */}
+                {positions.length === 0 && (
+                    <div className="text-center py-16 px-4">
+                        <Briefcase size={36} className="mx-auto text-[#3A3D45] mb-3" />
+                        <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-widest">No active positions</h3>
+                        <p className="text-[#4B5563] text-xs mt-1">Your open positions will appear here</p>
                     </div>
-                </div>
-
-                {
-                    positions.length === 0 && (
-                        <div className="text-center py-20 glass-panel rounded-[2rem]">
-                            <Briefcase size={40} className="mx-auto text-slate-200 dark:text-slate-700 mb-3" />
-                            <h3 className="text-lg font-black text-slate-400 uppercase tracking-widest">No active positions</h3>
-                        </div>
-                    )
-                }
-            </div >
+                )}
+            </div>
 
             {/* Historical Performance Calendar */}
             <div className="space-y-4">
