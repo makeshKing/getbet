@@ -10,7 +10,7 @@ import {
   Market, User, Position, Trade, LedgerEntry, LedgerType,
   Side, Outcome, KycStatus, Role, DepositMethodConfig,
   QuizQuestion, QuizAnswer, Config, AuditLogEntry, SavedAddress,
-  MarketOutcome, MarketDynamics, Category
+  MarketOutcome, MarketDynamics, Category, MarketTemplate
 } from '../types';
 
 // ─────────────────────────────────────────────────────────────
@@ -1288,4 +1288,89 @@ export async function deleteImageFromLibrary(id: string, storagePath: string) {
     .eq('id', id);
     
   if (dbError) throw new Error(dbError.message);
+}
+
+// ─────────────────────────────────────────────────────────────
+// MARKET TEMPLATES
+// ─────────────────────────────────────────────────────────────
+
+function mapMarketTemplate(row: any): MarketTemplate {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    iconUrl: row.icon_url,
+    layout: row.layout,
+    category: row.category,
+    subcategory: row.subcategory,
+    titleTemplate: row.title_template,
+    resolutionSourceTemplate: row.resolution_source_template,
+    rulesTemplate: row.rules_template,
+    defaultOutcomes: row.default_outcomes,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+/** Admin: fetch all market templates */
+export async function getMarketTemplates(): Promise<MarketTemplate[]> {
+  const { data, error } = await supabase
+    .from('market_templates')
+    .select('*')
+    .order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapMarketTemplate);
+}
+
+/** Admin: create a new market template */
+export async function adminCreateMarketTemplate(
+  template: Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>
+): Promise<MarketTemplate> {
+  const { data, error } = await supabase
+    .from('market_templates')
+    .insert({
+      name: template.name,
+      description: template.description || null,
+      icon_url: template.iconUrl || null,
+      layout: template.layout || 'STANDARD',
+      category: template.category || null,
+      subcategory: template.subcategory || null,
+      title_template: template.titleTemplate || null,
+      resolution_source_template: template.resolutionSourceTemplate || null,
+      rules_template: template.rulesTemplate || null,
+      default_outcomes: template.defaultOutcomes || null,
+      created_by: template.createdBy || null,
+    })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return mapMarketTemplate(data);
+}
+
+/** Admin: update an existing market template */
+export async function adminUpdateMarketTemplate(
+  id: string,
+  updates: Partial<Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>>
+) {
+  const payload: any = {};
+  if (updates.name                     !== undefined) payload.name                      = updates.name;
+  if (updates.description              !== undefined) payload.description               = updates.description;
+  if (updates.iconUrl                  !== undefined) payload.icon_url                  = updates.iconUrl;
+  if (updates.layout                   !== undefined) payload.layout                    = updates.layout;
+  if (updates.category                 !== undefined) payload.category                  = updates.category;
+  if (updates.subcategory              !== undefined) payload.subcategory               = updates.subcategory;
+  if (updates.titleTemplate            !== undefined) payload.title_template             = updates.titleTemplate;
+  if (updates.resolutionSourceTemplate !== undefined) payload.resolution_source_template = updates.resolutionSourceTemplate;
+  if (updates.rulesTemplate            !== undefined) payload.rules_template             = updates.rulesTemplate;
+  if (updates.defaultOutcomes          !== undefined) payload.default_outcomes           = updates.defaultOutcomes;
+
+  const { error } = await supabase.from('market_templates').update(payload).eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+/** Admin: delete a market template */
+export async function adminDeleteMarketTemplate(id: string) {
+  const { error } = await supabase.from('market_templates').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 }

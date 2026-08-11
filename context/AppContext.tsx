@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import {
   Market, Position, Trade, LedgerEntry, DepositMethodConfig,
-  Config, User, Side, Outcome, KycStatus, Role, QuizQuestion, QuizAnswer, Category
+  Config, User, Side, Outcome, KycStatus, Role, QuizQuestion, QuizAnswer, Category, MarketTemplate
 } from '../types';
 import * as svc from '../services/supabaseService';
 import { useAuth } from './AuthContext';
@@ -87,6 +87,13 @@ interface AppContextType {
   adminUpdateCategory: (id: string, updates: Partial<Category>) => Promise<void>;
   adminDeleteCategory: (id: string) => Promise<void>;
   adminGetAllCategories: () => Promise<Category[]>;
+
+  // Market Template ops
+  marketTemplates: MarketTemplate[];
+  refreshMarketTemplates: () => Promise<void>;
+  adminCreateMarketTemplate: (data: Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>) => Promise<MarketTemplate>;
+  adminUpdateMarketTemplate: (id: string, updates: Partial<Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
+  adminDeleteMarketTemplate: (id: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -106,6 +113,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [marketsLoading, setMarketsLoading] = useState(true);
   const [portfolioLoading, setPortfolioLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [marketTemplates, setMarketTemplates] = useState<MarketTemplate[]>([]);
 
   const userId = userProfile?.id;
 
@@ -129,6 +137,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // categories table may not exist yet — silently ignore
     }
   }, []);
+
+  const refreshMarketTemplates = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const t = await svc.getMarketTemplates();
+      setMarketTemplates(t);
+    } catch {
+      // table may not exist yet — silently ignore
+    }
+  }, [isAdmin]);
 
   const refreshPortfolio = useCallback(async () => {
     if (!userId) return;
@@ -189,8 +207,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (isAdmin) {
       refreshAllUsers();
+      refreshMarketTemplates();
     }
-  }, [isAdmin, refreshAllUsers]);
+  }, [isAdmin, refreshAllUsers, refreshMarketTemplates]);
 
   // ── Market ops ─────────────────────────────────────────────
 
@@ -412,6 +431,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const adminGetAllCategories = () => svc.adminGetAllCategories();
 
+  // ── Market Template ops ─────────────────────────────────────
+
+  const adminCreateMarketTemplate = async (data: Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<MarketTemplate> => {
+    const tmpl = await svc.adminCreateMarketTemplate(data);
+    await refreshMarketTemplates();
+    return tmpl;
+  };
+
+  const adminUpdateMarketTemplate = async (id: string, updates: Partial<Omit<MarketTemplate, 'id' | 'createdAt' | 'updatedAt'>>) => {
+    await svc.adminUpdateMarketTemplate(id, updates);
+    await refreshMarketTemplates();
+  };
+
+  const adminDeleteMarketTemplate = async (id: string) => {
+    await svc.adminDeleteMarketTemplate(id);
+    await refreshMarketTemplates();
+  };
+
   const value: AppContextType = {
     markets, positions, trades, ledger, depositMethods, config, activeQuiz,
     marketsLoading, portfolioLoading,
@@ -428,6 +465,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     adminGetStats, adminGetAllTrades,
     categories, refreshCategories,
     adminCreateCategory, adminUpdateCategory, adminDeleteCategory, adminGetAllCategories,
+    marketTemplates, refreshMarketTemplates,
+    adminCreateMarketTemplate, adminUpdateMarketTemplate, adminDeleteMarketTemplate,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

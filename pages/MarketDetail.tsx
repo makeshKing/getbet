@@ -139,24 +139,17 @@ const MarketChart = React.memo(function MarketChart({
       return <g key={`dot-${outcome.id}-${index}`} />;
     }
 
-    // Hovered point takes priority — show crosshair dot + floating label
+    // Hovered point — just show the crosshair dot (the legend row above
+    // the chart already displays the outcome name + value via hoverData)
     if (isHoveredPoint) {
       const val = hoverData?.[outcome.id];
       if (val === undefined || val === null) {
         return <g key={`dot-${outcome.id}-${index}`} />;
       }
-      const flipLeft = cx > 520;
-      const labelWidth = 160;
-      const labelX = flipLeft ? cx - labelWidth - 8 : cx + 8;
       return (
         <g key={`dot-${outcome.id}-${index}`}>
-          <circle cx={cx} cy={cy} r={5} fill={outcome.color} stroke="#ffffff" strokeWidth={1.5} />
-          <rect x={labelX} y={cy - 13} width={labelWidth} height={26} rx={5}
-            fill="#1E2025" stroke={outcome.color} strokeWidth={1} />
-          <text x={labelX + labelWidth / 2} y={cy + 4} textAnchor="middle"
-            fill={outcome.color} fontSize={11} fontWeight={600}>
-            {outcome.name} {Number(val).toFixed(1)}%
-          </text>
+          <circle cx={cx} cy={cy} r={6} fill={outcome.color} opacity={0.25} />
+          <circle cx={cx} cy={cy} r={4} fill={outcome.color} stroke="#ffffff" strokeWidth={1.5} />
         </g>
       );
     }
@@ -184,10 +177,16 @@ const MarketChart = React.memo(function MarketChart({
         {outcomes.map((o) => {
           const liveVal = hoverData ? hoverData[o.id] : o.probability;
           return (
-            <div key={o.id} className="flex items-center gap-1 md:gap-2 whitespace-nowrap">
+            <div key={o.id} className="flex items-center gap-1 md:gap-2" style={{ maxWidth: '220px' }}>
               <span className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full flex-shrink-0" style={{ background: o.color }} />
-              <span className="text-[#9AA0A6] text-xs md:text-sm font-bold">{o.name}</span>
-              <span className="text-white text-xs md:text-sm font-black">
+              <span
+                className="text-[#9AA0A6] text-xs md:text-sm font-bold"
+                style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}
+                title={o.name}
+              >
+                {o.name}
+              </span>
+              <span className="text-white text-xs md:text-sm font-black flex-shrink-0">
                 {Number(liveVal ?? o.probability).toFixed(1)}%
               </span>
             </div>
@@ -199,7 +198,7 @@ const MarketChart = React.memo(function MarketChart({
       <ResponsiveContainer width="100%" height={260}>
         <LineChart
           data={chartData}
-          margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
+          margin={{ top: 24, right: 0, left: 0, bottom: 0 }}
           onMouseMove={(e: any) => {
             if (e?.activeTooltipIndex !== undefined) {
               setHoverIndex(e.activeTooltipIndex);
@@ -275,13 +274,22 @@ const MarketChart = React.memo(function MarketChart({
               x={hoverData.timestamp}
               stroke="rgba(255,255,255,0.25)"
               strokeWidth={1}
-              label={{
-                value: new Date(hoverData.timestamp).toLocaleDateString('en-US', {
+              label={({ viewBox }: any) => {
+                const dateStr = new Date(hoverData.timestamp).toLocaleDateString('en-US', {
                   month: 'short', day: '2-digit', hour: 'numeric', hour12: true,
-                }).toUpperCase(),
-                position: 'top',
-                fill: '#ffffff',
-                fontSize: 11,
+                }).toUpperCase();
+                return (
+                  <text
+                    x={viewBox.x}
+                    y={8}
+                    fill="#9AA0A6"
+                    fontSize={10}
+                    fontWeight={600}
+                    textAnchor="middle"
+                  >
+                    {dateStr}
+                  </text>
+                );
               }}
             />
           )}

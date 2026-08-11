@@ -231,3 +231,20 @@ export interface Category {
   sortOrder: number;
   createdAt: string;
 }
+
+export interface MarketTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  iconUrl?: string;
+  layout: 'STANDARD' | 'VERSUS' | 'MULTI_CHOICE';
+  category?: string;
+  subcategory?: string;
+  titleTemplate?: string;
+  resolutionSourceTemplate?: string;
+  rulesTemplate?: string;
+  defaultOutcomes?: any;   // jsonb — candidate configs or multi-choice outcome arrays
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
