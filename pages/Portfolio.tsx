@@ -618,7 +618,7 @@ export const Portfolio: React.FC = () => {
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-sm font-black text-emerald-500">+{formatMoney(trade.potentialWin)}</div>
+                                            <div className="text-sm font-black text-emerald-500">+{formatMoney(trade.potentialWin / 100)}</div>
                                             <div className="text-[9px] font-bold text-slate-400 tabular-nums">Cost: {formatMoney(trade.amount)}</div>
                                         </div>
                                     </div>
@@ -655,7 +655,8 @@ export const Portfolio: React.FC = () => {
                                 <tbody>
                                     {wonTrades.map((trade) => {
                                         const market = getMarket(trade.marketId);
-                                        const profit = trade.potentialWin - trade.amount;
+                                        const payoutCents = trade.potentialWin / 100;
+                                        const profit = payoutCents - trade.amount;
                                         return (
                                             <tr key={trade.id} className="border-b border-[#22252B] last:border-0 hover:bg-[#1E2025]">
                                                 <td className="px-4 py-3 text-white text-sm">
@@ -672,7 +673,7 @@ export const Portfolio: React.FC = () => {
                                                 <td className="px-4 py-3 text-white text-sm">{trade.shares.toLocaleString()}</td>
                                                 <td className="px-4 py-3 text-[#9AA0A6] text-sm tabular-nums">{formatMoney(trade.amount)}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="text-sm font-bold tabular-nums text-[#00D4AA]">{formatMoney(trade.potentialWin)}</div>
+                                                    <div className="text-sm font-bold tabular-nums text-[#00D4AA]">{formatMoney(payoutCents)}</div>
                                                     <div className="text-[10px] font-bold text-[#00D4AA] opacity-70">+{formatMoney(profit)} profit</div>
                                                 </td>
                                                 <td className="px-4 py-3 text-left">
@@ -715,7 +716,7 @@ export const Portfolio: React.FC = () => {
                         marketTitle={winMarket?.title || selectedWin.marketTitle}
                         predictedOutcome={selectedWin.outcomeTitle || selectedWin.side}
                         invested={toWinUnits(selectedWin.amount)}
-                        won={toWinUnits(selectedWin.potentialWin)}
+                        won={toWinUnits(selectedWin.potentialWin / 100)}
                         currency={currency}
                         onClose={() => setShowWinCard(false)}
                     />
