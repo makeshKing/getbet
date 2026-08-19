@@ -30,10 +30,8 @@ export function WinCard({
     setIsDownloading(true);
 
     try {
-      const html2canvasModule = await import(
-        /* @vite-ignore */
-        'https://esm.sh/html2canvas@1.4.1'
-      );
+      const moduleUrl = 'https://esm.sh/html2canvas@1.4.1';
+      const html2canvasModule: any = await import(/* @vite-ignore */ moduleUrl);
       const html2canvas = html2canvasModule.default;
 
       const canvas = await html2canvas(cardRef.current, {

@@ -99,7 +99,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { userProfile, isAdmin, refreshProfile } = useAuth();
+  const { userProfile, isAdmin, isStaff, refreshProfile } = useAuth();
 
   const [markets, setMarkets] = useState<Market[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -290,17 +290,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshAllLedger();
   };
 
-  // For admin: load all ledger entries (deposits + withdrawals)
+  // For admin & staff: load all ledger entries (deposits + withdrawals)
   const [allLedger, setAllLedger] = useState<LedgerEntry[]>([]);
   const refreshAllLedger = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!isAdmin && !isStaff) return;
     const l = await svc.getAllLedger();
     setAllLedger(l);
-  }, [isAdmin]);
+  }, [isAdmin, isStaff]);
 
   useEffect(() => {
-    if (isAdmin) refreshAllLedger();
-  }, [isAdmin, refreshAllLedger]);
+    if (isAdmin || isStaff) refreshAllLedger();
+  }, [isAdmin, isStaff, refreshAllLedger]);
 
   const getPendingDeposits = () =>
     allLedger.filter(l => l.type === 'DEPOSIT' && l.status === 'PENDING');

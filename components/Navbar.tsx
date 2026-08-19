@@ -50,51 +50,56 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
           <div className="flex items-center gap-8">
             <div
               className="flex-shrink-0 flex items-center cursor-pointer group"
-              onClick={() => onNavigate('home')}
+              onClick={() => onNavigate(user?.role === Role.STAFF ? 'staff-requests' : 'home')}
             >
               <span className="font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">Oddara</span>
             </div>
 
-            <div className="hidden md:flex space-x-1">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 relative group overflow-hidden ${activePage === item.id || (item.id === 'home' && activePage.startsWith('market'))
-                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg scale-105'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
-                    }`}
-                >
-                  <span className="relative z-10">{item.label}</span>
-                </button>
-              ))}
-            </div>
+            {user?.role !== Role.STAFF && (
+              <div className="hidden md:flex space-x-1">
+                {navItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 relative group overflow-hidden ${activePage === item.id || (item.id === 'home' && activePage.startsWith('market'))
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg scale-105'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                  >
+                    <span className="relative z-10">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* Mobile Hamburger Button Removed */}
           </div>
 
           {/* Right Actions */}
           <div className="flex items-center space-x-2 sm:space-x-5">
-            <button
-              onClick={() => setCurrency(currency === 'NPR' ? 'USD' : 'NPR')}
-              className="p-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"
-              title="Toggle Currency"
-            >
-              {currency}
-            </button>
-
+            {user?.role !== Role.STAFF && (
+              <button
+                onClick={() => setCurrency(currency === 'NPR' ? 'USD' : 'NPR')}
+                className="p-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"
+                title="Toggle Currency"
+              >
+                {currency}
+              </button>
+            )}
 
             {user ? (
               <>
                 {/* Balance Pill */}
-                <div className="flex items-center bg-white/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 backdrop-blur-md rounded-full pl-4 pr-1.5 py-1.5 shadow-sm group hover:border-emerald-500 transition-all duration-500 cursor-default">
-                  <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 sm:mr-4 tabular-nums tracking-tight">
-                    {formatMoney(user.balance)}
-                  </span>
-                  <button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full p-1.5 transition-all shadow-md active:scale-90">
-                    <Banknote size={14} strokeWidth={3} />
-                  </button>
-                </div>
+                {user.role !== Role.STAFF && (
+                  <div className="flex items-center bg-white/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 backdrop-blur-md rounded-full pl-4 pr-1.5 py-1.5 shadow-sm group hover:border-emerald-500 transition-all duration-500 cursor-default">
+                    <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 sm:mr-4 tabular-nums tracking-tight">
+                      {formatMoney(user.balance)}
+                    </span>
+                    <button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full p-1.5 transition-all shadow-md active:scale-90">
+                      <Banknote size={14} strokeWidth={3} />
+                    </button>
+                  </div>
+                )}
 
                 {/* User Dropdown */}
                 <div className="relative" ref={menuRef}>
@@ -115,12 +120,32 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{user.email}</p>
                       </div>
 
-                      <button
-                        onClick={() => handleNav('profile')}
-                        className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
-                      >
-                        <UserCircle size={18} className="mr-3.5 text-slate-400" /> My Profile
-                      </button>
+                      {user.role === Role.ADMIN && (
+                        <button
+                          onClick={() => handleNav('admin-home')}
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                        >
+                          <ShieldCheck size={18} className="mr-3.5 text-indigo-500" /> Admin Dashboard
+                        </button>
+                      )}
+
+                      {(user.role === Role.ADMIN || user.role === Role.STAFF) && (
+                        <button
+                          onClick={() => handleNav('staff-requests')}
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                        >
+                          <LayoutDashboard size={18} className="mr-3.5 text-emerald-500" /> Staff Dashboard
+                        </button>
+                      )}
+
+                      {user.role !== Role.STAFF && (
+                        <button
+                          onClick={() => handleNav('profile')}
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                        >
+                          <UserCircle size={18} className="mr-3.5 text-slate-400" /> My Profile
+                        </button>
+                      )}
 
                       <div className="border-t border-slate-100 dark:border-slate-800 mt-2 pt-2">
                         <button

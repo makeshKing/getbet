@@ -104,7 +104,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({ onSelect, selectedUrl 
           disabled={uploading}
           className="flex items-center gap-2 px-4 py-2.5 bg-[#00D4AA] text-[#0A0C10] font-bold rounded-xl hover:bg-[#00bfa0] transition-colors disabled:opacity-50 text-sm whitespace-nowrap"
         >
-          {uploading ? <Spinner size={16} /> : <Upload size={16} />}
+          {uploading ? <Spinner size="sm" /> : <Upload size={16} />}
           {uploading ? 'Uploading...' : 'Upload New Image'}
         </button>
         <input 

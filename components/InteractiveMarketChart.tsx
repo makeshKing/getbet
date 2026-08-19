@@ -241,12 +241,6 @@ export function InteractiveMarketChart({ outcomes, data, dateFormat = 'MMM d', t
                 }
               }}
               onMouseLeave={() => setHoveredIndex(null)}
-              onTouchMove={(e) => {
-                if (e?.activeTooltipIndex !== undefined) {
-                  setHoveredIndex(e.activeTooltipIndex);
-                }
-              }}
-              onTouchEnd={() => setHoveredIndex(null)}
               margin={{ top: 20, right: 10, left: 0, bottom: 0 }}
             >
               <CartesianGrid vertical={false} stroke="#2A2D35" strokeDasharray="3 3" />

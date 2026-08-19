@@ -296,6 +296,7 @@ export const AdminMarketCreate: React.FC<AdminMarketCreateProps> = ({ onBack }) 
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         endDate: endDate ? datetimeLocalToISO(endDate) : new Date(Date.now() + 86400000).toISOString(),
+        closeDate: endDate ? datetimeLocalToISO(endDate) : new Date(Date.now() + 86400000).toISOString(),
         commission: commission,
         ...(isVsMode ? {
             candidateA: { name: candAName || 'Participant A', color: candAColor, imageUrl: candAImg },

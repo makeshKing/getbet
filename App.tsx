@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
@@ -8,6 +7,7 @@ import { MarketDetail } from './pages/MarketDetail';
 import { Portfolio } from './pages/Portfolio';
 import { Profile } from './pages/Profile';
 import { AdminLayout } from './components/admin/AdminLayout';
+import { Role } from './types';
 
 const AdminDashboard = React.lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })));
 const AdminHome = React.lazy(() => import('./pages/admin/Home').then(m => ({ default: m.AdminHome })));
@@ -20,6 +20,7 @@ const AdminDepositQueue = React.lazy(() => import('./components/AdminDepositQueu
 const AdminDeclaredMarkets = React.lazy(() => import('./pages/admin/DeclaredMarkets').then(m => ({ default: m.AdminDeclaredMarkets })));
 const AdminMarketResolution = React.lazy(() => import('./pages/admin/MarketResolution').then(m => ({ default: m.AdminMarketResolution })));
 const AdminFinancialReports = React.lazy(() => import('./pages/admin/FinancialReports').then(m => ({ default: m.AdminFinancialReports })));
+const StaffRequestsPage = React.lazy(() => import('./pages/staff/Requests').then(m => ({ default: m.StaffRequestsPage })));
 const AdminCategories = React.lazy(() => import('./pages/admin/Categories').then(m => ({ default: m.AdminCategories })));
 const AdminLogin = React.lazy(() => import('./pages/admin/Login').then(m => ({ default: m.AdminLogin })));
 import { Login } from './pages/auth/Login';
@@ -30,7 +31,7 @@ import { LoadingScreen } from './components/LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: 'USER' | 'ADMIN';
+  requiredRole?: 'USER' | 'ADMIN' | 'STAFF' | ('ADMIN' | 'STAFF')[];
   fallback?: React.ReactNode;
 }
 
@@ -108,9 +109,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  if (requiredRole === 'ADMIN' && user.role !== 'ADMIN') {
-    // User doesn't have admin role
-    return fallback;
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  
+  if (!allowedRoles.includes('USER') && !allowedRoles.includes(user.role as any)) {
+      return fallback;
   }
 
   // User has required role, render children
@@ -118,11 +120,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 };
 
 
-type View =
-  | 'home' | 'market-detail' | 'portfolio' | 'leaderboard' | 'profile' | 'login' | 'signup'
-  | 'admin-home' | 'admin-dashboard' | 'admin-users' | 'admin-markets' | 'admin-market-create'
-  | 'admin-categories' | 'admin-deposits' | 'admin-withdrawals' | 'admin-settings'
-  | 'admin-declared-markets' | 'admin-resolve-market' | 'admin-financials';
+export type View = 'home' | 'market-detail' | 'portfolio' | 'profile' | 'login' | 'signup' | 'leaderboard'
+  | 'admin-home' | 'admin-dashboard' | 'admin-users' | 'admin-markets' | 'admin-market-create' | 'admin-categories' | 'admin-deposits' | 'admin-withdrawals' | 'admin-settings'
+  | 'admin-declared-markets' | 'admin-resolve-market' | 'admin-financials'
+  | 'staff-requests';
 
 function App() {
   const { userProfile, isAdmin, loading: authLoading } = useAuth();
@@ -149,6 +150,8 @@ function App() {
       return 'admin-deposits';
     } else if (path === '/admin/withdrawals') {
       return 'admin-withdrawals';
+    } else if (path === '/staff/requests') {
+      return 'staff-requests';
     } else if (path === '/admin/settings') {
       return 'admin-settings';
     } else if (path === '/admin/declared-markets') {
@@ -204,6 +207,8 @@ function App() {
       setCurrentView('admin-deposits');
     } else if (path === '/admin/withdrawals') {
       setCurrentView('admin-withdrawals');
+    } else if (path === '/staff/requests') {
+      setCurrentView('staff-requests');
     } else if (path === '/admin/settings') {
       setCurrentView('admin-settings');
     } else if (path === '/admin/declared-markets') {
@@ -231,16 +236,15 @@ function App() {
 
 
 
-  // Test deposit with screenshot on app load
+  // STAFF ROLE ALLOW-LIST ROUTING GUARD
   useEffect(() => {
-    console.log('App loaded, testing deposit with screenshot');
-    // testDepositWithScreenshot(); // Disabled auto-test to avoid duplicates
-  }, []);
-
-  // Add a global function for manual testing
-  useEffect(() => {
-    // testDeposit and store mocks removed
-  }, []);
+    if (userProfile?.role === Role.STAFF) {
+      if (currentView !== 'staff-requests' && currentView !== 'login' && currentView !== 'signup') {
+        setCurrentView('staff-requests');
+        navigateRouter('/staff/requests', { replace: true });
+      }
+    }
+  }, [userProfile?.role, currentView, navigateRouter]);
 
 
   const navigate = (page: string) => {
@@ -270,6 +274,10 @@ function App() {
     else if (page === 'signup') {
       setCurrentView('signup');
       navigateRouter('/register');
+    }
+    else if (page === 'staff-requests') {
+      setCurrentView('staff-requests');
+      navigateRouter('/staff/requests');
     }
     else if (page.startsWith('admin-')) {
       // Check admin access for admin routes
@@ -385,10 +393,16 @@ function App() {
               </AdminLayout>
             </ProtectedRoute>
           )}
+
+          {currentView === 'staff-requests' && (
+            <ProtectedRoute requiredRole={['ADMIN', 'STAFF']}>
+              <StaffRequestsPage />
+            </ProtectedRoute>
+          )}
         </React.Suspense>
       </main>
 
-      {!isAdminView && !['login', 'signup'].includes(currentView) && <MobileBottomNav onNavigate={navigate} activePage={currentView} />}
+      {!isAdminView && currentView !== 'staff-requests' && !['login', 'signup'].includes(currentView) && <MobileBottomNav onNavigate={navigate} activePage={currentView} />}
     </div>
   );
 }

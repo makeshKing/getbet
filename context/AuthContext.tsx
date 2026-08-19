@@ -10,6 +10,7 @@ interface AuthContextType {
   userProfile: User | null;
   loading: boolean;
   isAdmin: boolean;
+  isStaff: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (updates: { name?: string, phone?: string, avatarUrl?: string }) => Promise<void>;
@@ -90,6 +91,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isAdmin = userProfile?.role === Role.ADMIN;
+  const isStaff = userProfile?.role === Role.STAFF;
 
   const updateProfile = async (updates: { name?: string, phone?: string, avatarUrl?: string }) => {
     if (!session?.user?.id) throw new Error('Not authenticated');
@@ -105,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ session, userProfile, loading, isAdmin, refreshProfile, signOut, updateProfile, uploadAvatar }}>
+    <AuthContext.Provider value={{ session, userProfile, loading, isAdmin, isStaff, refreshProfile, signOut, updateProfile, uploadAvatar }}>
       {children}
     </AuthContext.Provider>
   );

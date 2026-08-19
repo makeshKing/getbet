@@ -24,7 +24,8 @@ export enum KycStatus {
 
 export enum Role {
   USER = 'USER',
-  ADMIN = 'ADMIN'
+  ADMIN = 'ADMIN',
+  STAFF = 'STAFF'
 }
 
 export enum LedgerType {
@@ -128,6 +129,9 @@ export interface Market {
   status?: 'active' | 'resolved';
   resolved_outcome?: string;
   resolved_at?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  endDate?: string;
 }
 
 export interface Order {
@@ -203,6 +207,7 @@ export interface Trade {
   status: 'WAITING' | 'WON' | 'LOST';
   type: 'BUY' | 'SELL';
   createdAt: string;
+  faceValueCents?: number;
 }
 
 export interface QuizQuestion {

@@ -91,16 +91,6 @@ function CarouselOutcomeChart({
             setHoverIdx(null);
             setHoverPoint(null);
           }}
-          onTouchMove={(e: any) => {
-            if (e?.activeTooltipIndex !== undefined) {
-              setHoverIdx(e.activeTooltipIndex);
-              setHoverPoint(chartData[e.activeTooltipIndex] ?? null);
-            }
-          }}
-          onTouchEnd={() => {
-            setHoverIdx(null);
-            setHoverPoint(null);
-          }}
         >
           <CartesianGrid horizontal vertical={false} stroke="#2A2D35" strokeDasharray="3 3" opacity={0.4} />
           <YAxis
