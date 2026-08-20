@@ -43,7 +43,33 @@ export const AdminWithdrawalQueue: React.FC = () => {
                   {w.userId}
                 </td>
                 <td className="px-6 py-4 text-sm text-slate-500">
-                  {w.description.replace('Withdrawal to ', '')}
+                  {(() => {
+                    try {
+                      const details = JSON.parse(w.description);
+                      if (details.method_name && details.fields) {
+                        return (
+                          <div className="space-y-2">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-100 text-amber-800">
+                              {details.method_name}
+                            </span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs">
+                              {Object.entries(details.fields).map(([k, v]) => (
+                                <div key={k} className="flex flex-col">
+                                  <span className="text-slate-400 font-medium uppercase text-[10px] tracking-wider">
+                                    {k.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className="text-slate-700 font-semibold">{v as string}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      }
+                    } catch (e) {
+                      // Fallback for legacy format
+                    }
+                    return w.description.replace('Withdrawal to ', '');
+                  })()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-slate-900">
                   ${Math.abs(w.amount / 100).toFixed(2)}

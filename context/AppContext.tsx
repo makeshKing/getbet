@@ -9,7 +9,7 @@ import React, {
   useCallback, useRef
 } from 'react';
 import {
-  Market, Position, Trade, LedgerEntry, DepositMethodConfig,
+  Market, Position, Trade, LedgerEntry, DepositMethodConfig, WithdrawalMethodConfig,
   Config, User, Side, Outcome, KycStatus, Role, QuizQuestion, QuizAnswer, Category, MarketTemplate
 } from '../types';
 import * as svc from '../services/supabaseService';
@@ -22,6 +22,7 @@ interface AppContextType {
   trades: Trade[];
   ledger: LedgerEntry[];
   depositMethods: DepositMethodConfig[];
+  withdrawalMethods: WithdrawalMethodConfig[];
   config: Config;
   activeQuiz: QuizQuestion | null;
 
@@ -68,6 +69,10 @@ interface AppContextType {
   adminUpdateDepositMethod: (id: string, updates: Partial<DepositMethodConfig>) => Promise<void>;
   adminDeleteDepositMethod: (id: string) => Promise<void>;
 
+  adminCreateWithdrawalMethod: (method: Omit<WithdrawalMethodConfig, 'isActive' | 'createdAt' | 'updatedAt'> & { isActive?: boolean }) => Promise<void>;
+  adminUpdateWithdrawalMethod: (id: string, updates: Partial<WithdrawalMethodConfig>) => Promise<void>;
+  adminDeleteWithdrawalMethod: (id: string) => Promise<void>;
+
   // Quiz ops
   getUserQuizAnswer: (quizId: string) => Promise<QuizAnswer | null>;
   answerQuiz: (quizId: string, selectedIndex: number) => Promise<QuizAnswer>;
@@ -106,6 +111,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [depositMethods, setDepositMethods] = useState<DepositMethodConfig[]>([]);
+  const [withdrawalMethods, setWithdrawalMethods] = useState<WithdrawalMethodConfig[]>([]);
   const [config, setConfig] = useState<Config>({ key: 'app', value: { tradingFee: 0 }, updatedAt: '', updatedBy: '' });
   const [activeQuiz, setActiveQuiz] = useState<QuizQuestion | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -176,6 +182,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setConfig(c);
     const dm = await svc.getDepositMethods();
     setDepositMethods(dm);
+    const wm = await svc.getWithdrawalMethods();
+    setWithdrawalMethods(wm);
   }, []);
 
   const refreshAllUsers = useCallback(async () => {
@@ -282,7 +290,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const approveWithdrawal = async (id: string) => {
     await svc.approveWithdrawal(id);
-    await refreshAllLedger();
+    await Promise.all([refreshAllLedger(), refreshAllUsers()]);
   };
 
   const rejectWithdrawal = async (id: string) => {
@@ -362,6 +370,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await svc.adminDeleteDepositMethod(id);
     const dm = await svc.getDepositMethods();
     setDepositMethods(dm);
+  };
+
+  const adminCreateWithdrawalMethod = async (method: Omit<WithdrawalMethodConfig, 'isActive' | 'createdAt' | 'updatedAt'> & { isActive?: boolean }) => {
+    await svc.adminCreateWithdrawalMethod(method);
+    const wm = await svc.getWithdrawalMethods();
+    setWithdrawalMethods(wm);
+  };
+
+  const adminUpdateWithdrawalMethod = async (id: string, updates: Partial<WithdrawalMethodConfig>) => {
+    await svc.adminUpdateWithdrawalMethod(id, updates);
+    const wm = await svc.getWithdrawalMethods();
+    setWithdrawalMethods(wm);
+  };
+
+  const adminDeleteWithdrawalMethod = async (id: string) => {
+    await svc.adminDeleteWithdrawalMethod(id);
+    const wm = await svc.getWithdrawalMethods();
+    setWithdrawalMethods(wm);
   };
 
   // ── Quiz ops ───────────────────────────────────────────────
@@ -450,7 +476,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const value: AppContextType = {
-    markets, positions, trades, ledger, depositMethods, config, activeQuiz,
+    markets, positions, trades, ledger, depositMethods, withdrawalMethods, config, activeQuiz,
     marketsLoading, portfolioLoading,
     refreshMarkets, adminCreateMarket, adminUpdateMarketField, adminResolveMarket,
     buy, refreshPortfolio,
@@ -460,6 +486,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     allUsers, refreshAllUsers,
     adminUpdateUserRole, adminUpdateKycStatus, adminAdjustBalance, adminCreateUser, adminUpdateUserBanStatus,
     adminUpdateConfig, adminCreateDepositMethod, adminUpdateDepositMethod, adminDeleteDepositMethod,
+    adminCreateWithdrawalMethod, adminUpdateWithdrawalMethod, adminDeleteWithdrawalMethod,
     getUserQuizAnswer, answerQuiz,
     adminGetQuizzes, adminCreateQuiz, adminDeleteQuiz, adminEndQuizEarly,
     adminGetStats, adminGetAllTrades,

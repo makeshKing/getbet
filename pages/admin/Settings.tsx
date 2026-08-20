@@ -4,7 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { Button } from '../../components/ui/Button';
 import { Wallet, Info, Save, Eye, EyeOff, Building2, Smartphone, Banknote, Trash2, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
-import { DepositMethodConfig } from '../../types';
+import { DepositMethodConfig, WithdrawalMethodConfig, WithdrawalFieldConfig } from '../../types';
 
 const emptyForm = {
     id: '',
@@ -15,9 +15,125 @@ const emptyForm = {
     qrUrl: '',
 };
 
+interface FieldConfigEditorProps {
+    fields: WithdrawalFieldConfig[];
+    onChange: (fields: WithdrawalFieldConfig[]) => void;
+}
+
+const FieldConfigEditor: React.FC<FieldConfigEditorProps> = ({ fields, onChange }) => {
+    const addField = () => {
+        onChange([...fields, { key: `field_${Date.now()}`, label: '', type: 'text', required: false }]);
+    };
+
+    const updateField = (index: number, updates: Partial<WithdrawalFieldConfig>) => {
+        const newFields = [...fields];
+        newFields[index] = { ...newFields[index], ...updates };
+        if (updates.label !== undefined) {
+            newFields[index].key = newFields[index].label.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            if (!newFields[index].key) newFields[index].key = `field_${Date.now()}`;
+        }
+        onChange(newFields);
+    };
+
+    const removeField = (index: number) => {
+        onChange(fields.filter((_, i) => i !== index));
+    };
+
+    const moveField = (index: number, direction: 'up' | 'down') => {
+        if (direction === 'up' && index === 0) return;
+        if (direction === 'down' && index === fields.length - 1) return;
+        
+        const newFields = [...fields];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        
+        const temp = newFields[index];
+        newFields[index] = newFields[targetIndex];
+        newFields[targetIndex] = temp;
+        
+        onChange(newFields);
+    };
+
+    return (
+        <div className="space-y-3">
+            {fields.map((field, index) => (
+                <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-slate-100 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex gap-1 flex-col sm:flex-row sm:items-center w-full">
+                        <div className="flex gap-1 mr-2">
+                            <button
+                                onClick={() => moveField(index, 'up')}
+                                disabled={index === 0}
+                                className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+                            >
+                                <ChevronUp size={16} />
+                            </button>
+                            <button
+                                onClick={() => moveField(index, 'down')}
+                                disabled={index === fields.length - 1}
+                                className="p-1 text-slate-400 hover:text-slate-600 disabled:opacity-30 disabled:hover:text-slate-400 transition-colors"
+                            >
+                                <ChevronDown size={16} />
+                            </button>
+                        </div>
+                        <input
+                            type="text"
+                            value={field.label}
+                            onChange={e => updateField(index, { label: e.target.value })}
+                            placeholder="Field Label (e.g. Account Number)"
+                            className="flex-1 min-w-[150px] bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+                        />
+                    </div>
+                    <div className="flex gap-3 items-center w-full sm:w-auto">
+                        <select
+                            value={field.type}
+                            onChange={e => updateField(index, { type: e.target.value as 'text' | 'number' })}
+                            className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none"
+                        >
+                            <option value="text">Text</option>
+                            <option value="number">Number</option>
+                        </select>
+                        <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer whitespace-nowrap">
+                            <input
+                                type="checkbox"
+                                checked={field.required}
+                                onChange={e => updateField(index, { required: e.target.checked })}
+                                className="rounded text-amber-500 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                            />
+                            Required
+                        </label>
+                        <button
+                            onClick={() => removeField(index)}
+                            className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors ml-auto sm:ml-0"
+                            title="Remove Field"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    </div>
+                </div>
+            ))}
+            <button
+                onClick={addField}
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 py-1"
+            >
+                <Plus size={14} /> Add Field
+            </button>
+        </div>
+    );
+};
+
 export const AdminSettings: React.FC = () => {
     const { addToast } = useToast();
-    const { config, depositMethods: methods, adminUpdateConfig, adminCreateDepositMethod, adminUpdateDepositMethod, adminDeleteDepositMethod } = useApp();
+    const { 
+        config, 
+        depositMethods: methods, 
+        withdrawalMethods,
+        adminUpdateConfig, 
+        adminCreateDepositMethod, 
+        adminUpdateDepositMethod, 
+        adminDeleteDepositMethod,
+        adminCreateWithdrawalMethod,
+        adminUpdateWithdrawalMethod,
+        adminDeleteWithdrawalMethod
+    } = useApp();
     const [jsonValue, setJsonValue] = useState(JSON.stringify(config.value, null, 2));
     const [error, setError] = useState<string>('');
 
@@ -25,6 +141,13 @@ export const AdminSettings: React.FC = () => {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [createForm, setCreateForm] = useState(emptyForm);
     const [creating, setCreating] = useState(false);
+
+    // Create withdrawal form state
+    const emptyWithdrawalForm = { id: '', name: '', instructions: '' };
+    const [showCreateWithdrawalForm, setShowCreateWithdrawalForm] = useState(false);
+    const [createWithdrawalForm, setCreateWithdrawalForm] = useState(emptyWithdrawalForm);
+    const [createWithdrawalFields, setCreateWithdrawalFields] = useState<WithdrawalFieldConfig[]>([]);
+    const [creatingWithdrawal, setCreatingWithdrawal] = useState(false);
 
     useEffect(() => {
         setJsonValue(JSON.stringify(config.value, null, 2));
@@ -90,6 +213,55 @@ export const AdminSettings: React.FC = () => {
             addToast(`Failed to create deposit method: ${e.message}`, 'error');
         } finally {
             setCreating(false);
+        }
+    };
+
+    const handleUpdateWithdrawalMethod = async (id: string, updates: Partial<WithdrawalMethodConfig>) => {
+        await adminUpdateWithdrawalMethod(id, updates);
+        addToast(`${id.toUpperCase()} withdrawal method updated.`, 'success');
+    };
+
+    const handleDeleteWithdrawalMethod = async (id: string) => {
+        if (!window.confirm(`Are you sure you want to delete the ${id.toUpperCase()} withdrawal method?`)) return;
+        try {
+            await adminDeleteWithdrawalMethod(id);
+            addToast(`${id.toUpperCase()} withdrawal method deleted.`, 'success');
+        } catch (e: any) {
+            addToast(`Failed to delete withdrawal method: ${e.message}`, 'error');
+        }
+    };
+
+    const handleCreateWithdrawalMethod = async () => {
+        if (!createWithdrawalForm.id.trim()) {
+            addToast('Method ID is required.', 'error');
+            return;
+        }
+        if (!createWithdrawalForm.name.trim()) {
+            addToast('Method Name is required.', 'error');
+            return;
+        }
+        if (withdrawalMethods.some(m => m.id === createWithdrawalForm.id.trim().toLowerCase())) {
+            addToast('A withdrawal method with this ID already exists.', 'error');
+            return;
+        }
+
+        setCreatingWithdrawal(true);
+        try {
+            await adminCreateWithdrawalMethod({
+                id: createWithdrawalForm.id.trim().toLowerCase(),
+                name: createWithdrawalForm.name.trim(),
+                fieldsConfig: createWithdrawalFields,
+                instructions: createWithdrawalForm.instructions.trim(),
+                isActive: true,
+            });
+            addToast(`${createWithdrawalForm.name.toUpperCase()} withdrawal method created successfully!`, 'success');
+            setCreateWithdrawalForm(emptyWithdrawalForm);
+            setCreateWithdrawalFields([]);
+            setShowCreateWithdrawalForm(false);
+        } catch (e: any) {
+            addToast(`Failed to create withdrawal method: ${e.message}`, 'error');
+        } finally {
+            setCreatingWithdrawal(false);
         }
     };
 
@@ -285,6 +457,181 @@ export const AdminSettings: React.FC = () => {
                                         onBlur={(e) => handleUpdateMethod(m.id, { instructions: e.target.value })}
                                         rows={3}
                                         className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-medium leading-relaxed focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                <Info size={12} /> Auto-saves on field blur
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Withdrawal Methods Management */}
+            <section className="space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-amber-500 text-white rounded-xl shadow-lg">
+                            <Wallet size={20} />
+                        </div>
+                        <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">Withdrawal Methods (Admin Side)</h2>
+                    </div>
+                    <button
+                        onClick={() => setShowCreateWithdrawalForm(!showCreateWithdrawalForm)}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all duration-200 shadow-sm ${
+                            showCreateWithdrawalForm
+                                ? 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600'
+                                : 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-200 dark:shadow-amber-900/30'
+                        }`}
+                    >
+                        {showCreateWithdrawalForm ? <ChevronUp size={16} /> : <Plus size={16} />}
+                        {showCreateWithdrawalForm ? 'Cancel' : 'Add New Method'}
+                    </button>
+                </div>
+
+                {/* Create New Withdrawal Method Form */}
+                {showCreateWithdrawalForm && (
+                    <div className="bg-white dark:bg-slate-800 rounded-3xl border-2 border-dashed border-amber-300 dark:border-amber-700 shadow-lg shadow-amber-100 dark:shadow-amber-900/20 overflow-hidden animate-in">
+                        <div className="px-6 py-4 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 border-b border-amber-100 dark:border-amber-800">
+                            <div className="flex items-center gap-3">
+                                <div className="p-1.5 bg-amber-500 text-white rounded-lg">
+                                    <Plus size={14} />
+                                </div>
+                                <span className="text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-widest">Create New Withdrawal Method</span>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                        Method ID <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={createWithdrawalForm.id}
+                                        onChange={(e) => setCreateWithdrawalForm(prev => ({ ...prev, id: e.target.value }))}
+                                        placeholder="e.g. esewa, khalti, bank"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                    <p className="text-[9px] text-slate-400 mt-1 ml-1 font-medium">Unique lowercase identifier</p>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">
+                                        Display Name <span className="text-red-400">*</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={createWithdrawalForm.name}
+                                        onChange={(e) => setCreateWithdrawalForm(prev => ({ ...prev, name: e.target.value }))}
+                                        placeholder="e.g. eSewa, Khalti, Bank Transfer"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-amber-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Custom Instructions</label>
+                                    <textarea
+                                        value={createWithdrawalForm.instructions}
+                                        onChange={(e) => setCreateWithdrawalForm(prev => ({ ...prev, instructions: e.target.value }))}
+                                        rows={2}
+                                        placeholder="Instructions shown to users when withdrawing via this method..."
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-medium leading-relaxed focus:ring-2 focus:ring-amber-500 outline-none resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                    />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <div className="flex items-center gap-2 mb-1.5 ml-1">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Required Fields Configuration</label>
+                                        {createWithdrawalFields.length === 0 && (
+                                            <span className="text-[10px] font-bold text-amber-500 uppercase">
+                                                (At least one field is required)
+                                            </span>
+                                        )}
+                                    </div>
+                                    <FieldConfigEditor
+                                        fields={createWithdrawalFields}
+                                        onChange={setCreateWithdrawalFields}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-700">
+                                <button
+                                    onClick={() => { setCreateWithdrawalForm(emptyWithdrawalForm); setCreateWithdrawalFields([]); setShowCreateWithdrawalForm(false); }}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+                                >
+                                    <X size={14} />
+                                    Discard
+                                </button>
+                                <button
+                                    onClick={handleCreateWithdrawalMethod}
+                                    disabled={creatingWithdrawal || createWithdrawalFields.length === 0}
+                                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-amber-200 dark:shadow-amber-900/30"
+                                >
+                                    {creatingWithdrawal ? (
+                                        <>
+                                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Creating...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Plus size={14} />
+                                            Create Method
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                    {withdrawalMethods.map((m) => (
+                        <div key={m.id} className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md">
+                            <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    {m.id === 'bank' ? <Building2 size={20} className="text-slate-400" /> : <Smartphone size={20} className="text-slate-400" />}
+                                    <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">{m.name}</span>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleUpdateWithdrawalMethod(m.id, { isActive: !m.isActive })}
+                                        className={`p-2 rounded-xl transition-all ${m.isActive ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600' : 'bg-slate-50 dark:bg-slate-900 text-slate-400'}`}
+                                        title={m.isActive ? 'Method is LIVE' : 'Method is HIDDEN'}
+                                    >
+                                        {m.isActive ? <Eye size={18} /> : <EyeOff size={18} />}
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteWithdrawalMethod(m.id)}
+                                        className="p-2 rounded-xl transition-all bg-red-50 dark:bg-red-900/30 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/50"
+                                        title="Delete Withdrawal Method"
+                                    >
+                                        <Trash2 size={18} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="p-6 space-y-4 flex-1">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1.5 ml-1">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Required Fields Configuration</label>
+                                        {(!m.fieldsConfig || m.fieldsConfig.length === 0) && (
+                                            <span className="text-[10px] font-bold text-amber-500 uppercase">
+                                                (At least one field is required)
+                                            </span>
+                                        )}
+                                    </div>
+                                    <FieldConfigEditor
+                                        fields={m.fieldsConfig || []}
+                                        onChange={newFields => handleUpdateWithdrawalMethod(m.id, { fieldsConfig: newFields })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Custom Instructions</label>
+                                    <textarea
+                                        defaultValue={m.instructions}
+                                        onBlur={(e) => handleUpdateWithdrawalMethod(m.id, { instructions: e.target.value })}
+                                        rows={2}
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-medium leading-relaxed focus:ring-2 focus:ring-amber-500 outline-none resize-none"
                                     />
                                 </div>
                             </div>

@@ -20,11 +20,17 @@ import {
     History,
     Activity,
     Flame,
-    ExternalLink
+    ExternalLink,
+    ChevronUp,
+    ChevronDown,
+    Eye,
+    EyeOff
 } from 'lucide-react';
 import { ComposedChart, Line, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { useNavigate } from 'react-router-dom';
 
 export const Portfolio: React.FC = () => {
+    const navigateRouter = useNavigate();
     const { positions, trades, markets, ledger } = useApp();
     const { userProfile: user } = useAuth();
     const { formatMoney, currency, usdToNprRate } = useCurrency();
@@ -40,6 +46,14 @@ export const Portfolio: React.FC = () => {
     const [animKey, setAnimKey] = useState(0);
     const [showWinCard, setShowWinCard] = useState(false);
     const [selectedWin, setSelectedWin] = useState<Trade | null>(null);
+    const [hideClosedMarkets, setHideClosedMarkets] = useState(false);
+    const [wonSortConfig, setWonSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'payout', direction: 'desc' });
+    const [showStatCards, setShowStatCards] = useState(() => {
+        try {
+            const stored = localStorage.getItem('oddara_portfolio_balance_visible');
+            return stored !== null ? stored === 'true' : false;
+        } catch { return false; }
+    });
 
     // Won trades — only the 5 most recent wins, sorted newest first
     const allWonTrades = useMemo(() =>
@@ -87,9 +101,54 @@ export const Portfolio: React.FC = () => {
     };
 
     // --- Improved Financial Logic ---
-    const totalInvested = positions.reduce((acc, p) => acc + (p.avgPrice * p.quantity), 0);
+    const filteredPositions = useMemo(() => {
+        if (!hideClosedMarkets) return positions;
+        return positions.filter(pos => {
+            const m = markets.find(mkt => mkt.id === pos.marketId);
+            return !(m?.status === 'resolved' || m?.outcome);
+        });
+    }, [positions, hideClosedMarkets, markets]);
 
-    const potentialPayout = positions.reduce((acc, p) => acc + (p.quantity * (p.faceValueCents || 100)), 0);
+    const totalInvested = filteredPositions.reduce((acc, p) => acc + (p.avgPrice * p.quantity), 0);
+
+    const potentialPayout = filteredPositions.reduce((acc, p) => acc + (p.quantity * (p.faceValueCents || 100)), 0);
+
+    const sortedWonTrades = useMemo(() => {
+        const sorted = [...wonTrades];
+        sorted.sort((a, b) => {
+            const marketA = markets.find(m => m.id === a.marketId);
+            const marketB = markets.find(m => m.id === b.marketId);
+            let valA: any = 0;
+            let valB: any = 0;
+            if (wonSortConfig.key === 'market') {
+                valA = marketA?.title || a.marketTitle;
+                valB = marketB?.title || b.marketTitle;
+            } else if (wonSortConfig.key === 'side') {
+                valA = a.side;
+                valB = b.side;
+            } else if (wonSortConfig.key === 'shares') {
+                valA = a.shares;
+                valB = b.shares;
+            } else if (wonSortConfig.key === 'cost') {
+                valA = a.amount;
+                valB = b.amount;
+            } else if (wonSortConfig.key === 'payout') {
+                valA = a.potentialWin;
+                valB = b.potentialWin;
+            }
+            if (valA < valB) return wonSortConfig.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return wonSortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return sorted;
+    }, [wonTrades, wonSortConfig, markets]);
+
+    const handleWonSort = (key: string) => {
+        setWonSortConfig(prev => ({
+            key,
+            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+        }));
+    };
 
     if (!user) return null;
     const netWorth = (user?.balance || 0);
@@ -262,7 +321,7 @@ export const Portfolio: React.FC = () => {
     }, [ledger, trades, netWorth, investedCapital, lifetimePnl, markets]);
 
     return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-32">
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-32">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
                     <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
@@ -400,36 +459,67 @@ export const Portfolio: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="lg:col-span-4 grid grid-cols-1 gap-4">
-                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4">
-                        <p className="text-[#9AA0A6] text-xs uppercase tracking-wide mb-1">
-                            Lifetime P/L
-                        </p>
-                        <p className={`text-2xl font-bold ${lifetimePnl >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
-                            {lifetimePnl >= 0 ? '+' : ''}{formatMoney(Math.abs(lifetimePnl))}
-                        </p>
-                        <div className="mt-3 pt-3 border-t border-[#22252B]">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[#9AA0A6] text-xs">Potential Payout</span>
-                                <span className="text-[#00D4AA] text-sm font-medium">
-                                    {formatMoney(potentialPayout)}
-                                </span>
-                            </div>
-                            <p className="text-[#9AA0A6] text-[10px] mt-0.5">
-                                If all open positions win
+                <div className="lg:col-span-4">
+                    {/* Mobile-only toggle for stat cards */}
+                    <button
+                        onClick={() => setShowStatCards(prev => {
+                            const next = !prev;
+                            try { localStorage.setItem('oddara_portfolio_balance_visible', String(next)); } catch {}
+                            return next;
+                        })}
+                        className="md:hidden flex items-center gap-1.5 mb-2 text-[#9AA0A6] hover:text-white transition-colors"
+                        aria-label={showStatCards ? 'Hide balance details' : 'Show balance details'}
+                    >
+                        {showStatCards ? <Eye size={16} /> : <EyeOff size={16} />}
+                        <span className="text-[10px] uppercase tracking-wide font-medium">
+                            {showStatCards ? 'Hide' : 'Show'} balances
+                        </span>
+                    </button>
+
+                    {/* On desktop (md+): always visible grid. On mobile: animated collapse. */}
+                    <div
+                        className={`grid grid-cols-2 gap-4 transition-all duration-300 ease-in-out overflow-hidden md:!max-h-none md:!opacity-100 ${
+                            showStatCards ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}
+                    >
+                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                                Total Balance
+                            </p>
+                            <p className="text-xl font-bold text-white truncate" title={formatMoney(netWorth)}>
+                                {formatMoney(netWorth)}
+                            </p>
+                        </div>
+                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                                Withdrawable
+                            </p>
+                            <p className="text-xl font-bold text-[#00D4AA] truncate" title={formatMoney(user?.withdrawableBalance || 0)}>
+                                {formatMoney(user?.withdrawableBalance || 0)}
+                            </p>
+                        </div>
+                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                                Deposited
+                            </p>
+                            <p className="text-xl font-bold text-white truncate" title={formatMoney(totalDeposited)}>
+                                {formatMoney(totalDeposited)}
+                            </p>
+                        </div>
+                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                                Withdrawn
+                            </p>
+                            <p className="text-xl font-bold text-white truncate" title={formatMoney(totalWithdrawn)}>
+                                {formatMoney(totalWithdrawn)}
                             </p>
                         </div>
                     </div>
-
-                    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4">
-                        <h3 className="text-white font-bold text-base mb-1">Power Trader</h3>
-                        <p className="text-[#9AA0A6] text-xs leading-relaxed">
-                            High-Stakes Enabled. Standard contract face value increased to {formatMoney(1000)}.
-                        </p>
-                    </div>
                 </div>
-            </div >
+            </div>
 
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 space-y-8">
             {/* ══════════════════════════════════════════════════════
                  POSITIONS SECTION — Redesigned card layout
                  ══════════════════════════════════════════════════════ */}
@@ -446,15 +536,17 @@ export const Portfolio: React.FC = () => {
                     <label className="flex items-center gap-2 cursor-pointer select-none">
                         <input
                             type="checkbox"
-                            className="w-3.5 h-3.5 rounded border-[#3A3D45] bg-[#14161B] accent-[#00D4AA] cursor-pointer"
+                            checked={hideClosedMarkets}
+                            onChange={(e) => setHideClosedMarkets(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded border-[#3A3D45] bg-[#14161B] accent-[#00D4AA] cursor-pointer transition-all"
                         />
                         <span className="text-[#9AA0A6] text-xs">Hide Other Markets</span>
                     </label>
                 </div>
 
                 {/* ── Position Cards ──────────────────────────────── */}
-                <div className="space-y-2 px-1">
-                    {positions.map((pos) => {
+                <div className="space-y-2 px-1 transition-all duration-300">
+                    {filteredPositions.map((pos) => {
                         const market = getMarket(pos.marketId);
                         const currentPriceCents = getMarketCurrentPrice(pos.marketId, pos.side, pos.outcomeId);
                         const avgCostCents = pos.avgPrice;
@@ -493,7 +585,8 @@ export const Portfolio: React.FC = () => {
                         return (
                             <div
                                 key={`${pos.marketId}-${pos.side}-${pos.outcomeId ?? 'main'}`}
-                                className="bg-[#14161B] rounded-xl p-3 border border-[#1E2025] hover:border-[#2A2D35] transition-colors"
+                                onClick={() => navigateRouter(`/market/${pos.marketId}`)}
+                                className="bg-[#14161B] rounded-xl p-3 border border-[#1E2025] hover:bg-[#1A1C23] hover:border-[#3A3D45] transition-all cursor-pointer"
                             >
                                 {/* Row 1: Icon + Title + Share icon */}
                                 <div className="flex items-start gap-2.5 mb-2">
@@ -575,10 +668,7 @@ export const Portfolio: React.FC = () => {
                 )}
             </div>
 
-            {/* Historical Performance Calendar */}
-            <div className="space-y-4">
-                <PnLCalendar ledger={ledger} trades={trades} />
-            </div>
+
 
             {/* Won Trades Section */}
                 <div className="space-y-4">
@@ -644,16 +734,41 @@ export const Portfolio: React.FC = () => {
                             <table className="w-full">
                                 <thead>
                                     <tr className="bg-[#1E2025] border-b border-[#22252B]">
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Market</th>
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Side</th>
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Shares</th>
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Cost</th>
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Payout</th>
+                                        <th onClick={() => handleWonSort('market')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1">
+                                                Market
+                                                {wonSortConfig.key === 'market' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th onClick={() => handleWonSort('side')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1">
+                                                Side
+                                                {wonSortConfig.key === 'side' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th onClick={() => handleWonSort('shares')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1">
+                                                Shares
+                                                {wonSortConfig.key === 'shares' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th onClick={() => handleWonSort('cost')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1">
+                                                Cost
+                                                {wonSortConfig.key === 'cost' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                                            </div>
+                                        </th>
+                                        <th onClick={() => handleWonSort('payout')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                            <div className="flex items-center gap-1">
+                                                Payout
+                                                {wonSortConfig.key === 'payout' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                                            </div>
+                                        </th>
                                         <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {wonTrades.map((trade) => {
+                                    {sortedWonTrades.map((trade) => {
                                         const market = getMarket(trade.marketId);
                                         const payoutCents = trade.potentialWin / 100;
                                         const profit = payoutCents - trade.amount;
@@ -705,6 +820,14 @@ export const Portfolio: React.FC = () => {
                 </div>
                 <ShareHistoryTable trades={trades.filter(t => t.type === 'BUY')} />
             </div >
+                </div>
+                <div className="lg:col-span-4 space-y-8">
+                    {/* Historical Performance Calendar */}
+                    <div className="space-y-4">
+                        <PnLCalendar ledger={ledger} trades={trades} />
+                    </div>
+                </div>
+            </div>
 
 
 

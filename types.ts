@@ -183,6 +183,25 @@ export interface DepositMethodConfig {
   qrUrl?: string;
 }
 
+export interface WithdrawalFieldConfig {
+  key: string;
+  label: string;
+  type: 'text' | 'number';
+  required: boolean;
+  placeholder?: string;
+}
+
+export interface WithdrawalMethodConfig {
+  id: string;
+  name: string;
+  icon?: string;
+  fieldsConfig: WithdrawalFieldConfig[];
+  instructions: string;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface AuditLogEntry {
   id: string;
   adminUserId: string;

@@ -8,7 +8,7 @@
 import { supabase } from '../lib/supabaseClient';
 import {
   Market, User, Position, Trade, LedgerEntry, LedgerType,
-  Side, Outcome, KycStatus, Role, DepositMethodConfig,
+  Side, Outcome, KycStatus, Role, DepositMethodConfig, WithdrawalMethodConfig,
   QuizQuestion, QuizAnswer, Config, AuditLogEntry, SavedAddress,
   MarketOutcome, MarketDynamics, Category, MarketTemplate
 } from '../types';
@@ -987,6 +987,82 @@ export async function adminCreateDepositMethod(
 export async function adminDeleteDepositMethod(id: string) {
   const { error } = await supabase
     .from('deposit_methods')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+// ─────────────────────────────────────────────────────────────
+// WITHDRAWAL METHODS
+// ─────────────────────────────────────────────────────────────
+
+function mapWithdrawalMethod(row: any): WithdrawalMethodConfig {
+  return {
+    id: row.id,
+    name: row.name,
+    icon: row.icon,
+    fieldsConfig: (row.fields_config || []) as WithdrawalMethodConfig['fieldsConfig'],
+    instructions: row.instructions || '',
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+export async function getWithdrawalMethods(): Promise<WithdrawalMethodConfig[]> {
+  const { data, error } = await supabase
+    .from('withdrawal_methods')
+    .select('*')
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapWithdrawalMethod);
+}
+
+export async function getActiveWithdrawalMethods(): Promise<WithdrawalMethodConfig[]> {
+  const { data, error } = await supabase
+    .from('withdrawal_methods')
+    .select('*')
+    .eq('is_active', true)
+    .order('created_at');
+  if (error) throw new Error(error.message);
+  return (data || []).map(mapWithdrawalMethod);
+}
+
+export async function adminCreateWithdrawalMethod(
+  method: Omit<WithdrawalMethodConfig, 'isActive' | 'createdAt' | 'updatedAt'> & { isActive?: boolean }
+) {
+  const { error } = await supabase.from('withdrawal_methods').insert({
+    id: method.id,
+    name: method.name,
+    icon: method.icon || null,
+    fields_config: method.fieldsConfig,
+    instructions: method.instructions || '',
+    is_active: method.isActive ?? true,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function adminUpdateWithdrawalMethod(
+  id: string,
+  updates: Partial<WithdrawalMethodConfig>
+) {
+  const payload: any = { updated_at: new Date().toISOString() };
+  if (updates.name !== undefined) payload.name = updates.name;
+  if (updates.icon !== undefined) payload.icon = updates.icon;
+  if (updates.fieldsConfig !== undefined) payload.fields_config = updates.fieldsConfig;
+  if (updates.instructions !== undefined) payload.instructions = updates.instructions;
+  if (updates.isActive !== undefined) payload.is_active = updates.isActive;
+
+  const { error } = await supabase
+    .from('withdrawal_methods')
+    .update(payload)
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function adminDeleteWithdrawalMethod(id: string) {
+  const { error } = await supabase
+    .from('withdrawal_methods')
     .delete()
     .eq('id', id);
   if (error) throw new Error(error.message);
