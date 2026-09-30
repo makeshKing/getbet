@@ -42,7 +42,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
 
   return (
     <>
-    <nav className="border-b border-slate-200 dark:border-slate-800/60 bg-white/80 dark:bg-[#0B0F19]/80 backdrop-blur-xl sticky top-0 z-50 transition-all duration-500 supports-[backdrop-filter]:bg-white/60">
+    <nav className="border-b border-theme-border bg-theme-bg-nav backdrop-blur-xl sticky top-0 z-50 transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-14 md:h-16">
 
@@ -52,7 +52,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
               className="flex-shrink-0 flex items-center cursor-pointer group"
               onClick={() => onNavigate(user?.role === Role.STAFF ? 'staff-requests' : 'home')}
             >
-              <span className="font-bold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white">Oddara</span>
+              <span className="font-bold text-lg sm:text-xl tracking-tight text-theme-text-primary">Oddara</span>
             </div>
 
             {user?.role !== Role.STAFF && (
@@ -62,8 +62,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
                     key={item.id}
                     onClick={() => onNavigate(item.id)}
                     className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all duration-300 relative group overflow-hidden ${activePage === item.id || (item.id === 'home' && activePage.startsWith('market'))
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-lg scale-105'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'bg-theme-bg-surface-2 text-theme-text-primary border border-theme-border shadow-lg scale-105'
+                      : 'text-theme-text-secondary hover:text-theme-text-primary hover:bg-theme-bg-surface-2'
                       }`}
                   >
                     <span className="relative z-10">{item.label}</span>
@@ -80,7 +80,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
             {user?.role !== Role.STAFF && (
               <button
                 onClick={() => setCurrency(currency === 'NPR' ? 'USD' : 'NPR')}
-                className="p-2.5 text-xs font-black uppercase tracking-widest text-slate-600 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 transition-all duration-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl active:scale-90"
+                className="p-2.5 text-xs font-black uppercase tracking-widest text-theme-text-secondary hover:text-theme-info transition-all duration-300 hover:bg-theme-bg-surface-2 rounded-xl active:scale-90"
                 title="Toggle Currency"
               >
                 {currency}
@@ -91,11 +91,11 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
               <>
                 {/* Balance Pill */}
                 {user.role !== Role.STAFF && (
-                  <div className="flex items-center bg-white/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 backdrop-blur-md rounded-full pl-4 pr-1.5 py-1.5 shadow-sm group hover:border-emerald-500 transition-all duration-500 cursor-default">
-                    <span className="text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 mr-2 sm:mr-4 tabular-nums tracking-tight">
+                  <div className="flex items-center bg-theme-bg-surface border border-theme-border/50 backdrop-blur-md rounded-full pl-4 pr-1.5 py-1.5 shadow-sm group hover:border-emerald-500 transition-all duration-500 cursor-default">
+                    <span className="text-xs sm:text-sm font-bold text-theme-text-primary mr-2 sm:mr-4 tabular-nums tracking-tight">
                       {formatMoney(user.balance)}
                     </span>
-                    <button className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full p-1.5 transition-all shadow-md active:scale-90">
+                    <button className="bg-theme-accent hover:opacity-90 text-theme-text-primary rounded-full p-1.5 transition-all shadow-md active:scale-90">
                       <Banknote size={14} strokeWidth={3} />
                     </button>
                   </div>
@@ -104,26 +104,26 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
                 {/* User Dropdown */}
                 <div className="relative" ref={menuRef}>
                   <div
-                    className={`flex items-center gap-2 cursor-pointer transition-all duration-300 p-1 rounded-2xl ${isMenuOpen ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}
+                    className={`flex items-center gap-2 cursor-pointer transition-all duration-300 p-1 rounded-2xl ${isMenuOpen ? 'bg-theme-bg-surface-2' : 'hover:bg-theme-bg-surface-2'}`}
                     onClick={() => setIsMenuOpen(!isMenuOpen)}
                   >
-                    <div className="h-9 w-9 rounded-full bg-indigo-100 dark:bg-slate-800 border-2 border-white dark:border-slate-700 shadow-sm flex items-center justify-center overflow-hidden">
+                    <div className="h-9 w-9 rounded-full bg-theme-bg-surface border-2 border-theme-border shadow-sm flex items-center justify-center overflow-hidden">
                       {user.avatarUrl ? <img src={user.avatarUrl} alt="User" className="w-full h-full object-cover" /> : <User size={18} className="text-indigo-600" />}
                     </div>
-                    <ChevronDown size={14} className={`text-slate-500 hidden sm:block transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`text-theme-text-muted hidden sm:block transition-transform duration-300 ${isMenuOpen ? 'rotate-180' : ''}`} />
                   </div>
 
                   {isMenuOpen && (
-                    <div className="absolute right-0 top-14 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 py-2.5 z-50 animate-in fade-in zoom-in-95 duration-300 origin-top-right">
-                      <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 mb-2">
-                        <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user.name}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">{user.email}</p>
+                    <div className="absolute right-0 top-14 w-64 bg-theme-bg-surface rounded-2xl shadow-xl border border-theme-border py-2.5 z-50 animate-in fade-in zoom-in-95 duration-300 origin-top-right">
+                      <div className="px-5 py-4 border-b border-theme-border mb-2">
+                        <p className="text-sm font-bold text-theme-text-primary truncate">{user.name}</p>
+                        <p className="text-xs text-theme-text-secondary truncate mt-0.5">{user.email}</p>
                       </div>
 
                       {user.role === Role.ADMIN && (
                         <button
                           onClick={() => handleNav('admin-home')}
-                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-theme-bg-surface hover:text-indigo-600 flex items-center transition-all duration-200"
                         >
                           <ShieldCheck size={18} className="mr-3.5 text-indigo-500" /> Admin Dashboard
                         </button>
@@ -132,16 +132,16 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
                       {(user.role === Role.ADMIN || user.role === Role.STAFF) && (
                         <button
                           onClick={() => handleNav('staff-requests')}
-                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-theme-bg-surface hover:text-indigo-600 flex items-center transition-all duration-200"
                         >
-                          <LayoutDashboard size={18} className="mr-3.5 text-emerald-500" /> Staff Dashboard
+                          <LayoutDashboard size={18} className="mr-3.5 text-theme-accent" /> Staff Dashboard
                         </button>
                       )}
 
                       {user.role !== Role.STAFF && (
                         <button
                           onClick={() => handleNav('profile')}
-                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-indigo-600 flex items-center transition-all duration-200"
+                          className="w-full text-left px-5 py-3 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-theme-bg-surface hover:text-indigo-600 flex items-center transition-all duration-200"
                         >
                           <UserCircle size={18} className="mr-3.5 text-slate-400" /> My Profile
                         </button>
@@ -167,13 +167,13 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => onNavigate('login')}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-theme-bg-surface transition-all"
                 >
                   Log In
                 </button>
                 <button
                   onClick={() => onNavigate('signup')}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all active:scale-95"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-theme-accent text-theme-text-primary hover:opacity-90 shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/40 transition-all active:scale-95"
                 >
                   Sign Up
                 </button>
@@ -188,7 +188,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
     {isMobileNavOpen && (
       <div className="md:hidden fixed inset-0 top-14 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileNavOpen(false)}>
         <div 
-          className="bg-white dark:bg-[#0B0F19] border-b border-slate-200 dark:border-slate-800 shadow-2xl"
+          className="bg-theme-bg-surface border-b border-theme-border shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="px-4 py-3 space-y-1">
@@ -198,8 +198,8 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, activePage }) => {
                 onClick={() => handleNav(item.id)}
                 className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                   activePage === item.id || (item.id === 'home' && activePage.startsWith('market'))
-                    ? 'bg-indigo-600/10 text-indigo-600 dark:text-indigo-400'
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-theme-accent/10 text-theme-info'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-theme-bg-surface'
                 }`}
               >
                 {item.label}

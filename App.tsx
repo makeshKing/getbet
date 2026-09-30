@@ -39,13 +39,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredRole = 'USER',
   fallback = (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
       <div className="text-center max-w-md">
-        <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">Access Denied</h1>
-        <p className="text-slate-500 dark:text-slate-400 mb-6">You need admin privileges to access this area.</p>
+        <h1 className="text-4xl font-bold text-theme-text-primary mb-4">Access Denied</h1>
+        <p className="text-theme-text-secondary mb-6">You need admin privileges to access this area.</p>
         <button
           onClick={() => window.location.href = '/'}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-bold"
+          className="px-6 py-3 bg-theme-accent text-theme-text-primary rounded-xl hover:opacity-90 transition-colors font-bold"
         >
           Return to Home
         </button>
@@ -58,7 +58,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // While auth state is being determined, show a spinner — never flash a 401
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface">
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -68,13 +68,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     // User not authenticated — redirect to appropriate login
     const isAdminRoute = requiredRole === 'ADMIN';
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
         <div className="text-center max-w-md">
-          <h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-4">401</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">Authentication required. Please log in.</p>
+          <h1 className="text-4xl font-bold text-theme-text-primary mb-4">401</h1>
+          <p className="text-theme-text-secondary mb-6">Authentication required. Please log in.</p>
           <button
             onClick={() => window.location.href = isAdminRoute ? '/admin/login' : '/login'}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors font-bold"
+            className="px-6 py-3 bg-theme-accent text-theme-text-primary rounded-xl hover:opacity-90 transition-colors font-bold"
           >
             {isAdminRoute ? 'Go to Admin Login' : 'Go to Login'}
           </button>
@@ -86,21 +86,21 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // Banned users (non-admins) cannot access ANY protected route
   if (user.isBanned && user.role !== 'ADMIN') {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
         <div className="text-center max-w-md">
           <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-theme-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-3">Account Suspended</h1>
-          <p className="text-slate-500 dark:text-slate-400 mb-6">
+          <h1 className="text-theme-text-secondaryxl font-bold text-theme-text-primary mb-3">Account Suspended</h1>
+          <p className="text-theme-text-secondary mb-6">
             Your account has been suspended by an administrator. If you believe this is a mistake, please contact support.
           </p>
           <button
             onClick={() => window.location.href = '/'}
-            className="px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-900 transition-colors font-bold"
+            className="px-6 py-3 bg-slate-700 text-theme-text-primary rounded-xl hover:bg-theme-bg-surface transition-colors font-bold"
           >
             Return to Home
           </button>
@@ -332,7 +332,7 @@ function App() {
   const isAdminView = currentView.startsWith('admin-');
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 transition-colors duration-500">
+    <div className="min-h-screen bg-theme-bg-surface font-sans text-theme-text-primary transition-colors duration-500">
       <LoadingScreen isLoading={isInitializing} />
       {!['login', 'signup'].includes(currentView) && (
         <Navbar onNavigate={navigate} activePage={currentView} />
@@ -352,10 +352,10 @@ function App() {
           {currentView === 'signup' && <Signup />}
           {currentView === 'leaderboard' && (
             <div className="flex flex-col items-center justify-center pt-20 px-4 text-center">
-              <div className="bg-white dark:bg-slate-800 p-8 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 max-w-md transition-all">
+              <div className="bg-theme-bg-surface p-8 rounded-lg shadow-xl border border-theme-border max-w-md transition-all">
                 <h2 className="text-2xl font-bold mb-4">Coming Soon</h2>
-                <p className="text-slate-500 dark:text-slate-400 mb-6">The Leaderboard feature is part of our upcoming roadmap.</p>
-                <button onClick={() => navigate('home')} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition-all hover:translate-x-1">Return Home &rarr;</button>
+                <p className="text-theme-text-secondary mb-6">The Leaderboard feature is part of our upcoming roadmap.</p>
+                <button onClick={() => navigate('home')} className="text-theme-info hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition-all hover:translate-x-1">Return Home &rarr;</button>
               </div>
             </div>
           )}
@@ -371,13 +371,13 @@ function App() {
                 {currentView === 'admin-categories' && <AdminCategories />}
                 {currentView === 'admin-deposits' && (
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Deposit Requests</h1>
+                    <h1 className="text-2xl font-bold text-theme-text-primary uppercase tracking-tight">Deposit Requests</h1>
                     <AdminDepositQueue />
                   </div>
                 )}
                 {currentView === 'admin-withdrawals' && (
                   <div className="space-y-4">
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white uppercase tracking-tight">Withdrawal Requests</h1>
+                    <h1 className="text-2xl font-bold text-theme-text-primary uppercase tracking-tight">Withdrawal Requests</h1>
                     <AdminWithdrawalQueue />
                   </div>
                 )}

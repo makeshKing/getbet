@@ -324,23 +324,23 @@ export const Portfolio: React.FC = () => {
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 pb-32">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                    <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-1">
+                    <div className="flex items-center gap-2 text-theme-info mb-1">
                         <Activity size={16} strokeWidth={3} />
                         <span className="text-[10px] font-black uppercase tracking-[0.2em]">Portfolio Overview</span>
                     </div>
-                    <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight">Performance</h1>
+                    <h1 className="text-theme-text-secondaryxl md:text-4xl font-black text-theme-text-primary tracking-tight">Performance</h1>
                 </div>
 
-                <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+                <div className="flex bg-theme-bg-surface-2 p-1 rounded-2xl border border-theme-border">
                     <button
                         onClick={() => setChartMode('equity')}
-                        className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'equity' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}
+                        className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'equity' ? 'bg-theme-bg-surface shadow-sm text-theme-info' : 'text-theme-text-muted'}`}
                     >
                         Equity
                     </button>
                     <button
                         onClick={() => setChartMode('pnl')}
-                        className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'pnl' ? 'bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500'}`}
+                        className={`px-4 md:px-6 py-2 rounded-xl text-xs font-bold transition-all ${chartMode === 'pnl' ? 'bg-theme-bg-surface shadow-sm text-theme-info' : 'text-theme-text-muted'}`}
                     >
                         P/L
                     </button>
@@ -354,10 +354,10 @@ export const Portfolio: React.FC = () => {
                             {chartMode === 'equity' ? 'Value' : 'Performance'}
                         </div>
                         <div className="flex items-baseline gap-3">
-                            <span className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tabular-nums tracking-tighter">
+                            <span className="text-theme-text-secondaryxl md:text-4xl font-black text-theme-text-primary tabular-nums tracking-tighter">
                                 {formatMoney(chartMode === 'equity' ? netWorth : lifetimePnl)}
                             </span>
-                            <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center ${allTimeROI >= 0 ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                            <div className={`px-2 py-0.5 rounded-lg text-[10px] font-black flex items-center ${allTimeROI >= 0 ? 'bg-emerald-500/10 text-theme-accent' : 'bg-red-500/10 text-theme-danger'}`}>
                                 {allTimeROI >= 0 ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
                                 {Math.abs(allTimeROI).toFixed(1)}%
                             </div>
@@ -386,23 +386,23 @@ export const Portfolio: React.FC = () => {
                                         if (active && payload && payload.length) {
                                             const data = payload[0].payload;
                                             return (
-                                                <div className="glass-panel p-3 rounded-xl border border-slate-200/50 dark:border-slate-800 shadow-xl backdrop-blur-md min-w-[150px]">
+                                                <div className="glass-panel p-3 rounded-xl border border-theme-border shadow-xl backdrop-blur-md min-w-[150px]">
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
                                                     <div className="space-y-1">
                                                         <div className="flex justify-between items-center gap-4">
-                                                            <span className="text-[10px] font-bold text-slate-500">Net Worth</span>
-                                                            <span className="text-xs font-black text-slate-900 dark:text-white">{formatMoney((data.equity ?? 0) * 100)}</span>
+                                                            <span className="text-[10px] font-bold text-theme-text-muted">Net Worth</span>
+                                                            <span className="text-xs font-black text-theme-text-primary">{formatMoney((data.equity ?? 0) * 100)}</span>
                                                         </div>
                                                         {chartMode === 'equity' && (
                                                             <div className="flex justify-between items-center gap-4">
                                                                 <span className="text-[10px] font-bold text-slate-400">Invested</span>
-                                                                <span className="text-xs font-bold text-slate-500">{formatMoney((data.invested ?? 0) * 100)}</span>
+                                                                <span className="text-xs font-bold text-theme-text-muted">{formatMoney((data.invested ?? 0) * 100)}</span>
                                                             </div>
                                                         )}
                                                         <div className="border-t border-slate-100 dark:border-slate-800 my-1 pt-1"></div>
                                                         <div className="flex justify-between items-center gap-4">
-                                                            <span className="text-[10px] font-bold text-slate-500">Total P/L</span>
-                                                            <span className={`text-xs font-black ${(data.pnl ?? 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                                            <span className="text-[10px] font-bold text-theme-text-muted">Total P/L</span>
+                                                            <span className={`text-xs font-black ${(data.pnl ?? 0) >= 0 ? 'text-theme-accent' : 'text-theme-danger'}`}>
                                                                 {(data.pnl ?? 0) >= 0 ? '+' : ''}{formatMoney(Math.abs(data.pnl ?? 0) * 100)}
                                                             </span>
                                                         </div>
@@ -467,7 +467,7 @@ export const Portfolio: React.FC = () => {
                             try { localStorage.setItem('oddara_portfolio_balance_visible', String(next)); } catch {}
                             return next;
                         })}
-                        className="md:hidden flex items-center gap-1.5 mb-2 text-[#9AA0A6] hover:text-white transition-colors"
+                        className="md:hidden flex items-center gap-1.5 mb-2 text-theme-text-secondary hover:text-theme-text-primary transition-colors"
                         aria-label={showStatCards ? 'Hide balance details' : 'Show balance details'}
                     >
                         {showStatCards ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -482,35 +482,35 @@ export const Portfolio: React.FC = () => {
                             showStatCards ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
                         }`}
                     >
-                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
-                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                        <div className="bg-theme-bg-surface border border-theme-border rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-theme-text-secondary text-[10px] uppercase tracking-wide mb-1">
                                 Total Balance
                             </p>
-                            <p className="text-xl font-bold text-white truncate" title={formatMoney(netWorth)}>
+                            <p className="text-xl font-bold text-theme-text-primary truncate" title={formatMoney(netWorth)}>
                                 {formatMoney(netWorth)}
                             </p>
                         </div>
-                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
-                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                        <div className="bg-theme-bg-surface border border-theme-border rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-theme-text-secondary text-[10px] uppercase tracking-wide mb-1">
                                 Withdrawable
                             </p>
-                            <p className="text-xl font-bold text-[#00D4AA] truncate" title={formatMoney(user?.withdrawableBalance || 0)}>
+                            <p className="text-xl font-bold text-theme-accent truncate" title={formatMoney(user?.withdrawableBalance || 0)}>
                                 {formatMoney(user?.withdrawableBalance || 0)}
                             </p>
                         </div>
-                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
-                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                        <div className="bg-theme-bg-surface border border-theme-border rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-theme-text-secondary text-[10px] uppercase tracking-wide mb-1">
                                 Deposited
                             </p>
-                            <p className="text-xl font-bold text-white truncate" title={formatMoney(totalDeposited)}>
+                            <p className="text-xl font-bold text-theme-text-primary truncate" title={formatMoney(totalDeposited)}>
                                 {formatMoney(totalDeposited)}
                             </p>
                         </div>
-                        <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col justify-center">
-                            <p className="text-[#9AA0A6] text-[10px] uppercase tracking-wide mb-1">
+                        <div className="bg-theme-bg-surface border border-theme-border rounded-xl p-4 flex flex-col justify-center">
+                            <p className="text-theme-text-secondary text-[10px] uppercase tracking-wide mb-1">
                                 Withdrawn
                             </p>
-                            <p className="text-xl font-bold text-white truncate" title={formatMoney(totalWithdrawn)}>
+                            <p className="text-xl font-bold text-theme-text-primary truncate" title={formatMoney(totalWithdrawn)}>
                                 {formatMoney(totalWithdrawn)}
                             </p>
                         </div>
@@ -525,8 +525,8 @@ export const Portfolio: React.FC = () => {
                  ══════════════════════════════════════════════════════ */}
             <div className="space-y-0">
                 {/* ── Section Header ───────────────────────────────── */}
-                <div className="border-b border-[#22252B] px-4 py-3">
-                    <h2 className="text-white text-sm font-bold tracking-wide">
+                <div className="border-b border-theme-border px-4 py-3">
+                    <h2 className="text-theme-text-primary text-sm font-bold tracking-wide">
                         Positions ({positions.length})
                     </h2>
                 </div>
@@ -538,9 +538,9 @@ export const Portfolio: React.FC = () => {
                             type="checkbox"
                             checked={hideClosedMarkets}
                             onChange={(e) => setHideClosedMarkets(e.target.checked)}
-                            className="w-3.5 h-3.5 rounded border-[#3A3D45] bg-[#14161B] accent-[#00D4AA] cursor-pointer transition-all"
+                            className="w-3.5 h-3.5 rounded border-theme-border bg-theme-bg-surface accent-[#00D4AA] cursor-pointer transition-all"
                         />
-                        <span className="text-[#9AA0A6] text-xs">Hide Other Markets</span>
+                        <span className="text-theme-text-secondary text-xs">Hide Other Markets</span>
                     </label>
                 </div>
 
@@ -586,7 +586,7 @@ export const Portfolio: React.FC = () => {
                             <div
                                 key={`${pos.marketId}-${pos.side}-${pos.outcomeId ?? 'main'}`}
                                 onClick={() => navigateRouter(`/market/${pos.marketId}`)}
-                                className="bg-[#14161B] rounded-xl p-3 border border-[#1E2025] hover:bg-[#1A1C23] hover:border-[#3A3D45] transition-all cursor-pointer"
+                                className="bg-theme-bg-surface rounded-xl p-3 border border-theme-border hover:bg-[#1A1C23] hover:border-theme-border transition-all cursor-pointer"
                             >
                                 {/* Row 1: Icon + Title + Share icon */}
                                 <div className="flex items-start gap-2.5 mb-2">
@@ -596,50 +596,50 @@ export const Portfolio: React.FC = () => {
                                         alt=""
                                     />
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-white text-[13px] font-semibold truncate leading-tight">
+                                        <p className="text-theme-text-primary text-[13px] font-semibold truncate leading-tight">
                                             {market?.title || 'Unknown Market'}
                                         </p>
                                         <span className={`inline-block text-[11px] font-bold mt-0.5 ${
-                                            outcomeIsPositive ? 'text-[#00D4AA]' : 'text-[#FF4757]'
+                                            outcomeIsPositive ? 'text-theme-accent' : 'text-theme-danger'
                                         }`}>
                                             {outcomeLabel}
                                         </span>
                                     </div>
-                                    <button className="flex-shrink-0 text-[#9AA0A6] hover:text-white transition-colors p-0.5">
+                                    <button className="flex-shrink-0 text-theme-text-secondary hover:text-theme-text-primary transition-colors p-0.5">
                                         <ExternalLink size={14} />
                                     </button>
                                 </div>
 
                                 {/* Divider */}
-                                <div className="border-t border-[#1E2025] my-2" />
+                                <div className="border-t border-theme-border my-2" />
 
                                 {/* Row 2: Cur. Price / Avg. Cost  |  Shares */}
                                 <div className="flex items-start justify-between mb-2.5">
                                     <div>
-                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Cur. Price / Avg. Cost</p>
-                                        <p className="text-white text-[13px] font-semibold tabular-nums">
+                                        <p className="text-theme-text-muted text-[10px] font-medium tracking-wide mb-0.5">Cur. Price / Avg. Cost</p>
+                                        <p className="text-theme-text-primary text-[13px] font-semibold tabular-nums">
                                             {formatMoney(currentPriceCents)}{' '}
-                                            <span className="text-[#6B7280]">/</span>{' '}
+                                            <span className="text-theme-text-muted">/</span>{' '}
                                             {formatMoney(avgCostCents)}
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Shares</p>
-                                        <p className="text-white text-[13px] font-semibold tabular-nums">{shares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
+                                        <p className="text-theme-text-muted text-[10px] font-medium tracking-wide mb-0.5">Shares</p>
+                                        <p className="text-theme-text-primary text-[13px] font-semibold tabular-nums">{shares.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</p>
                                     </div>
                                 </div>
 
                                 {/* Row 3: Value  |  PNL  |  Payout if Won */}
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Value</p>
-                                        <p className="text-white text-[13px] font-semibold tabular-nums">
+                                        <p className="text-theme-text-muted text-[10px] font-medium tracking-wide mb-0.5">Value</p>
+                                        <p className="text-theme-text-primary text-[13px] font-semibold tabular-nums">
                                             {formatMoney(valueCents)}
                                         </p>
                                     </div>
                                     <div className="text-center">
-                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">PNL</p>
-                                        <p className={`text-[13px] font-semibold tabular-nums ${pnlCents >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+                                        <p className="text-theme-text-muted text-[10px] font-medium tracking-wide mb-0.5">PNL</p>
+                                        <p className={`text-[13px] font-semibold tabular-nums ${pnlCents >= 0 ? 'text-theme-accent' : 'text-theme-danger'}`}>
                                             {pnlCents >= 0 ? '+' : '-'}{formatMoney(Math.abs(pnlCents))}{' '}
                                             <span className="text-[11px]">
                                                 ({pnlPercent >= 0 ? '+' : ''}{pnlPercent.toFixed(2)}%)
@@ -647,8 +647,8 @@ export const Portfolio: React.FC = () => {
                                         </p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[#6B7280] text-[10px] font-medium tracking-wide mb-0.5">Payout if Won</p>
-                                        <p className="text-[#00D4AA] text-[13px] font-semibold tabular-nums">
+                                        <p className="text-theme-text-muted text-[10px] font-medium tracking-wide mb-0.5">Payout if Won</p>
+                                        <p className="text-theme-accent text-[13px] font-semibold tabular-nums">
                                             {formatMoney(payoutCents)}
                                         </p>
                                     </div>
@@ -662,8 +662,8 @@ export const Portfolio: React.FC = () => {
                 {positions.length === 0 && (
                     <div className="text-center py-16 px-4">
                         <Briefcase size={36} className="mx-auto text-[#3A3D45] mb-3" />
-                        <h3 className="text-sm font-bold text-[#6B7280] uppercase tracking-widest">No active positions</h3>
-                        <p className="text-[#4B5563] text-xs mt-1">Your open positions will appear here</p>
+                        <h3 className="text-sm font-bold text-theme-text-muted uppercase tracking-widest">No active positions</h3>
+                        <p className="text-theme-text-muted text-xs mt-1">Your open positions will appear here</p>
                     </div>
                 )}
             </div>
@@ -673,7 +673,7 @@ export const Portfolio: React.FC = () => {
             {/* Won Trades Section */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between px-2 mb-3">
-                        <h3 className="text-white text-sm font-bold uppercase tracking-wide flex items-center gap-2">
+                        <h3 className="text-theme-text-primary text-sm font-bold uppercase tracking-wide flex items-center gap-2">
                             🏆 Won Trades
                         </h3>
                         {allWonTrades.length > 0 && (
@@ -684,7 +684,7 @@ export const Portfolio: React.FC = () => {
                     </div>
 
                     {wonTrades.length === 0 && (
-                        <p className="text-[#9AA0A6] text-sm text-center py-6">
+                        <p className="text-theme-text-secondary text-sm text-center py-6">
                             No wins yet — your winning trades will appear here.
                         </p>
                     )}
@@ -701,14 +701,14 @@ export const Portfolio: React.FC = () => {
                                     <div className="flex items-center gap-3">
                                         <img src={market?.imageUrl} className="w-12 h-12 rounded-xl object-cover" alt="" />
                                         <div className="min-w-0 flex-1">
-                                            <h3 className="text-sm font-black text-slate-900 dark:text-white leading-tight line-clamp-1">{market?.title || trade.marketTitle}</h3>
+                                            <h3 className="text-sm font-black text-theme-text-primary leading-tight line-clamp-1">{market?.title || trade.marketTitle}</h3>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400">WON</span>
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{trade.shares} Shares</span>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-sm font-black text-emerald-500">+{formatMoney(trade.potentialWin / 100)}</div>
+                                            <div className="text-sm font-black text-theme-accent">+{formatMoney(trade.potentialWin / 100)}</div>
                                             <div className="text-[9px] font-bold text-slate-400 tabular-nums">Cost: {formatMoney(trade.amount)}</div>
                                         </div>
                                     </div>
@@ -718,7 +718,7 @@ export const Portfolio: React.FC = () => {
                                         </div>
                                         <button
                                             onClick={() => handleShareWin(trade)}
-                                            className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500 uppercase tracking-widest hover:text-emerald-400 transition-colors"
+                                            className="flex items-center gap-1.5 text-[10px] font-black text-theme-accent uppercase tracking-widest hover:text-emerald-400 transition-colors"
                                         >
                                             🎉 Share Win
                                         </button>
@@ -729,42 +729,42 @@ export const Portfolio: React.FC = () => {
                     </div>
 
                     {/* Desktop View */}
-                    <div className="hidden md:block bg-[#15171C] border border-[#22252B] rounded-xl overflow-hidden">
+                    <div className="hidden md:block bg-theme-bg-surface border border-theme-border rounded-xl overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
-                                    <tr className="bg-[#1E2025] border-b border-[#22252B]">
-                                        <th onClick={() => handleWonSort('market')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                    <tr className="bg-theme-bg-surface-2 border-b border-theme-border">
+                                        <th onClick={() => handleWonSort('market')} className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-theme-text-primary transition-colors">
                                             <div className="flex items-center gap-1">
                                                 Market
                                                 {wonSortConfig.key === 'market' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                                             </div>
                                         </th>
-                                        <th onClick={() => handleWonSort('side')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                        <th onClick={() => handleWonSort('side')} className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-theme-text-primary transition-colors">
                                             <div className="flex items-center gap-1">
                                                 Side
                                                 {wonSortConfig.key === 'side' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                                             </div>
                                         </th>
-                                        <th onClick={() => handleWonSort('shares')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                        <th onClick={() => handleWonSort('shares')} className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-theme-text-primary transition-colors">
                                             <div className="flex items-center gap-1">
                                                 Shares
                                                 {wonSortConfig.key === 'shares' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                                             </div>
                                         </th>
-                                        <th onClick={() => handleWonSort('cost')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                        <th onClick={() => handleWonSort('cost')} className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-theme-text-primary transition-colors">
                                             <div className="flex items-center gap-1">
                                                 Cost
                                                 {wonSortConfig.key === 'cost' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                                             </div>
                                         </th>
-                                        <th onClick={() => handleWonSort('payout')} className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-white transition-colors">
+                                        <th onClick={() => handleWonSort('payout')} className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left cursor-pointer hover:text-theme-text-primary transition-colors">
                                             <div className="flex items-center gap-1">
                                                 Payout
                                                 {wonSortConfig.key === 'payout' && (wonSortConfig.direction === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                                             </div>
                                         </th>
-                                        <th className="text-[#9AA0A6] text-[10px] uppercase tracking-wide px-4 py-2 text-left">Action</th>
+                                        <th className="text-theme-text-secondary text-[10px] uppercase tracking-wide px-4 py-2 text-left">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -773,28 +773,28 @@ export const Portfolio: React.FC = () => {
                                         const payoutCents = trade.potentialWin / 100;
                                         const profit = payoutCents - trade.amount;
                                         return (
-                                            <tr key={trade.id} className="border-b border-[#22252B] last:border-0 hover:bg-[#1E2025]">
-                                                <td className="px-4 py-3 text-white text-sm">
+                                            <tr key={trade.id} className="border-b border-theme-border last:border-0 hover:bg-theme-bg-surface-2">
+                                                <td className="px-4 py-3 text-theme-text-primary text-sm">
                                                     <div className="flex items-center gap-2">
-                                                        <span className="w-6 h-6 rounded-full bg-[#1E2025] flex items-center justify-center text-xs overflow-hidden">
+                                                        <span className="w-6 h-6 rounded-full bg-theme-bg-surface-2 flex items-center justify-center text-xs overflow-hidden">
                                                             <img className="h-full w-full object-cover" src={market?.imageUrl} alt="" />
                                                         </span>
                                                         <span className="truncate max-w-[200px]">{market?.title || trade.marketTitle}</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-4 py-3">
-                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-[#00D4AA]/30 text-[#00D4AA]`}>{trade.side}</span>
+                                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border border-[#00D4AA]/30 text-theme-accent`}>{trade.side}</span>
                                                 </td>
-                                                <td className="px-4 py-3 text-white text-sm">{trade.shares.toLocaleString()}</td>
-                                                <td className="px-4 py-3 text-[#9AA0A6] text-sm tabular-nums">{formatMoney(trade.amount)}</td>
+                                                <td className="px-4 py-3 text-theme-text-primary text-sm">{trade.shares.toLocaleString()}</td>
+                                                <td className="px-4 py-3 text-theme-text-secondary text-sm tabular-nums">{formatMoney(trade.amount)}</td>
                                                 <td className="px-4 py-3">
-                                                    <div className="text-sm font-bold tabular-nums text-[#00D4AA]">{formatMoney(payoutCents)}</div>
-                                                    <div className="text-[10px] font-bold text-[#00D4AA] opacity-70">+{formatMoney(profit)} profit</div>
+                                                    <div className="text-sm font-bold tabular-nums text-theme-accent">{formatMoney(payoutCents)}</div>
+                                                    <div className="text-[10px] font-bold text-theme-accent opacity-70">+{formatMoney(profit)} profit</div>
                                                 </td>
                                                 <td className="px-4 py-3 text-left">
                                                     <button
                                                         onClick={() => handleShareWin(trade)}
-                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide border border-[#00D4AA]/20 text-[#00D4AA] hover:bg-[#00D4AA]/10 transition-colors"
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wide border border-[#00D4AA]/20 text-theme-accent hover:bg-[#00D4AA]/10 transition-colors"
                                                     >
                                                         🎉 Share Win
                                                     </button>
@@ -815,7 +815,7 @@ export const Portfolio: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
                     <div className="flex items-center gap-3">
                         <History size={20} className="text-indigo-600" />
-                        <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Share Purchase History</h2>
+                        <h2 className="text-sm font-black text-theme-text-primary uppercase tracking-widest">Share Purchase History</h2>
                     </div>
                 </div>
                 <ShareHistoryTable trades={trades.filter(t => t.type === 'BUY')} />

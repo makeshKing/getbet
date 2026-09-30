@@ -11,34 +11,34 @@ interface LedgerTableProps {
 export const LedgerTable: React.FC<LedgerTableProps> = ({ entries }) => {
   const getIcon = (type: LedgerType) => {
     switch (type) {
-      case LedgerType.DEPOSIT: return <ArrowDownLeft size={16} className="text-emerald-500" />;
-      case LedgerType.WITHDRAWAL: return <ArrowUpRight size={16} className="text-slate-500 dark:text-slate-400" />;
-      case LedgerType.TRADE_LOSS: return <ArrowUpRight size={16} className="text-red-500" />;
+      case LedgerType.DEPOSIT: return <ArrowDownLeft size={16} className="text-theme-accent" />;
+      case LedgerType.WITHDRAWAL: return <ArrowUpRight size={16} className="text-theme-text-secondary" />;
+      case LedgerType.TRADE_LOSS: return <ArrowUpRight size={16} className="text-theme-danger" />;
       default: return <AlertCircle size={16} className="text-slate-400" />;
     }
   };
 
   const getStatusBadge = (status?: string) => {
-    if (status === 'COMPLETED') return <span className="flex items-center text-emerald-600 dark:text-emerald-400 text-xs font-medium"><CheckCircle size={12} className="mr-1" /> Settled</span>;
+    if (status === 'COMPLETED') return <span className="flex items-center text-theme-accent text-xs font-medium"><CheckCircle size={12} className="mr-1" /> Settled</span>;
     if (status === 'PENDING') return <span className="flex items-center text-amber-600 dark:text-amber-400 text-xs font-medium"><ClockIcon size={12} className="mr-1" /> Pending</span>;
-    if (status === 'REJECTED') return <span className="flex items-center text-red-600 dark:text-red-400 text-xs font-medium"><XCircle size={12} className="mr-1" /> Rejected</span>;
+    if (status === 'REJECTED') return <span className="flex items-center text-theme-danger text-xs font-medium"><XCircle size={12} className="mr-1" /> Rejected</span>;
     return null;
   };
 
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden transition-colors">
+    <div className="bg-theme-bg-surface rounded-lg border border-theme-border overflow-hidden transition-colors">
         <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-        <thead className="bg-slate-50 dark:bg-slate-800/50">
+        <thead className="bg-theme-bg-surface-2">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Type</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Description</th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Date</th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Amount</th>
-            <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-theme-text-secondary uppercase tracking-wider">Type</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-theme-text-secondary uppercase tracking-wider">Description</th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-theme-text-secondary uppercase tracking-wider">Date</th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-theme-text-secondary uppercase tracking-wider">Amount</th>
+            <th className="px-6 py-3 text-right text-xs font-medium text-theme-text-secondary uppercase tracking-wider">Status</th>
           </tr>
         </thead>
-        <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
+        <tbody className="bg-theme-bg-surface divide-y divide-slate-200 dark:divide-slate-700">
           {entries.map((entry) => (
             <tr key={entry.id}>
               <td className="px-6 py-4 whitespace-nowrap">
@@ -47,17 +47,17 @@ export const LedgerTable: React.FC<LedgerTableProps> = ({ entries }) => {
                     <span className="text-sm font-medium text-slate-900 dark:text-slate-200 capitalize">{entry.type.replace('_', ' ').toLowerCase()}</span>
                 </div>
               </td>
-              <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400 max-w-xs truncate" title={entry.description}>
+              <td className="px-6 py-4 text-sm text-theme-text-secondary max-w-xs truncate" title={entry.description}>
                 {entry.description}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-theme-text-secondary">
                 {new Date(entry.createdAt).toLocaleDateString()}
               </td>
               <td className={`px-6 py-4 whitespace-nowrap text-sm font-bold text-right ${
                 entry.amount > 0 
-                  ? 'text-emerald-600 dark:text-emerald-400' 
+                  ? 'text-theme-accent' 
                   : entry.type === LedgerType.TRADE_LOSS 
-                    ? 'text-red-600 dark:text-red-400' 
+                    ? 'text-theme-danger' 
                     : 'text-slate-900 dark:text-slate-200'
               }`}>
                 {entry.amount > 0 ? '+' : ''}{(entry.amount / 100).toFixed(2)}
@@ -69,7 +69,7 @@ export const LedgerTable: React.FC<LedgerTableProps> = ({ entries }) => {
           ))}
           {entries.length === 0 && (
             <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 dark:text-slate-400 text-sm">No transaction history.</td>
+                <td colSpan={5} className="px-6 py-8 text-center text-theme-text-secondary text-sm">No transaction history.</td>
             </tr>
           )}
         </tbody>

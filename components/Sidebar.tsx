@@ -90,13 +90,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
         <div className="flex flex-col">
             {/* Compact featured promo — no big image */}
             {featuredMarket && (
-                <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4 mb-3 cursor-pointer" onClick={() => onMarketClick(featuredMarket.id)}>
-                <p className="text-[#00D4AA] text-xs font-bold uppercase tracking-wide mb-1">
+                <div className="bg-theme-bg-surface-2 border border-theme-border rounded-xl p-4 mb-3 cursor-pointer" onClick={() => onMarketClick(featuredMarket.id)}>
+                <p className="text-theme-accent text-xs font-bold uppercase tracking-wide mb-1">
                     Featured
                 </p>
                 <p className="text-white text-base font-bold mb-1 line-clamp-2">{featuredMarket.title}</p>
                 <p className="text-[#9AA0A6] text-xs mb-3 line-clamp-2">{featuredMarket.description || 'Trade on the latest trending market.'}</p>
-                <button className="w-full bg-[#00D4AA] text-[#0A0C10] font-bold py-2.5 rounded-xl text-sm hover:bg-[#00D4AA]/90 transition-colors">
+                <button className="w-full bg-theme-accent text-[#0A0C10] font-bold py-2.5 rounded-xl text-sm hover:bg-theme-accent/90 transition-colors">
                     Trade Now
                 </button>
                 </div>
@@ -105,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
             {/* Category links with colored borders + volume */}
             {categoryStats.map(cat => (
             <div key={cat.name}
-                className="bg-[#15171C] border border-[#22252B] rounded-xl px-4 py-3 mb-2
+                className="bg-theme-bg-surface-2 border border-theme-border rounded-xl px-4 py-3 mb-2
                 flex items-center gap-3 cursor-pointer hover:border-white/20 transition-colors"
                 style={{ borderLeft: `3px solid ${cat.color}` }}
             >
@@ -123,7 +123,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
             {trending.length > 0 && (
                 <>
                 <h3 className="text-white text-base font-bold mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
-                    Trending <span className="text-[#00D4AA] text-lg font-bold">›</span>
+                    Trending <span className="text-theme-accent text-lg font-bold">›</span>
                 </h3>
                 {trending.map((t, i) => (
                     <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ markets, onMarketClick }) => {
             {electionsMarkets.length > 0 && (
                 <>
                 <h3 className="text-white text-base font-bold mt-6 mb-3 flex items-center gap-2 cursor-pointer hover:text-white/80">
-                    Politics <span className="text-[#00D4AA] text-lg font-bold">›</span>
+                    Politics <span className="text-theme-accent text-lg font-bold">›</span>
                 </h3>
                 {electionsMarkets.map((t, i) => (
                     <div key={t.id} className="flex items-start gap-3 mb-4 cursor-pointer group" onClick={() => onMarketClick(t.id)}>

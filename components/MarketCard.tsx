@@ -67,7 +67,7 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
             role="button"
             tabIndex={0}
             aria-label={`Market: ${market.title}`}
-            className={`bg-[#15171C] border border-[#22252B] rounded-xl p-4 flex flex-col relative group
+            className={`bg-theme-bg-surface-2 border border-theme-border rounded-xl p-4 flex flex-col relative group
                 ${market.status === 'resolved' || isResolved
                     ? 'opacity-70 grayscale-[20%] cursor-not-allowed'
                     : 'hover:border-white/20 transition-colors duration-200 cursor-pointer'
@@ -179,7 +179,7 @@ export const MarketCard: React.FC<MarketCardProps> = memo(({ market, onClick }) 
                 {market.volume > 0 ? (
                     <span className="text-[#9AA0A6] text-xs">{fmt(market.volume)} vol</span>
                 ) : (
-                    <span className="text-[#00D4AA] font-bold uppercase tracking-widest border border-[#00D4AA]/30 bg-[#00D4AA]/10 px-1.5 py-0.5 rounded text-[9px]">New</span>
+                    <span className="text-theme-accent font-bold uppercase tracking-widest border border-theme-accent/30 bg-theme-accent/10 px-1.5 py-0.5 rounded text-[9px]">New</span>
                 )}
                 <span className="text-[#9AA0A6] text-xs">{market.outcomes && market.outcomes.length > 0 ? `${market.outcomes.length} markets` : `2 markets`}</span>
             </div>

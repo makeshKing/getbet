@@ -135,38 +135,38 @@ export const PnLCalendar: React.FC<PnLCalendarProps> = ({ ledger, trades }) => {
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   return (
-    <div className="bg-[#15171C] border border-[#22252B] rounded-xl p-4">
+    <div className="bg-theme-bg-surface border border-theme-border rounded-xl p-4">
       {/* Header — smaller */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-white text-sm font-bold">
+        <h3 className="text-theme-text-primary text-sm font-bold">
           Historical Performance
-          <span className="text-[#9AA0A6] text-xs font-normal ml-1.5">(90 Days)</span>
+          <span className="text-theme-text-secondary text-xs font-normal ml-1.5">(90 Days)</span>
         </h3>
       </div>
 
       {/* Month nav — smaller */}
       <div className="flex items-center gap-2 mb-3">
-        <button onClick={handlePrevMonth} disabled={!canGoPrev} className={`text-sm ${canGoPrev ? 'text-[#9AA0A6] hover:text-white' : 'text-[#22252B] cursor-not-allowed'}`}>‹</button>
+        <button onClick={handlePrevMonth} disabled={!canGoPrev} className={`text-sm ${canGoPrev ? 'text-theme-text-secondary hover:text-theme-text-primary' : 'text-[#22252B] cursor-not-allowed'}`}>‹</button>
         <select 
           value={`${currentYear}-${currentMonth}`}
           onChange={(e) => {
             const [y, m] = e.target.value.split('-');
             setCurrentDate(new Date(parseInt(y), parseInt(m), 1));
           }}
-          className="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer appearance-none text-center"
+          className="bg-transparent border-none text-sm font-bold text-theme-text-primary outline-none cursor-pointer appearance-none text-center"
         >
           {availableMonths.map(m => (
-            <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`} className="bg-[#15171C] text-base">
+            <option key={`${m.year}-${m.month}`} value={`${m.year}-${m.month}`} className="bg-theme-bg-surface text-base">
               {monthNames[m.month]} {m.year}
             </option>
           ))}
         </select>
-        <button onClick={handleNextMonth} disabled={!canGoNext} className={`text-sm ${canGoNext ? 'text-[#9AA0A6] hover:text-white' : 'text-[#22252B] cursor-not-allowed'}`}>›</button>
+        <button onClick={handleNextMonth} disabled={!canGoNext} className={`text-sm ${canGoNext ? 'text-theme-text-secondary hover:text-theme-text-primary' : 'text-[#22252B] cursor-not-allowed'}`}>›</button>
       </div>
 
       <div className="grid grid-cols-7 mb-1">
         {dayNames.map(day => (
-          <div key={day} className="text-center text-[#9AA0A6] text-[10px] py-1">
+          <div key={day} className="text-center text-theme-text-secondary text-[10px] py-1">
             {day.charAt(0)}
           </div>
         ))}
@@ -181,7 +181,7 @@ export const PnLCalendar: React.FC<PnLCalendarProps> = ({ ledger, trades }) => {
           if (dateData.outOfWindow) {
             return (
               <div key={`day-out-${dateData.day}`} className="min-h-[40px] rounded-md border border-transparent flex flex-col justify-between p-1">
-                <p className="text-[#9AA0A6] text-[9px] leading-none opacity-30">{String(dateData.day).padStart(2, '0')}</p>
+                <p className="text-theme-text-secondary text-[9px] leading-none opacity-30">{String(dateData.day).padStart(2, '0')}</p>
               </div>
             );
           }
@@ -190,20 +190,20 @@ export const PnLCalendar: React.FC<PnLCalendarProps> = ({ ledger, trades }) => {
           const isNegative = dateData.pnl < 0;
           const hasActivity = dateData.tradesCount > 0 || dateData.pnl !== 0;
 
-          let bgColorClass = hasActivity ? "bg-[#0B0D10] border-[#22252B]" : "bg-transparent border-[#22252B]";
-          let textColorClass = "text-[#9AA0A6]";
+          let bgColorClass = hasActivity ? "bg-[#0B0D10] border-theme-border" : "bg-transparent border-theme-border";
+          let textColorClass = "text-theme-text-secondary";
           
           if (isPositive) {
             bgColorClass = "bg-[#00D4AA]/10 border-[#00D4AA]/30";
-            textColorClass = "text-[#00D4AA]";
+            textColorClass = "text-theme-accent";
           } else if (isNegative) {
             bgColorClass = "bg-[#FF4757]/10 border-[#FF4757]/30";
-            textColorClass = "text-[#FF4757]";
+            textColorClass = "text-theme-danger";
           }
 
           return (
             <div key={`day-${index}`} className={`min-h-[40px] rounded-md border p-1 flex flex-col justify-between ${bgColorClass}`} title={`${dateData.pnl !== 0 ? formatMoney(dateData.pnl) : '$0'} P&L\n${dateData.tradesCount} trades\n${monthNames[dateData.month]} ${dateData.day}, ${dateData.year}`}>
-              <p className="text-[#9AA0A6] text-[9px] leading-none">
+              <p className="text-theme-text-secondary text-[9px] leading-none">
                 {String(dateData.day).padStart(2, '0')}
               </p>
               <p className={`text-[10px] font-bold leading-tight ${textColorClass}`}>
@@ -214,9 +214,9 @@ export const PnLCalendar: React.FC<PnLCalendarProps> = ({ ledger, trades }) => {
         })}
       </div>
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[#22252B]">
-        <span className="text-[#9AA0A6] text-xs">{monthNames[currentMonth]} {currentYear} P&L</span>
-        <span className={`text-sm font-bold ${monthTotalPnL >= 0 ? 'text-[#00D4AA]' : 'text-[#FF4757]'}`}>
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-theme-border">
+        <span className="text-theme-text-secondary text-xs">{monthNames[currentMonth]} {currentYear} P&L</span>
+        <span className={`text-sm font-bold ${monthTotalPnL >= 0 ? 'text-theme-accent' : 'text-theme-danger'}`}>
           {monthTotalPnL > 0 ? '+' : ''}{formatMoney(monthTotalPnL)}
         </span>
       </div>
