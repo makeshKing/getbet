@@ -5,6 +5,8 @@ import { Button } from '../../components/ui/Button';
 import { Wallet, Info, Save, Eye, EyeOff, Building2, Smartphone, Banknote, Trash2, Plus, X, ChevronDown, ChevronUp } from 'lucide-react';
 import { useToast } from '../../components/ui/Toast';
 import { DepositMethodConfig, WithdrawalMethodConfig, WithdrawalFieldConfig } from '../../types';
+import { QrImageField } from '../../components/admin/QrImageField';
+import { deleteDepositQrByUrl } from '../../services/supabaseService';
 
 const emptyForm = {
     id: '',
@@ -141,6 +143,7 @@ export const AdminSettings: React.FC = () => {
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [createForm, setCreateForm] = useState(emptyForm);
     const [creating, setCreating] = useState(false);
+    const [qrBusy, setQrBusy] = useState(false);
 
     // Create withdrawal form state
     const emptyWithdrawalForm = { id: '', name: '', instructions: '' };
@@ -168,6 +171,18 @@ export const AdminSettings: React.FC = () => {
     const handleUpdateMethod = async (id: string, updates: Partial<DepositMethodConfig>) => {
         await adminUpdateDepositMethod(id, updates);
         addToast(`${id.toUpperCase()} details updated.`, 'success');
+    };
+
+    // QR changes on saved methods: errors propagate to QrImageField, which shows the toast/inline message
+    const handleUpdateMethodQr = async (id: string, qrUrl: string) => {
+        await adminUpdateDepositMethod(id, { qrUrl });
+    };
+
+    const handleDiscardCreate = () => {
+        // The QR may already be uploaded but never saved — remove it from storage
+        if (createForm.qrUrl) void deleteDepositQrByUrl(createForm.qrUrl);
+        setCreateForm(emptyForm);
+        setShowCreateForm(false);
     };
 
     const handleDeleteMethod = async (id: string) => {
@@ -355,13 +370,13 @@ export const AdminSettings: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">QR Code URL</label>
-                                    <input
-                                        type="url"
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">QR Code</label>
+                                    <QrImageField
+                                        id="create-deposit-qr"
                                         value={createForm.qrUrl}
-                                        onChange={(e) => setCreateForm(prev => ({ ...prev, qrUrl: e.target.value }))}
-                                        placeholder="https://example.com/qr.png"
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none placeholder:text-slate-300 dark:placeholder:text-slate-600"
+                                        onChange={(url) => setCreateForm(prev => ({ ...prev, qrUrl: url }))}
+                                        onBusyChange={setQrBusy}
+                                        cleanupUnsaved
                                     />
                                 </div>
                                 <div className="md:col-span-2 xl:col-span-1">
@@ -377,21 +392,29 @@ export const AdminSettings: React.FC = () => {
                             </div>
                             <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-slate-100 dark:border-slate-700">
                                 <button
-                                    onClick={() => { setCreateForm(emptyForm); setShowCreateForm(false); }}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 transition-all"
+                                    id="discard-deposit-method"
+                                    onClick={handleDiscardCreate}
+                                    disabled={qrBusy}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                                 >
                                     <X size={14} />
                                     Discard
                                 </button>
                                 <button
+                                    id="create-deposit-method"
                                     onClick={handleCreateMethod}
-                                    disabled={creating}
+                                    disabled={creating || qrBusy}
                                     className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-200 dark:shadow-indigo-900/30"
                                 >
                                     {creating ? (
                                         <>
                                             <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                             Creating...
+                                        </>
+                                    ) : qrBusy ? (
+                                        <>
+                                            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            Uploading QR...
                                         </>
                                     ) : (
                                         <>
@@ -459,10 +482,19 @@ export const AdminSettings: React.FC = () => {
                                         className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-[11px] font-medium leading-relaxed focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
                                     />
                                 </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1">QR Code</label>
+                                    <QrImageField
+                                        id={`deposit-qr-${m.id}`}
+                                        value={m.qrUrl || ''}
+                                        onChange={(url) => handleUpdateMethodQr(m.id, url)}
+                                        confirmRemove
+                                    />
+                                </div>
                             </div>
 
                             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50 flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                <Info size={12} /> Auto-saves on field blur
+                                <Info size={12} /> Auto-saves on field blur · QR saves on upload / remove
                             </div>
                         </div>
                     ))}

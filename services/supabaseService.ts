@@ -959,14 +959,29 @@ export async function adminUpdateDepositMethod(
   if (updates.accountNumber !== undefined) payload.account_number = updates.accountNumber;
   if (updates.instructions !== undefined) payload.instructions = updates.instructions;
   if (updates.isActive !== undefined) payload.is_active = updates.isActive;
-  if (updates.qrUrl !== undefined) payload.qr_url = updates.qrUrl;
+  if (updates.qrUrl !== undefined) payload.qr_url = updates.qrUrl?.trim() || null;
   if (updates.name !== undefined) payload.name = updates.name;
+
+  // Remember the previous QR so its stored file can be cleaned up after a replace/remove
+  let previousQrUrl: string | null = null;
+  if (updates.qrUrl !== undefined) {
+    const { data: existing } = await supabase
+      .from('deposit_methods')
+      .select('qr_url')
+      .eq('id', id)
+      .maybeSingle();
+    previousQrUrl = existing?.qr_url ?? null;
+  }
 
   const { error } = await supabase
     .from('deposit_methods')
     .update(payload)
     .eq('id', id);
   if (error) throw new Error(error.message);
+
+  if (previousQrUrl && previousQrUrl !== payload.qr_url) {
+    await deleteDepositQrByUrl(previousQrUrl);
+  }
 }
 
 export async function adminCreateDepositMethod(
@@ -985,11 +1000,89 @@ export async function adminCreateDepositMethod(
 }
 
 export async function adminDeleteDepositMethod(id: string) {
+  const { data: existing } = await supabase
+    .from('deposit_methods')
+    .select('qr_url')
+    .eq('id', id)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('deposit_methods')
     .delete()
     .eq('id', id);
   if (error) throw new Error(error.message);
+
+  if (existing?.qr_url) await deleteDepositQrByUrl(existing.qr_url);
+}
+
+// ─────────────────────────────────────────────────────────────
+// DEPOSIT METHOD QR IMAGES (Supabase Storage bucket: deposit-qr)
+// Server-side limits (2 MB, png/jpeg/webp, admin-only) are enforced by
+// the bucket config + RLS in migration 029_deposit_qr_storage.sql.
+// ─────────────────────────────────────────────────────────────
+
+export const DEPOSIT_QR_BUCKET = 'deposit-qr';
+export const DEPOSIT_QR_MAX_BYTES = 2 * 1024 * 1024;
+export const DEPOSIT_QR_ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp'] as const;
+
+const QR_EXT_BY_TYPE: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+};
+
+/** Returns an error message if the file is not an acceptable QR image, otherwise null. */
+export function validateDepositQrFile(file: File): string | null {
+  if (!(DEPOSIT_QR_ALLOWED_TYPES as readonly string[]).includes(file.type)) {
+    return 'Only PNG, JPG or WEBP images are allowed.';
+  }
+  if (file.size > DEPOSIT_QR_MAX_BYTES) {
+    return `File is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Max 2 MB.`;
+  }
+  return null;
+}
+
+function randomId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** Uploads a QR image (admin only) and returns its public URL. */
+export async function uploadDepositQr(file: File): Promise<{ url: string; path: string }> {
+  const validationError = validateDepositQrFile(file);
+  if (validationError) throw new Error(validationError);
+
+  const path = `qr/${randomId()}.${QR_EXT_BY_TYPE[file.type]}`;
+  const { error } = await supabase.storage
+    .from(DEPOSIT_QR_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: false, cacheControl: '31536000' });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(DEPOSIT_QR_BUCKET).getPublicUrl(path);
+  return { url: data.publicUrl, path };
+}
+
+/** Extracts the storage path if the URL points to our deposit-qr bucket. */
+export function getDepositQrStoragePath(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const marker = `/storage/v1/object/public/${DEPOSIT_QR_BUCKET}/`;
+  const idx = url.indexOf(marker);
+  if (idx === -1) return null;
+  return decodeURIComponent(url.slice(idx + marker.length).split('?')[0]);
+}
+
+/** Best-effort delete of a QR file. Silently ignores external URLs and failures. */
+export async function deleteDepositQrByUrl(url: string | null | undefined): Promise<void> {
+  const path = getDepositQrStoragePath(url);
+  if (!path) return;
+  try {
+    const { error } = await supabase.storage.from(DEPOSIT_QR_BUCKET).remove([path]);
+    if (error) console.warn('[deposit-qr] cleanup failed:', error.message);
+  } catch (e) {
+    console.warn('[deposit-qr] cleanup failed:', e);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────

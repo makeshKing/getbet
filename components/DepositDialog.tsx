@@ -1,12 +1,136 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Dialog } from './ui/Dialog';
 import { Button } from './ui/Button';
 import { useApp } from '../context/AppContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useToast } from './ui/Toast';
-import { ShieldCheck, Info, Copy, Check, Upload, X, Image } from 'lucide-react';
+import { ShieldCheck, Info, Copy, Check, Upload, X, Image, Maximize2, Download } from 'lucide-react';
 import { DepositMethodConfig } from '../types';
+
+/** QR code shown inside "Target Account Details". Renders nothing if missing or broken. */
+const DepositQrBlock: React.FC<{ url: string; methodName: string }> = ({ url, methodName }) => {
+  const { addToast } = useToast();
+  const [failed, setFailed] = useState(false);
+  const [enlarged, setEnlarged] = useState(false);
+
+  // Esc closes only the lightbox (captured before the Dialog's window listener)
+  useEffect(() => {
+    if (!enlarged) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setEnlarged(false); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => document.removeEventListener('keydown', onKey, true);
+  }, [enlarged]);
+
+  if (failed) return null;
+
+  const handleDownload = async () => {
+    const fileName = `${methodName.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'deposit'}-qr`;
+    try {
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const ext = (blob.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${fileName}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    } catch {
+      // External hosts may block CORS — fall back to opening the image
+      window.open(url, '_blank', 'noopener,noreferrer');
+      addToast('Opened QR in a new tab — long-press or right-click to save.', 'info');
+    }
+  };
+
+  return (
+    <div className="border-t border-[#22252B] pt-4 mt-3 flex flex-col items-center">
+      <button
+        id="deposit-qr-enlarge"
+        type="button"
+        onClick={() => setEnlarged(true)}
+        className="group relative w-full max-w-[200px] bg-white rounded-xl p-3 shadow-sm active-scale"
+        aria-label="Tap to enlarge QR code"
+      >
+        <img
+          src={url}
+          alt={`${methodName} payment QR code`}
+          loading="lazy"
+          onError={() => setFailed(true)}
+          className="w-full aspect-square object-contain"
+        />
+        <span className="absolute top-1.5 right-1.5 p-1 rounded-md bg-[#0A0C10]/70 text-white opacity-80 group-hover:opacity-100 transition-opacity">
+          <Maximize2 size={12} />
+        </span>
+      </button>
+      <p className="text-white text-xs font-bold mt-2">Scan to pay</p>
+      <div className="flex items-center gap-3 mt-1">
+        <button
+          type="button"
+          onClick={() => setEnlarged(true)}
+          className="text-[#9AA0A6] hover:text-[#00D4AA] text-[11px] font-medium transition-colors flex items-center gap-1"
+        >
+          <Maximize2 size={11} /> Tap to enlarge
+        </button>
+        <span className="text-[#22252B]">|</span>
+        <button
+          id="deposit-qr-download"
+          type="button"
+          onClick={handleDownload}
+          className="text-[#9AA0A6] hover:text-[#00D4AA] text-[11px] font-medium transition-colors flex items-center gap-1"
+        >
+          <Download size={11} /> Download QR
+        </button>
+      </div>
+
+      {enlarged && createPortal(
+        <div
+          id="deposit-qr-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="QR code enlarged"
+          className="fixed inset-0 z-[110] flex flex-col items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in-up"
+          onClick={() => setEnlarged(false)}
+        >
+          <button
+            id="deposit-qr-lightbox-close"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setEnlarged(false); }}
+            className="absolute top-4 right-4 safe-pt p-2 rounded-full bg-[#1E2025] border border-[#22252B] text-white hover:text-[#00D4AA] transition-colors"
+            aria-label="Close"
+          >
+            <X size={20} />
+          </button>
+          <div
+            className="bg-white rounded-2xl p-4 w-full max-w-[min(90vw,420px)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={url}
+              alt={`${methodName} payment QR code (enlarged)`}
+              className="w-full max-h-[70vh] object-contain"
+            />
+          </div>
+          <p className="text-white text-sm font-bold mt-4">{methodName} · Scan to pay</p>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+            className="mt-3 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#00D4AA] text-[#0A0C10] text-xs font-bold uppercase tracking-wide hover:bg-[#00bfa0] transition-colors"
+          >
+            <Download size={14} /> Download QR
+          </button>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+};
 
 interface DepositDialogProps {
   isOpen: boolean;
@@ -156,6 +280,10 @@ export const DepositDialog: React.FC<DepositDialogProps> = ({ isOpen, onClose })
                     </button>
                 </div>
             </div>
+
+            {activeMethod.qrUrl && (
+                <DepositQrBlock key={activeMethod.qrUrl} url={activeMethod.qrUrl} methodName={activeMethod.name} />
+            )}
 
             <p className="text-[#9AA0A6] text-xs mt-3">
                 <span className="text-[#00D4AA] font-bold">STEPS:</span> {activeMethod.instructions}
