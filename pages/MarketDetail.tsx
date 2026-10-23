@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency, CurrencyType } from '../context/CurrencyContext';
-import { Side, Market } from '../types';
+import { Side, Market, getMarketLayout } from '../types';
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/Spinner';
 import { useToast } from '../components/ui/Toast';
@@ -330,6 +330,10 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
    const { userProfile } = useAuth();
    const { currency, setCurrency, usdToNprRate } = useCurrency();
    const market = markets.find(m => m.id === marketId);
+   const layout = getMarketLayout(market);
+   const candA = market ? (market.candidateA ?? (market as any).candidate_a) : null;
+   const candB = market ? (market.candidateB ?? (market as any).candidate_b) : null;
+   const isVersus = layout === 'versus';
 
    const [activeSide, setActiveSide] = useState<Side>(Side.YES);
    const [activeOutcomeId, setActiveOutcomeId] = useState<string | undefined>(undefined);
@@ -401,7 +405,28 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
    const chartContainerRef = useRef<HTMLDivElement>(null);
 
    useEffect(() => {
-      if (market?.outcomes && market.outcomes.length > 0) {
+      if (layout === 'versus' && candA && candB) {
+         const probA = Math.round(market?.probability ?? 50);
+         const probB = 100 - probA;
+         setLocalOutcomes([
+            {
+               id: 'A',
+               name: candA.name?.trim() || 'Team A',
+               probability: probA,
+               color: candA.color || '#3b82f6',
+               icon: candA.imageUrl,
+               imageUrl: candA.imageUrl,
+            },
+            {
+               id: 'B',
+               name: candB.name?.trim() || 'Team B',
+               probability: probB,
+               color: candB.color || '#ef4444',
+               icon: candB.imageUrl,
+               imageUrl: candB.imageUrl,
+            }
+         ]);
+      } else if (market?.outcomes && market.outcomes.length > 0) {
          // Kalshi-style color palette: blue, red, white, purple, green, orange
          const colors = ['#4B9EFF', '#FF4444', '#C8CCD0', '#9B6FFF', '#00CC88', '#FF8C42'];
          setLocalOutcomes(market.outcomes.map((o, i) => ({
@@ -417,7 +442,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
             color: '#00E5CC',
          }]);
       }
-   }, [market?.outcomes, market?.probability]);
+   }, [market?.outcomes, market?.probability, layout]);
 
    useEffect(() => {
       if (!marketId) return;
@@ -642,8 +667,10 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
    };
 
    const selectedOutcome = localOutcomes.find(o => o.id === activeOutcomeId) || localOutcomes[0];
-   const yes_price = selectedOutcome ? Math.round(selectedOutcome.probability) : 50;
-   const no_price = selectedOutcome ? Math.round(100 - selectedOutcome.probability) : 50;
+   const candAPrice = isVersus ? Math.round(market.probability ?? 50) : 50;
+   const candBPrice = isVersus ? (100 - candAPrice) : 50;
+   const yes_price = isVersus ? candAPrice : (selectedOutcome ? Math.round(selectedOutcome.probability) : 50);
+   const no_price = isVersus ? candBPrice : (selectedOutcome ? Math.round(100 - selectedOutcome.probability) : 50);
 
    const price = activeSide === Side.YES ? yes_price / 100 : no_price / 100;
 
@@ -684,7 +711,7 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
       setShowError(false);
       setIsProcessing(true);
       try {
-         await buy(market.id, activeSide, sidePrice, numContracts, activeOutcomeId);
+         await buy(market.id, activeSide, sidePrice, numContracts, isVersus ? undefined : activeOutcomeId);
          addToast('Order placed successfully!', 'success');
          setQuantity('');
          setIsTradePanelOpen(false);
@@ -717,8 +744,18 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
    };
 
    const selectOutcomeForTrade = (id: string, side: Side) => {
-      setActiveOutcomeId(id);
-      setActiveSide(side);
+      if (layout === 'versus') {
+         if (id === 'A') {
+            setActiveOutcomeId('A');
+            setActiveSide(side);
+         } else if (id === 'B') {
+            setActiveOutcomeId('B');
+            setActiveSide(side === Side.YES ? Side.NO : Side.YES);
+         }
+      } else {
+         setActiveOutcomeId(id);
+         setActiveSide(side);
+      }
       if (window.innerWidth < 1024) {
          setIsTradePanelOpen(true);
       } else {
@@ -739,8 +776,13 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                {/* Header Section */}
                <div className="px-4 lg:px-0 mb-6">
                   {/* Breadcrumb */}
-                  <div className="text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-1.5">
-                     {market.category || 'Market'}{market.subcategory ? ` · ${market.subcategory}` : ''}
+                  <div className="text-[10px] font-bold text-gray-500 tracking-widest uppercase mb-1.5 flex items-center gap-2">
+                     <span>{market.category || 'Market'}{market.subcategory ? ` · ${market.subcategory}` : ''}</span>
+                     {isVersus && (
+                        <span className="bg-indigo-600/20 text-indigo-400 px-2 py-0.5 rounded text-[9px] font-black tracking-widest border border-indigo-500/30">
+                           HEAD-TO-HEAD
+                        </span>
+                     )}
                   </div>
 
                   <div className="flex justify-between items-start mb-1.5">
@@ -1070,7 +1112,13 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                                  </p>
 
                                  {/* Outcome name — 1 line only */}
-                                 {activeOutcomeId && (
+                                 {isVersus && candA && candB ? (
+                                    <div className="flex items-center gap-2 mb-3 shrink-0">
+                                       <span className="text-[#9AA0A6] text-xs font-bold uppercase tracking-wider">
+                                          Selected: <span className="text-white font-black">{activeSide === Side.YES ? candA.name.trim() : candB.name.trim()}</span>
+                                       </span>
+                                    </div>
+                                 ) : activeOutcomeId && (
                                     <div className="flex items-center gap-2 mb-3 shrink-0">
                                        {selectedOutcome?.icon ? (
                                           selectedOutcome.icon.length <= 4 ? (
@@ -1085,26 +1133,74 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                                     </div>
                                  )}
 
-                                 {/* YES / NO buttons + Interest */}
-                                 <div className="flex items-center gap-2 mb-3 shrink-0">
-                                    <button onClick={() => setActiveSide(Side.YES)}
-                                       className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
-                                             ? 'bg-[#00D964] border-2 border-[#00D964] text-black'
-                                             : 'bg-transparent border-2 border-[#00D964] text-[#00D964]'
-                                          }`}>
-                                       <span className="text-xs font-bold">YES</span>
-                                       <span className="text-lg font-black">{yes_price}¢</span>
-                                    </button>
-                                    <button onClick={() => setActiveSide(Side.NO)}
-                                       className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
-                                             ? 'bg-[#9AA0A6] border-2 border-[#9AA0A6] text-black'
-                                             : 'bg-transparent border-2 border-[#9AA0A6] text-[#9AA0A6]'
-                                          }`}>
-                                       <span className="text-xs font-bold">NO</span>
-                                       <span className="text-lg font-black">{no_price}¢</span>
-                                    </button>
-                                    <span className="ml-auto text-[#9AA0A6] text-xs shrink-0">3.25% Interest</span>
-                                 </div>
+                                 {/* Head-to-Head team buttons OR YES / NO buttons */}
+                                 {isVersus && candA && candB ? (
+                                    <div className="flex items-center gap-2 mb-3 shrink-0">
+                                       <button
+                                          type="button"
+                                          onClick={() => { setActiveSide(Side.YES); setActiveOutcomeId('A'); }}
+                                          className={`flex-1 px-3 py-2 rounded-xl transition-all flex items-center justify-between gap-2 border-2 ${
+                                             activeSide === Side.YES
+                                                ? 'shadow-md'
+                                                : 'bg-transparent border-opacity-40 hover:border-opacity-80'
+                                          }`}
+                                          style={{
+                                             borderColor: candA.color || '#3b82f6',
+                                             backgroundColor: activeSide === Side.YES ? (candA.color ? `${candA.color}33` : '#3b82f633') : 'transparent',
+                                          }}
+                                       >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                             {candA.imageUrl && (
+                                                <img src={candA.imageUrl} className="w-5 h-5 rounded-full object-cover shrink-0 border border-white/20" alt="" />
+                                             )}
+                                             <span className="text-xs font-bold truncate text-white">{candA.name.trim()}</span>
+                                          </div>
+                                          <span className="text-base font-black text-white shrink-0">{yes_price}¢</span>
+                                       </button>
+
+                                       <button
+                                          type="button"
+                                          onClick={() => { setActiveSide(Side.NO); setActiveOutcomeId('B'); }}
+                                          className={`flex-1 px-3 py-2 rounded-xl transition-all flex items-center justify-between gap-2 border-2 ${
+                                             activeSide === Side.NO
+                                                ? 'shadow-md'
+                                                : 'bg-transparent border-opacity-40 hover:border-opacity-80'
+                                          }`}
+                                          style={{
+                                             borderColor: candB.color || '#ef4444',
+                                             backgroundColor: activeSide === Side.NO ? (candB.color ? `${candB.color}33` : '#ef444433') : 'transparent',
+                                          }}
+                                       >
+                                          <div className="flex items-center gap-2 min-w-0">
+                                             {candB.imageUrl && (
+                                                <img src={candB.imageUrl} className="w-5 h-5 rounded-full object-cover shrink-0 border border-white/20" alt="" />
+                                             )}
+                                             <span className="text-xs font-bold truncate text-white">{candB.name.trim()}</span>
+                                          </div>
+                                          <span className="text-base font-black text-white shrink-0">{no_price}¢</span>
+                                       </button>
+                                    </div>
+                                 ) : (
+                                    <div className="flex items-center gap-2 mb-3 shrink-0">
+                                       <button onClick={() => setActiveSide(Side.YES)}
+                                          className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
+                                                ? 'bg-[#00D964] border-2 border-[#00D964] text-black'
+                                                : 'bg-transparent border-2 border-[#00D964] text-[#00D964]'
+                                             }`}>
+                                          <span className="text-xs font-bold">YES</span>
+                                          <span className="text-lg font-black">{yes_price}¢</span>
+                                       </button>
+                                       <button onClick={() => setActiveSide(Side.NO)}
+                                          className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
+                                                ? 'bg-[#9AA0A6] border-2 border-[#9AA0A6] text-black'
+                                                : 'bg-transparent border-2 border-[#9AA0A6] text-[#9AA0A6]'
+                                             }`}>
+                                          <span className="text-xs font-bold">NO</span>
+                                          <span className="text-lg font-black">{no_price}¢</span>
+                                       </button>
+                                       <span className="ml-auto text-[#9AA0A6] text-xs shrink-0">3.25% Interest</span>
+                                    </div>
+                                 )}
 
                                  {/* Amount input — symbol & label follow selected currency */}
                                  <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors group shrink-0">
@@ -1225,54 +1321,110 @@ export const MarketDetail: React.FC<MarketDetailProps> = ({ marketId, onBack, on
                            </p>
 
                            {/* Selected outcome row (icon + bold name) */}
-                           <div className="flex items-center gap-2 mb-4 shrink-0">
-                              {selectedOutcome?.icon ? (
-                                 selectedOutcome.icon.length <= 4 ? (
-                                    <span className="text-2xl leading-none">{selectedOutcome.icon}</span>
+                           {isVersus && candA && candB ? (
+                              <div className="flex items-center gap-2 mb-4 shrink-0">
+                                 <span className="text-[#9AA0A6] text-xs font-bold uppercase tracking-wider">
+                                    Selected: <span className="text-white font-black">{activeSide === Side.YES ? candA.name.trim() : candB.name.trim()}</span>
+                                 </span>
+                              </div>
+                           ) : activeOutcomeId && (
+                              <div className="flex items-center gap-2 mb-4 shrink-0">
+                                 {selectedOutcome?.icon ? (
+                                    selectedOutcome.icon.length <= 4 ? (
+                                       <span className="text-2xl leading-none">{selectedOutcome.icon}</span>
+                                    ) : (
+                                       <img src={selectedOutcome.icon} className="w-7 h-7 rounded-sm object-cover" alt="" />
+                                    )
                                  ) : (
-                                    <img src={selectedOutcome.icon} className="w-7 h-7 rounded-sm object-cover" alt="" />
-                                 )
-                              ) : (
-                                 <div className="w-7 h-7 rounded-sm bg-gray-700 flex items-center justify-center text-xs text-white font-bold shrink-0">
-                                    {selectedOutcome?.name?.charAt(0) || 'S'}
-                                 </div>
-                              )}
-                              <span className="text-[#9AA0A6] text-sm font-medium">
-                                 {selectedOutcome?.name}
-                              </span>
-                           </div>
+                                    <div className="w-7 h-7 rounded-sm bg-gray-700 flex items-center justify-center text-xs text-white font-bold shrink-0">
+                                       {selectedOutcome?.name?.charAt(0) || 'S'}
+                                    </div>
+                                 )}
+                                 <span className="text-[#9AA0A6] text-sm font-medium">
+                                    {selectedOutcome?.name}
+                                 </span>
+                              </div>
+                           )}
 
-                           {/* YES / NO toggle buttons + Interest link */}
-                           <div className="flex items-center gap-2 mb-4 shrink-0">
-                              {/* YES button */}
-                              <button
-                                 onClick={() => setActiveSide(Side.YES)}
-                                 className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
-                                       ? 'bg-[#00D964] text-black border-2 border-[#00D964]'
-                                       : 'bg-transparent text-[#00D964] border-2 border-[#00D964]'
+                           {/* Head-to-Head team buttons OR YES / NO toggle buttons */}
+                           {isVersus && candA && candB ? (
+                              <div className="flex items-center gap-2 mb-4 shrink-0">
+                                 <button
+                                    type="button"
+                                    onClick={() => { setActiveSide(Side.YES); setActiveOutcomeId('A'); }}
+                                    className={`flex-1 px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-2 border-2 ${
+                                       activeSide === Side.YES
+                                          ? 'shadow-md'
+                                          : 'bg-transparent border-opacity-40 hover:border-opacity-80'
                                     }`}
-                              >
-                                 <span className="text-xs font-bold">YES</span>
-                                 <span className="text-lg font-black">{yes_price}¢</span>
-                              </button>
+                                    style={{
+                                       borderColor: candA.color || '#3b82f6',
+                                       backgroundColor: activeSide === Side.YES ? (candA.color ? `${candA.color}33` : '#3b82f633') : 'transparent',
+                                    }}
+                                 >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                       {candA.imageUrl && (
+                                          <img src={candA.imageUrl} className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/20" alt="" />
+                                       )}
+                                       <span className="text-xs font-bold truncate text-white">{candA.name.trim()}</span>
+                                    </div>
+                                    <span className="text-base font-black text-white shrink-0">{yes_price}¢</span>
+                                 </button>
 
-                              {/* NO button */}
-                              <button
-                                 onClick={() => setActiveSide(Side.NO)}
-                                 className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
-                                       ? 'bg-[#9AA0A6] text-black border-2 border-[#9AA0A6]'
-                                       : 'bg-transparent text-[#9AA0A6] border-2 border-[#9AA0A6]'
+                                 <button
+                                    type="button"
+                                    onClick={() => { setActiveSide(Side.NO); setActiveOutcomeId('B'); }}
+                                    className={`flex-1 px-3 py-2.5 rounded-xl transition-all flex items-center justify-between gap-2 border-2 ${
+                                       activeSide === Side.NO
+                                          ? 'shadow-md'
+                                          : 'bg-transparent border-opacity-40 hover:border-opacity-80'
                                     }`}
-                              >
-                                 <span className="text-xs font-bold">NO</span>
-                                 <span className="text-lg font-black">{no_price}¢</span>
-                              </button>
+                                    style={{
+                                       borderColor: candB.color || '#ef4444',
+                                       backgroundColor: activeSide === Side.NO ? (candB.color ? `${candB.color}33` : '#ef444433') : 'transparent',
+                                    }}
+                                 >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                       {candB.imageUrl && (
+                                          <img src={candB.imageUrl} className="w-6 h-6 rounded-full object-cover shrink-0 border border-white/20" alt="" />
+                                       )}
+                                       <span className="text-xs font-bold truncate text-white">{candB.name.trim()}</span>
+                                    </div>
+                                    <span className="text-base font-black text-white shrink-0">{no_price}¢</span>
+                                 </button>
+                              </div>
+                           ) : (
+                              <div className="flex items-center gap-2 mb-4 shrink-0">
+                                 {/* YES button */}
+                                 <button
+                                    onClick={() => setActiveSide(Side.YES)}
+                                    className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.YES
+                                          ? 'bg-[#00D964] text-black border-2 border-[#00D964]'
+                                          : 'bg-transparent text-[#00D964] border-2 border-[#00D964]'
+                                       }`}
+                                 >
+                                    <span className="text-xs font-bold">YES</span>
+                                    <span className="text-lg font-black">{yes_price}¢</span>
+                                 </button>
 
-                              {/* Interest link — far right */}
-                              <span className="ml-auto text-[#9AA0A6] text-xs cursor-pointer hover:text-white">
-                                 3.25% Interest
-                              </span>
-                           </div>
+                                 {/* NO button */}
+                                 <button
+                                    onClick={() => setActiveSide(Side.NO)}
+                                    className={`px-4 py-1.5 rounded-xl transition-all flex items-baseline gap-1.5 ${activeSide === Side.NO
+                                          ? 'bg-[#9AA0A6] text-black border-2 border-[#9AA0A6]'
+                                          : 'bg-transparent text-[#9AA0A6] border-2 border-[#9AA0A6]'
+                                       }`}
+                                 >
+                                    <span className="text-xs font-bold">NO</span>
+                                    <span className="text-lg font-black">{no_price}¢</span>
+                                 </button>
+
+                                 {/* Interest link — far right */}
+                                 <span className="ml-auto text-[#9AA0A6] text-xs cursor-pointer hover:text-white">
+                                    3.25% Interest
+                                 </span>
+                              </div>
+                           )}
 
                            {/* Amount input — symbol & label follow selected currency */}
                            <div className="flex items-center justify-between bg-[#1E2025] rounded-lg px-4 py-2.5 mb-1 border border-[#2A2D35] focus-within:border-gray-500 transition-colors shrink-0">

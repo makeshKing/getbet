@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { Market, MarketOutcome, Outcome } from '../../types';
+import { Market, MarketOutcome, Outcome, getMarketLayout } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { useToast } from '../../components/ui/Toast';
 import { Check, CheckCircle, Circle, Swords, AlertTriangle, BarChart2 } from 'lucide-react';
@@ -65,8 +65,11 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
         );
     }
 
-    const isVs = market.subcategory === 'Head-to-Head' && market.candidateA && market.candidateB;
-    const isMultiOutcome = !isVs && market.outcomes && market.outcomes.length > 0;
+    const layout = getMarketLayout(market);
+    const isVs = layout === 'versus';
+    const candA = market.candidateA ?? (market as any).candidate_a;
+    const candB = market.candidateB ?? (market as any).candidate_b;
+    const isMultiOutcome = layout === 'multi';
 
     /** Friendly name for the selected outcome (for the confirmation dialog) */
     const getSelectedLabel = (): string => {
@@ -76,8 +79,8 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
             const o = market.outcomes!.find(x => x.id === selectedOutcome);
             return o ? o.name : selectedOutcome;
         }
-        if (selectedOutcome === 'YES' && isVs) return market.candidateA!.name;
-        if (selectedOutcome === 'NO' && isVs) return market.candidateB!.name;
+        if (selectedOutcome === 'YES' && isVs) return candA ? candA.name.trim() : 'YES';
+        if (selectedOutcome === 'NO' && isVs) return candB ? candB.name.trim() : 'NO';
         return selectedOutcome;
     };
 
@@ -203,12 +206,12 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="text-center p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-                                    <img src={market.candidateA?.imageUrl} className="w-10 h-10 rounded-full mx-auto mb-2 object-cover border-2" style={{ borderColor: market.candidateA?.color }} alt={market.candidateA?.name} />
-                                    <div className="text-[9px] font-black text-slate-900 dark:text-white truncate">{market.candidateA?.name}</div>
+                                    <img src={candA?.imageUrl} className="w-10 h-10 rounded-full mx-auto mb-2 object-cover border-2" style={{ borderColor: candA?.color }} alt={candA?.name} />
+                                    <div className="text-[9px] font-black text-slate-900 dark:text-white truncate">{candA?.name?.trim()}</div>
                                 </div>
                                 <div className="text-center p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800">
-                                    <img src={market.candidateB?.imageUrl} className="w-10 h-10 rounded-full mx-auto mb-2 object-cover border-2" style={{ borderColor: market.candidateB?.color }} alt={market.candidateB?.name} />
-                                    <div className="text-[9px] font-black text-slate-900 dark:text-white truncate">{market.candidateB?.name}</div>
+                                    <img src={candB?.imageUrl} className="w-10 h-10 rounded-full mx-auto mb-2 object-cover border-2" style={{ borderColor: candB?.color }} alt={candB?.name} />
+                                    <div className="text-[9px] font-black text-slate-900 dark:text-white truncate">{candB?.name?.trim()}</div>
                                 </div>
                             </div>
                         </div>
@@ -324,14 +327,14 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                         <div className="min-w-0">
                                             <div className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-0.5">Option A (YES)</div>
                                             <div className="text-lg font-black text-slate-900 dark:text-white leading-tight truncate">
-                                                {isVs ? market.candidateA?.name : 'YES'}
+                                                {isVs ? candA?.name?.trim() : 'YES'}
                                             </div>
                                         </div>
                                     </div>
 
                                     {isVs && (
                                         <div className="absolute top-6 right-6">
-                                            <img src={market.candidateA?.imageUrl} className="w-12 h-12 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: market.candidateA?.color }} alt={market.candidateA?.name} />
+                                            <img src={candA?.imageUrl} className="w-12 h-12 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: candA?.color }} alt={candA?.name} />
                                         </div>
                                     )}
 
@@ -369,14 +372,14 @@ export const AdminMarketResolution: React.FC<AdminMarketResolutionProps> = ({ ma
                                         <div className="min-w-0">
                                             <div className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-0.5">Option B (NO)</div>
                                             <div className="text-lg font-black text-slate-900 dark:text-white leading-tight truncate">
-                                                {isVs ? market.candidateB?.name : 'NO'}
+                                                {isVs ? candB?.name?.trim() : 'NO'}
                                             </div>
                                         </div>
                                     </div>
 
                                     {isVs && (
                                         <div className="absolute top-6 right-6">
-                                            <img src={market.candidateB?.imageUrl} className="w-12 h-12 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: market.candidateB?.color }} alt={market.candidateB?.name} />
+                                            <img src={candB?.imageUrl} className="w-12 h-12 rounded-full object-cover border-2 shadow-sm" style={{ borderColor: candB?.color }} alt={candB?.name} />
                                         </div>
                                     )}
 

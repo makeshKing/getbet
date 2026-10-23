@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useCurrency } from '../../context/CurrencyContext';
-import { Market, Outcome } from '../../types';
+import { Market, Outcome, getMarketLayout } from '../../types';
 import { Button } from '../../components/ui/Button';
 import { Switch } from '../../components/ui/Switch';
 import { Filter, MoreVertical, CheckCircle, Clock, Swords } from 'lucide-react';
@@ -48,15 +48,17 @@ export const AdminDeclaredMarkets: React.FC<AdminDeclaredMarketsProps> = ({ onRe
 
   const renderOutcome = (m: Market) => {
       if (!m.outcome) return '-';
-      const isVs = m.subcategory === 'Head-to-Head' && m.candidateA && m.candidateB;
+      const isVs = getMarketLayout(m) === 'versus';
       
       if (isVs) {
-          const winner = m.outcome === Outcome.YES ? m.candidateA! : m.candidateB!;
+          const candA = m.candidateA ?? (m as any).candidate_a;
+          const candB = m.candidateB ?? (m as any).candidate_b;
+          const winner = m.outcome === Outcome.YES ? candA! : candB!;
           return (
               <div className="flex flex-col items-center gap-1">
                   <div className="flex items-center gap-2">
                       <img src={winner.imageUrl} className="w-5 h-5 rounded-full object-cover border" style={{ borderColor: winner.color }} />
-                      <span className="font-black text-[10px] uppercase truncate max-w-[80px]" style={{ color: winner.color }}>{winner.name.split(' ').pop()}</span>
+                      <span className="font-black text-[10px] uppercase truncate max-w-[80px]" style={{ color: winner.color }}>{winner.name.trim().split(' ').pop()}</span>
                   </div>
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{m.outcome} Winner</span>
               </div>
@@ -114,15 +116,17 @@ export const AdminDeclaredMarkets: React.FC<AdminDeclaredMarketsProps> = ({ onRe
                 </div>
             ) : filteredMarkets.map(m => {
                 const pl = getProfitLoss(m.volume || 0);
-                const isVs = m.subcategory === 'Head-to-Head' && m.candidateA && m.candidateB;
+                const isVs = getMarketLayout(m) === 'versus';
+                const candA = m.candidateA ?? (m as any).candidate_a;
+                const candB = m.candidateB ?? (m as any).candidate_b;
                 return (
                     <div key={m.id} className="grid grid-cols-12 gap-4 px-8 py-5 items-center hover:bg-slate-50 dark:hover:bg-indigo-900/10 transition-colors group">
                         <div className="col-span-4 flex items-center space-x-4">
                             <div className="relative">
                                 {isVs ? (
                                     <div className="flex -space-x-3">
-                                        <img src={m.candidateA?.imageUrl} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 object-cover" />
-                                        <img src={m.candidateB?.imageUrl} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 object-cover" />
+                                        <img src={candA?.imageUrl} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 object-cover" />
+                                        <img src={candB?.imageUrl} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-800 object-cover" />
                                     </div>
                                 ) : (
                                     <img src={m.imageUrl} alt="" className="h-10 w-10 rounded-xl object-cover bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-700" />
