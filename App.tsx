@@ -1,0 +1,410 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { Navbar } from './components/Navbar';
+import { MobileBottomNav } from './components/MobileBottomNav';
+import { MarketList } from './pages/MarketList';
+import { MarketDetail } from './pages/MarketDetail';
+import { Portfolio } from './pages/Portfolio';
+import { Profile } from './pages/Profile';
+import { AdminLayout } from './components/admin/AdminLayout';
+import { Role } from './types';
+
+const AdminDashboard = React.lazy(() => import('./pages/admin/Dashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminHome = React.lazy(() => import('./pages/admin/Home').then(m => ({ default: m.AdminHome })));
+const AdminUsers = React.lazy(() => import('./pages/admin/Users').then(m => ({ default: m.AdminUsers })));
+const AdminMarkets = React.lazy(() => import('./pages/admin/Markets').then(m => ({ default: m.AdminMarkets })));
+const AdminMarketCreate = React.lazy(() => import('./pages/admin/MarketCreate').then(m => ({ default: m.AdminMarketCreate })));
+const AdminSettings = React.lazy(() => import('./pages/admin/Settings').then(m => ({ default: m.AdminSettings })));
+const AdminWithdrawalQueue = React.lazy(() => import('./components/AdminWithdrawalQueue').then(m => ({ default: m.AdminWithdrawalQueue })));
+const AdminDepositQueue = React.lazy(() => import('./components/AdminDepositQueue').then(m => ({ default: m.AdminDepositQueue })));
+const AdminDeclaredMarkets = React.lazy(() => import('./pages/admin/DeclaredMarkets').then(m => ({ default: m.AdminDeclaredMarkets })));
+const AdminMarketResolution = React.lazy(() => import('./pages/admin/MarketResolution').then(m => ({ default: m.AdminMarketResolution })));
+const AdminFinancialReports = React.lazy(() => import('./pages/admin/FinancialReports').then(m => ({ default: m.AdminFinancialReports })));
+const StaffRequestsPage = React.lazy(() => import('./pages/staff/Requests').then(m => ({ default: m.StaffRequestsPage })));
+const AdminCategories = React.lazy(() => import('./pages/admin/Categories').then(m => ({ default: m.AdminCategories })));
+const AdminLogin = React.lazy(() => import('./pages/admin/Login').then(m => ({ default: m.AdminLogin })));
+import { Login } from './pages/auth/Login';
+import { Signup } from './pages/auth/Signup';
+import { useAuth } from './context/AuthContext';
+import { useApp } from './context/AppContext';
+import { LoadingScreen } from './components/LoadingScreen';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requiredRole?: 'USER' | 'ADMIN' | 'STAFF' | ('ADMIN' | 'STAFF')[];
+  fallback?: React.ReactNode;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requiredRole = 'USER',
+  fallback = (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
+      <div className="text-center max-w-md">
+        <h1 className="text-4xl font-bold text-theme-text-primary mb-4">Access Denied</h1>
+        <p className="text-theme-text-secondary mb-6">You need admin privileges to access this area.</p>
+        <button
+          onClick={() => window.location.href = '/'}
+          className="px-6 py-3 bg-theme-accent text-theme-text-primary rounded-xl hover:opacity-90 transition-colors font-bold"
+        >
+          Return to Home
+        </button>
+      </div>
+    </div>
+  )
+}) => {
+  const { userProfile: user, loading } = useAuth();
+
+  // While auth state is being determined, show a spinner — never flash a 401
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface">
+        <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    // User not authenticated — redirect to appropriate login
+    const isAdminRoute = requiredRole === 'ADMIN';
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
+        <div className="text-center max-w-md">
+          <h1 className="text-4xl font-bold text-theme-text-primary mb-4">401</h1>
+          <p className="text-theme-text-secondary mb-6">Authentication required. Please log in.</p>
+          <button
+            onClick={() => window.location.href = isAdminRoute ? '/admin/login' : '/login'}
+            className="px-6 py-3 bg-theme-accent text-theme-text-primary rounded-xl hover:opacity-90 transition-colors font-bold"
+          >
+            {isAdminRoute ? 'Go to Admin Login' : 'Go to Login'}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Banned users (non-admins) cannot access ANY protected route
+  if (user.isBanned && user.role !== 'ADMIN') {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-theme-bg-surface p-4">
+        <div className="text-center max-w-md">
+          <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-theme-danger" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </div>
+          <h1 className="text-theme-text-secondaryxl font-bold text-theme-text-primary mb-3">Account Suspended</h1>
+          <p className="text-theme-text-secondary mb-6">
+            Your account has been suspended by an administrator. If you believe this is a mistake, please contact support.
+          </p>
+          <button
+            onClick={() => window.location.href = '/'}
+            className="px-6 py-3 bg-slate-700 text-theme-text-primary rounded-xl hover:bg-theme-bg-surface transition-colors font-bold"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  
+  if (!allowedRoles.includes('USER') && !allowedRoles.includes(user.role as any)) {
+      return fallback;
+  }
+
+  // User has required role, render children
+  return <>{children}</>;
+};
+
+
+export type View = 'home' | 'market-detail' | 'portfolio' | 'profile' | 'login' | 'signup' | 'leaderboard'
+  | 'admin-home' | 'admin-dashboard' | 'admin-users' | 'admin-markets' | 'admin-market-create' | 'admin-categories' | 'admin-deposits' | 'admin-withdrawals' | 'admin-settings'
+  | 'admin-declared-markets' | 'admin-resolve-market' | 'admin-financials'
+  | 'staff-requests';
+
+function App() {
+  const { userProfile, isAdmin, loading: authLoading } = useAuth();
+  const { marketsLoading } = useApp();
+  const isInitializing = authLoading || marketsLoading;
+  const navigateRouter = useNavigate();
+  const location = useLocation();
+  const [currentView, setCurrentView] = useState<View>(() => {
+    const path = window.location.pathname;
+
+    if (path === '/admin/dashboard') {
+      return 'admin-dashboard';
+    } else if (path === '/admin' || path === '/admin/home') {
+      return 'admin-home';
+    } else if (path === '/admin/users') {
+      return 'admin-users';
+    } else if (path === '/admin/markets') {
+      return 'admin-markets';
+    } else if (path === '/admin/market/create') {
+      return 'admin-market-create';
+    } else if (path === '/admin/categories') {
+      return 'admin-categories';
+    } else if (path === '/admin/deposits') {
+      return 'admin-deposits';
+    } else if (path === '/admin/withdrawals') {
+      return 'admin-withdrawals';
+    } else if (path === '/staff/requests') {
+      return 'staff-requests';
+    } else if (path === '/admin/settings') {
+      return 'admin-settings';
+    } else if (path === '/admin/declared-markets') {
+      return 'admin-declared-markets';
+    } else if (path === '/admin/resolve-market') {
+      return 'admin-resolve-market';
+    } else if (path === '/admin/financials') {
+      return 'admin-financials';
+    } else if (path === '/login') {
+      return 'login';
+    } else if (path === '/register') {
+      return 'signup';
+    } else if (path === '/portfolio') {
+      return 'portfolio';
+    } else if (path === '/profile') {
+      return 'profile';
+    } else if (path === '/leaderboard') {
+      return 'leaderboard';
+    } else if (path.startsWith('/market/')) {
+      return 'market-detail';
+    }
+
+    return 'home'; // default
+  });
+  const [selectedMarketId, setSelectedMarketId] = useState<string | null>(() => {
+    const path = window.location.pathname;
+    if (path.startsWith('/market/')) {
+      return path.split('/')[2] || null;
+    }
+    return null;
+  });
+  const [adminResolutionMarketId, setAdminResolutionMarketId] = useState<string | null>(null);
+
+  // Sync currentView state with URL location
+  useEffect(() => {
+    const path = location.pathname;
+
+    if (path === '/') {
+      setCurrentView('home');
+    } else if (path === '/admin/dashboard') {
+      setCurrentView('admin-dashboard');
+    } else if (path === '/admin' || path === '/admin/home') {
+      setCurrentView('admin-home');
+    } else if (path === '/admin/users') {
+      setCurrentView('admin-users');
+    } else if (path === '/admin/markets') {
+      setCurrentView('admin-markets');
+    } else if (path === '/admin/market/create') {
+      setCurrentView('admin-market-create');
+    } else if (path === '/admin/categories') {
+      setCurrentView('admin-categories');
+    } else if (path === '/admin/deposits') {
+      setCurrentView('admin-deposits');
+    } else if (path === '/admin/withdrawals') {
+      setCurrentView('admin-withdrawals');
+    } else if (path === '/staff/requests') {
+      setCurrentView('staff-requests');
+    } else if (path === '/admin/settings') {
+      setCurrentView('admin-settings');
+    } else if (path === '/admin/declared-markets') {
+      setCurrentView('admin-declared-markets');
+    } else if (path === '/admin/resolve-market') {
+      setCurrentView('admin-resolve-market');
+    } else if (path === '/admin/financials') {
+      setCurrentView('admin-financials');
+    } else if (path === '/login') {
+      setCurrentView('login');
+    } else if (path === '/register') {
+      setCurrentView('signup');
+    } else if (path === '/portfolio') {
+      setCurrentView('portfolio');
+    } else if (path === '/profile') {
+      setCurrentView('profile');
+    } else if (path === '/leaderboard') {
+      setCurrentView('leaderboard');
+    } else if (path.startsWith('/market/')) {
+      setCurrentView('market-detail');
+      setSelectedMarketId(path.split('/')[2] || null);
+    }
+    // Note: /admin/login is handled separately in RouterWrapper
+  }, [location]);
+
+
+
+  // STAFF ROLE ALLOW-LIST ROUTING GUARD
+  useEffect(() => {
+    if (userProfile?.role === Role.STAFF) {
+      if (currentView !== 'staff-requests' && currentView !== 'login' && currentView !== 'signup') {
+        setCurrentView('staff-requests');
+        navigateRouter('/staff/requests', { replace: true });
+      }
+    }
+  }, [userProfile?.role, currentView, navigateRouter]);
+
+
+  const navigate = (page: string) => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (page === 'home') {
+      setCurrentView('home');
+      setSelectedMarketId(null);
+      navigateRouter('/');
+    }
+    else if (page === 'portfolio') {
+      setCurrentView('portfolio');
+      navigateRouter('/portfolio');
+    }
+    else if (page === 'profile') {
+      setCurrentView('profile');
+      navigateRouter('/profile');
+    }
+    else if (page === 'leaderboard') {
+      setCurrentView('leaderboard');
+      navigateRouter('/leaderboard');
+    }
+    else if (page === 'login') {
+      setCurrentView('login');
+      navigateRouter('/login');
+    }
+    else if (page === 'signup') {
+      setCurrentView('signup');
+      navigateRouter('/register');
+    }
+    else if (page === 'staff-requests') {
+      setCurrentView('staff-requests');
+      navigateRouter('/staff/requests');
+    }
+    else if (page.startsWith('admin-')) {
+      // Check admin access for admin routes
+      if (!isAdmin) {
+        alert('Admin access required!');
+        // Redirect to admin login page
+        navigateRouter('/admin/login');
+        return;
+      } else {
+        // Map page to correct URL
+        if (page === 'admin-dashboard') {
+          navigateRouter('/admin/dashboard');
+        } else if (page === 'admin-home') {
+          navigateRouter('/admin');
+        } else if (page === 'admin-users') {
+          navigateRouter('/admin/users');
+        } else if (page === 'admin-markets') {
+          navigateRouter('/admin/markets');
+        } else if (page === 'admin-market-create') {
+          navigateRouter('/admin/market/create');
+        } else if (page === 'admin-categories') {
+          navigateRouter('/admin/categories');
+        } else if (page === 'admin-deposits') {
+          navigateRouter('/admin/deposits');
+        } else if (page === 'admin-withdrawals') {
+          navigateRouter('/admin/withdrawals');
+        } else if (page === 'admin-settings') {
+          navigateRouter('/admin/settings');
+        } else if (page === 'admin-declared-markets') {
+          navigateRouter('/admin/declared-markets');
+        } else if (page === 'admin-resolve-market') {
+          navigateRouter('/admin/resolve-market');
+        } else if (page === 'admin-financials') {
+          navigateRouter('/admin/financials');
+        }
+      }
+    }
+  };
+
+  const openMarket = (id: string) => {
+    setSelectedMarketId(id);
+    setCurrentView('market-detail');
+    navigateRouter(`/market/${id}`);
+  };
+
+  const openAdminResolution = (id: string) => {
+    setAdminResolutionMarketId(id);
+    setCurrentView('admin-resolve-market');
+    navigateRouter('/admin/resolve-market');
+  };
+
+  const isAdminView = currentView.startsWith('admin-');
+
+  return (
+    <div className="min-h-screen bg-theme-bg-surface font-sans text-theme-text-primary transition-colors duration-500">
+      <LoadingScreen isLoading={isInitializing} />
+      {!['login', 'signup'].includes(currentView) && (
+        <Navbar onNavigate={navigate} activePage={currentView} />
+      )}
+
+      <main key={currentView} className={`animate-fade-in-up pb-20 md:pb-0 ${isAdminView || ['login', 'signup'].includes(currentView) ? '' : 'max-w-7xl mx-auto'}`}>
+        <React.Suspense fallback={
+          <div className="min-h-[60vh] flex flex-col items-center justify-center bg-transparent">
+            <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        }>
+          {currentView === 'home' && <MarketList onMarketClick={openMarket} />}
+          {currentView === 'market-detail' && selectedMarketId && <ProtectedRoute requiredRole="USER"><MarketDetail marketId={selectedMarketId} onBack={() => navigate('home')} onMarketClick={openMarket} /></ProtectedRoute>}
+          {currentView === 'portfolio' && <ProtectedRoute requiredRole="USER"><Portfolio /></ProtectedRoute>}
+          {currentView === 'profile' && <ProtectedRoute requiredRole="USER"><Profile /></ProtectedRoute>}
+          {currentView === 'login' && <Login />}
+          {currentView === 'signup' && <Signup />}
+          {currentView === 'leaderboard' && (
+            <div className="flex flex-col items-center justify-center pt-20 px-4 text-center">
+              <div className="bg-theme-bg-surface p-8 rounded-lg shadow-xl border border-theme-border max-w-md transition-all">
+                <h2 className="text-2xl font-bold mb-4">Coming Soon</h2>
+                <p className="text-theme-text-secondary mb-6">The Leaderboard feature is part of our upcoming roadmap.</p>
+                <button onClick={() => navigate('home')} className="text-theme-info hover:text-indigo-800 dark:hover:text-indigo-300 font-bold transition-all hover:translate-x-1">Return Home &rarr;</button>
+              </div>
+            </div>
+          )}
+
+          {currentView.startsWith('admin-') && (
+            <ProtectedRoute requiredRole="ADMIN">
+              <AdminLayout activeView={currentView} onNavigate={navigate}>
+                {currentView === 'admin-home' && <AdminHome onNavigate={navigate} />}
+                {currentView === 'admin-dashboard' && <AdminDashboard onNavigate={navigate} />}
+                {currentView === 'admin-users' && <AdminUsers />}
+                {currentView === 'admin-markets' && <AdminMarkets onNavigate={navigate} />}
+                {currentView === 'admin-market-create' && <AdminMarketCreate onBack={() => navigate('admin-markets')} />}
+                {currentView === 'admin-categories' && <AdminCategories />}
+                {currentView === 'admin-deposits' && (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-theme-text-primary uppercase tracking-tight">Deposit Requests</h1>
+                    <AdminDepositQueue />
+                  </div>
+                )}
+                {currentView === 'admin-withdrawals' && (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-theme-text-primary uppercase tracking-tight">Withdrawal Requests</h1>
+                    <AdminWithdrawalQueue />
+                  </div>
+                )}
+                {currentView === 'admin-settings' && <AdminSettings />}
+                {currentView === 'admin-declared-markets' && <AdminDeclaredMarkets onResolveClick={openAdminResolution} />}
+                {currentView === 'admin-resolve-market' && adminResolutionMarketId && (
+                  <AdminMarketResolution
+                    marketId={adminResolutionMarketId}
+                    onBack={() => navigate('admin-declared-markets')}
+                  />
+                )}
+                {currentView === 'admin-financials' && <AdminFinancialReports onNavigate={navigate} />}
+              </AdminLayout>
+            </ProtectedRoute>
+          )}
+
+          {currentView === 'staff-requests' && (
+            <ProtectedRoute requiredRole={['ADMIN', 'STAFF']}>
+              <StaffRequestsPage />
+            </ProtectedRoute>
+          )}
+        </React.Suspense>
+      </main>
+
+      {!isAdminView && currentView !== 'staff-requests' && !['login', 'signup'].includes(currentView) && <MobileBottomNav onNavigate={navigate} activePage={currentView} />}
+    </div>
+  );
+}
+
+export default App;
